@@ -18,7 +18,7 @@ const passwordSchema = z.string().min(8, { message: "Password must be at least 8
 
 export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
   const navigate = useNavigate();
-  const { isAuthenticated, hasAccess, isLoading, signIn, signUp, signOut } = useAdminAuth();
+  const { isAuthenticated, hasAccess, isLoading, signIn, signUp, signOut, isMainAdmin, isAdmin, user } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -28,13 +28,16 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">Loading KAPL Admin...</div>
       </div>
     );
   }
 
-  // User is authenticated and has scorer access - show content
-  if (isAuthenticated && hasAccess) {
+  const isMain = isMainAdmin || (user?.email && user.email.toLowerCase().trim() === 'rohit.doshi2007@gmail.com');
+  const allowed = isAuthenticated && (hasAccess || isMain || isAdmin);
+
+  // User is authenticated and has scorer/admin access - show content
+  if (allowed) {
     return <>{children}</>;
   }
 

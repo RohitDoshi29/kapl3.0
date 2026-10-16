@@ -19,14 +19,23 @@ export default function Auth() {
   const location = useLocation();
   const { signInWithPassword, signUp, signInWithGoogle, isAuthenticated } = useAuth();
 
+  const prefillEmail = (location.state as any)?.prefillEmail || '';
+  const initialMessage = (location.state as any)?.message;
+
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const from = (location.state as any)?.from?.pathname || '/';
+
+  useEffect(() => {
+    if (initialMessage) {
+      toast.info(initialMessage);
+    }
+  }, [initialMessage]);
 
   // If already authenticated, redirect safely via useEffect
   useEffect(() => {
@@ -182,18 +191,31 @@ export default function Auth() {
 
           <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'signin' | 'signup')} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="signin">Player Sign In</TabsTrigger>
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Register as Player</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="signin-email">Player Email Address</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="signin-email">Email Address</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('rohit.doshi2007@gmail.com');
+                        setErrors((prev) => ({ ...prev, email: undefined }));
+                      }}
+                      className="text-[11px] text-primary hover:underline font-medium inline-flex items-center gap-1"
+                    >
+                      <Shield className="w-3 h-3" />
+                      Main Admin (Rohit)
+                    </button>
+                  </div>
                   <Input
                     id="signin-email"
                     type="email"
-                    placeholder="player@example.com"
+                    placeholder="player@example.com or rohit.doshi2007@gmail.com"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -235,7 +257,11 @@ export default function Auth() {
 
                 <Button type="submit" className="w-full h-11 gap-2 font-semibold" disabled={isSubmitting}>
                   <LogIn className="w-4 h-4" />
-                  {isSubmitting ? 'Signing in...' : 'Sign In as Player'}
+                  {isSubmitting
+                    ? 'Signing in...'
+                    : email.toLowerCase().trim() === 'rohit.doshi2007@gmail.com'
+                    ? 'Sign In as Main Admin'
+                    : 'Sign In'}
                 </Button>
               </form>
             </TabsContent>

@@ -11,7 +11,7 @@ export function useAdminAuth() {
     isCoAdmin: auth.isCoAdmin,
     isSuperAdmin: auth.isSuperAdmin,
     isMainAdmin: auth.isMainAdmin,
-    hasAccess: auth.isScorer,
+    hasAccess: Boolean(auth.isAdmin || auth.isMainAdmin || auth.isSuperAdmin || auth.isScorer),
     isLoading: auth.isLoading,
     isAuthenticated: auth.isAuthenticated,
     signUp: auth.signUp,

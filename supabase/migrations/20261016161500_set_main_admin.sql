@@ -59,3 +59,4 @@ BEGIN
     ON CONFLICT (user_id, role) DO NOTHING;
   END IF;
 END $$;
+

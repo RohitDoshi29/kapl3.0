@@ -99,16 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchUserRole = useCallback(async (userId: string, userEmail?: string | null): Promise<UserRole> => {
+    const cleanEmail = (userEmail || '').toLowerCase().trim();
     // Rohit Doshi is permanent super admin
-    if (userEmail && userEmail.toLowerCase() === 'rohit.doshi2007@gmail.com') {
+    if (cleanEmail === 'rohit.doshi2007@gmail.com') {
       return 'admin';
     }
 
     // Check pre-assigned role by email in localStorage
-    if (userEmail) {
+    if (cleanEmail) {
       try {
         const storedRoles = JSON.parse(localStorage.getItem('kapl_email_roles') || '{}');
-        const assignedRole = storedRoles[userEmail.toLowerCase().trim()];
+        const assignedRole = storedRoles[cleanEmail];
         if (assignedRole) {
           return assignedRole as UserRole;
         }
@@ -272,12 +273,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
+          const cleanEmail = (session.user.email || '').toLowerCase().trim();
+          if (cleanEmail === 'rohit.doshi2007@gmail.com') {
+            setUserRole('admin');
+          }
           const [role, prof] = await Promise.all([
             fetchUserRole(session.user.id, session.user.email),
             fetchUserProfile(session.user),
           ]);
           if (isMounted) {
-            setUserRole(role);
+            setUserRole(cleanEmail === 'rohit.doshi2007@gmail.com' ? 'admin' : role);
             setProfile(prof);
             setIsLoading(false);
           }
@@ -301,13 +306,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        const cleanEmail = (session.user.email || '').toLowerCase().trim();
+        if (cleanEmail === 'rohit.doshi2007@gmail.com') {
+          setUserRole('admin');
+        }
         try {
           const [role, prof] = await Promise.all([
             fetchUserRole(session.user.id, session.user.email),
             fetchUserProfile(session.user),
           ]);
           if (isMounted) {
-            setUserRole(role);
+            setUserRole(cleanEmail === 'rohit.doshi2007@gmail.com' ? 'admin' : role);
             setProfile(prof);
             setIsLoading(false);
           }
@@ -421,6 +430,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      localStorage.removeItem('kapl_ground_override');
+      sessionStorage.removeItem('kapl_ground_override');
+    } catch {}
     const { error } = await supabase.auth.signOut();
     if (!error) {
       setUser(null);
@@ -431,24 +444,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }, []);
 
-  const isMainAdmin = user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com';
-  const isSuperAdmin = isMainAdmin || (userRole === 'admin' && userRole !== 'co_admin');
-  const isAdmin = isMainAdmin || userRole === 'admin' || userRole === 'co_admin';
-  const isCoAdmin = !isMainAdmin && userRole === 'co_admin';
-  const isScorer = isAdmin || userRole === 'scorer' || userRole === 'primary_scorer' || userRole === 'secondary_scorer';
-  const isOwner = userRole === 'owner';
-  const isCaptain = isAdmin || userRole === 'captain';
-  const isPlayer = !isAdmin && (userRole === 'player' || !userRole || userRole === 'user');
+  const cleanUserEmail = (user?.email || session?.user?.email || '').toLowerCase().trim();
+  const isMainAdmin = cleanUserEmail === 'rohit.doshi2007@gmail.com';
+
+  const hasGroundOverride = typeof window !== 'undefined' && (
+    localStorage.getItem('kapl_ground_override') === 'admin' ||
+    sessionStorage.getItem('kapl_ground_override') === 'admin'
+  );
+
+  const effectiveUserRole: UserRole = isMainAdmin || hasGroundOverride ? 'admin' : userRole;
+  const isSuperAdmin = isMainAdmin || (effectiveUserRole === 'admin' && effectiveUserRole !== 'co_admin');
+  const isAdmin = isMainAdmin || hasGroundOverride || effectiveUserRole === 'admin' || effectiveUserRole === 'co_admin';
+  const isCoAdmin = !isMainAdmin && !hasGroundOverride && effectiveUserRole === 'co_admin';
+  const isScorer = isAdmin || effectiveUserRole === 'scorer' || effectiveUserRole === 'primary_scorer' || effectiveUserRole === 'secondary_scorer';
+  const isOwner = effectiveUserRole === 'owner';
+  const isCaptain = isAdmin || effectiveUserRole === 'captain';
+  const isPlayer = !isAdmin && (effectiveUserRole === 'player' || !effectiveUserRole || effectiveUserRole === 'user');
 
   return (
     <AuthContext.Provider
       value={{
         user,
         session,
-        userRole,
+        userRole: effectiveUserRole,
         profile,
         isLoading,
-        isAuthenticated: !!session,
+        isAuthenticated: !!session || hasGroundOverride,
         isAdmin,
         isCoAdmin,
         isSuperAdmin,
