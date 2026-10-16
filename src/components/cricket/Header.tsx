@@ -6,14 +6,14 @@ import { useSunlightMode } from '@/hooks/useSunlightMode';
 import { isSoundEnabled, setSoundEnabled, playBoundaryFour } from '@/lib/soundEffects';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, User, Sparkles, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { TournamentSwitcher } from './TournamentSwitcher';
 
 export function Header({ className }: { className?: string }) {
-  const { user, userRole, signOut, isAuthenticated } = useAuth();
+  const { user, userRole, signOut, isAuthenticated, profile } = useAuth();
   const { isSunlightMode, toggleSunlightMode } = useSunlightMode();
   const [soundOn, setSoundOn] = useState<boolean>(true);
 
@@ -147,26 +147,41 @@ export function Header({ className }: { className?: string }) {
 
           {/* User Account / Auth */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 bg-muted/60 backdrop-blur-sm border rounded-full px-2.5 py-1 shadow-sm">
-              <Avatar className="w-6 h-6 border border-primary/30">
-                <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
-                  {user.email ? user.email.slice(0, 2).toUpperCase() : <User className="w-3 h-3" />}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex items-center gap-1.5 bg-muted/60 backdrop-blur-sm border rounded-full pl-1.5 pr-2 py-1 shadow-sm">
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity group"
+                title="View & Edit My Profile"
+              >
+                <Avatar className="w-6 h-6 border border-primary/30 group-hover:border-primary transition-colors">
+                  {profile?.photoUrl && (
+                    <AvatarImage src={profile.photoUrl} alt={profile.name || 'User avatar'} className="object-cover" />
+                  )}
+                  <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                    {profile?.name
+                      ? profile.name.slice(0, 2).toUpperCase()
+                      : user.email
+                      ? user.email.slice(0, 2).toUpperCase()
+                      : <User className="w-3 h-3" />}
+                  </AvatarFallback>
+                </Avatar>
 
-              <div className="flex flex-col text-left">
-                <span className="text-[11px] font-semibold text-foreground max-w-[110px] md:max-w-[160px] truncate leading-tight">
-                  {user.email}
-                </span>
-                <div className="flex items-center gap-1 mt-0.5">
-                  {getRoleBadge(userRole)}
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] font-semibold text-foreground max-w-[100px] md:max-w-[140px] truncate leading-tight group-hover:text-primary transition-colors">
+                    {profile?.name || user.email}
+                  </span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {getRoleBadge(userRole)}
+                  </div>
                 </div>
-              </div>
+              </Link>
+
+              <div className="h-4 w-px bg-border/60 mx-1" />
 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-0.5"
+                className="h-6 w-6 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 onClick={handleSignOut}
                 title="Sign Out"
               >

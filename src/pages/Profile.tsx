@@ -1,0 +1,906 @@
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCricketStore } from '@/hooks/useCricketStore';
+import { useTournament } from '@/contexts/TournamentContext';
+import { useSunlightMode } from '@/hooks/useSunlightMode';
+import { isSoundEnabled, setSoundEnabled, playBoundaryFour } from '@/lib/soundEffects';
+import { Navigation } from '@/components/cricket/Navigation';
+import { Header } from '@/components/cricket/Header';
+import { MultiMatchLiveBar } from '@/components/cricket/MultiMatchLiveBar';
+import { TeamBadge } from '@/components/cricket/TeamBadge';
+import { PlayerRole } from '@/lib/cricketTypes';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  User,
+  Camera,
+  Shield,
+  Trophy,
+  CheckCircle2,
+  ArrowLeft,
+  LogOut,
+  Sun,
+  Moon,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  Phone,
+  Award,
+  Flame,
+  Zap,
+  Save,
+  RotateCcw,
+  Upload,
+  ExternalLink,
+  Users,
+  Crown,
+  Star,
+  Check,
+  Gavel,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+// Preset avatar options for quick cricket personalization
+const PRESET_AVATARS = [
+  { id: 'batter', label: 'Power Batter', emoji: '🏏', bg: 'bg-blue-500/20 text-blue-500 border-blue-500/40' },
+  { id: 'bowler', label: 'Express Pacer', emoji: '⚡', bg: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/40' },
+  { id: 'allrounder', label: 'All-Rounder', emoji: '👑', bg: 'bg-amber-500/20 text-amber-500 border-amber-500/40' },
+  { id: 'keeper', label: 'Wicket-Keeper', emoji: '🧤', bg: 'bg-purple-500/20 text-purple-500 border-purple-500/40' },
+  { id: 'spinner', label: 'Spin Maestro', emoji: '🎯', bg: 'bg-indigo-500/20 text-indigo-500 border-indigo-500/40' },
+  { id: 'captain', label: 'Franchise Leader', emoji: '🦁', bg: 'bg-red-500/20 text-red-500 border-red-500/40' },
+  { id: 'trophy', label: 'Gold Champion', emoji: '🏆', bg: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/40' },
+  { id: 'fire', label: 'Match Finisher', emoji: '🔥', bg: 'bg-orange-500/20 text-orange-500 border-orange-500/40' },
+];
+
+export default function Profile() {
+  const navigate = useNavigate();
+  const { user, userRole, isAuthenticated, isLoading: authLoading, profile, updateProfile, signOut } = useAuth();
+  const { teams } = useCricketStore();
+  const { currentTournament } = useTournament();
+  const { isSunlightMode, toggleSunlightMode } = useSunlightMode();
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Profile Form States
+  const [name, setName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [role, setRole] = useState<PlayerRole>('all_rounder');
+  const [battingStyle, setBattingStyle] = useState('Right-hand bat');
+  const [bowlingStyle, setBowlingStyle] = useState('Right-arm medium');
+  const [jerseyNumber, setJerseyNumber] = useState<string>('');
+  const [tournamentId, setTournamentId] = useState('kapl-3-mens');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [bio, setBio] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [soundOn, setSoundOn] = useState<boolean>(true);
+
+  // Sync state when profile is loaded
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name || user?.email?.split('@')[0] || '');
+      setMobileNumber(profile.mobileNumber || '');
+      setRole((profile.role as PlayerRole) || 'all_rounder');
+      setBattingStyle(profile.battingStyle || 'Right-hand bat');
+      setBowlingStyle(profile.bowlingStyle || 'Right-arm medium');
+      setJerseyNumber(profile.jerseyNumber !== null && profile.jerseyNumber !== undefined ? String(profile.jerseyNumber) : '');
+      setTournamentId(profile.tournamentId || 'kapl-3-mens');
+      setPhotoUrl(profile.photoUrl || '');
+      setBio(profile.bio || '');
+    } else if (user) {
+      setName(user.user_metadata?.name || user.email?.split('@')[0] || '');
+    }
+  }, [profile, user]);
+
+  useEffect(() => {
+    setSoundOn(isSoundEnabled());
+  }, []);
+
+  // Find if user is drafted in any team
+  const userTeam = useMemo(() => {
+    if (!user) return null;
+    const cleanEmail = user.email?.toLowerCase();
+    const cleanName = (profile?.name || name || '').trim().toLowerCase();
+
+    // Check by captain / owner or in players list
+    for (const team of teams) {
+      if (team.ownerEmail && cleanEmail && team.ownerEmail.toLowerCase() === cleanEmail) {
+        return { team, relationship: 'Owner' };
+      }
+      if (team.captainUserId && team.captainUserId === user.id) {
+        return { team, relationship: 'Captain' };
+      }
+      const playerInTeam = team.players?.find(
+        (p) =>
+          (cleanName && p.name.toLowerCase() === cleanName) ||
+          (profile?.playerId && p.id === profile.playerId)
+      );
+      if (playerInTeam) {
+        return { team, relationship: 'Squad Member', player: playerInTeam };
+      }
+    }
+    return null;
+  }, [teams, user, profile, name]);
+
+  // Handle local image file upload and convert to base64 data URL
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('Image is too large. Please select an image under 3MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setPhotoUrl(result);
+        setSelectedPreset(null);
+        toast.success('Profile photo ready! Remember to save changes.');
+      }
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectPreset = (preset: typeof PRESET_AVATARS[0]) => {
+    setSelectedPreset(preset.id);
+    // Create an inline SVG-backed avatar URL or marker
+    setPhotoUrl('');
+    toast.info(`Selected ${preset.label} badge! Remember to save changes.`);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const jerseyNum = jerseyNumber.trim() ? parseInt(jerseyNumber.trim(), 10) : null;
+      if (jerseyNum !== null && (isNaN(jerseyNum) || jerseyNum < 0 || jerseyNum > 99)) {
+        toast.error('Jersey number must be between 0 and 99');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { error } = await updateProfile({
+        name: name.trim(),
+        mobileNumber: mobileNumber.trim() || null,
+        role,
+        battingStyle,
+        bowlingStyle,
+        jerseyNumber: jerseyNum,
+        tournamentId,
+        photoUrl: photoUrl.trim() || undefined,
+        bio: bio.trim(),
+      });
+
+      if (error) {
+        toast.error(`Failed to update profile: ${error.message}`);
+      } else {
+        toast.success('Your profile has been updated successfully!');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An unexpected error occurred while saving.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (profile) {
+      setName(profile.name || user?.email?.split('@')[0] || '');
+      setMobileNumber(profile.mobileNumber || '');
+      setRole((profile.role as PlayerRole) || 'all_rounder');
+      setBattingStyle(profile.battingStyle || 'Right-hand bat');
+      setBowlingStyle(profile.bowlingStyle || 'Right-arm medium');
+      setJerseyNumber(profile.jerseyNumber !== null && profile.jerseyNumber !== undefined ? String(profile.jerseyNumber) : '');
+      setTournamentId(profile.tournamentId || 'kapl-3-mens');
+      setPhotoUrl(profile.photoUrl || '');
+      setBio(profile.bio || '');
+    }
+    toast.info('Form reset to last saved state');
+  };
+
+  const handleSoundToggle = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+    if (next) playBoundaryFour();
+    toast.success(next ? 'Sound effects turned ON 🔊' : 'Sound effects muted 🔇');
+  };
+
+  const getRoleBadge = (r: string | null) => {
+    switch (r) {
+      case 'admin':
+        return (
+          <Badge className="bg-destructive text-destructive-foreground font-bold text-xs gap-1 py-0.5 px-2.5">
+            <Shield className="w-3 h-3" /> Admin
+          </Badge>
+        );
+      case 'co_admin':
+        return (
+          <Badge className="bg-purple-600 text-white font-bold text-xs gap-1 py-0.5 px-2.5">
+            <Shield className="w-3 h-3" /> Co-Admin
+          </Badge>
+        );
+      case 'scorer':
+      case 'primary_scorer':
+      case 'secondary_scorer':
+        return (
+          <Badge className="bg-primary text-primary-foreground font-bold text-xs gap-1 py-0.5 px-2.5">
+            <Award className="w-3 h-3" /> Official Scorer
+          </Badge>
+        );
+      case 'owner':
+        return (
+          <Badge className="bg-amber-500 text-black font-bold text-xs gap-1 py-0.5 px-2.5">
+            <Crown className="w-3 h-3" /> Team Owner
+          </Badge>
+        );
+      case 'captain':
+        return (
+          <Badge className="bg-blue-600 text-white font-bold text-xs gap-1 py-0.5 px-2.5">
+            <Star className="w-3 h-3" /> Team Captain
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="font-semibold text-xs gap-1 py-0.5 px-2.5">
+            🏏 Official Player
+          </Badge>
+        );
+    }
+  };
+
+  // If user is not authenticated
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background pb-20 md:pb-10">
+        <Navigation />
+        <Header />
+        <MultiMatchLiveBar />
+
+        <main className="container mx-auto px-4 py-12 max-w-lg">
+          <Card className="text-center shadow-xl border-primary/20 backdrop-blur-sm">
+            <CardHeader className="space-y-3">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+                <User className="w-8 h-8" />
+              </div>
+              <CardTitle className="text-2xl font-black">Player Profile</CardTitle>
+              <CardDescription>
+                Sign in to view, customize, and manage your player profile, preferred playing styles, and tournament team status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button asChild className="w-full h-11 text-sm font-bold gap-2">
+                <Link to="/auth">
+                  <User className="w-4 h-4" />
+                  Sign In or Register as Player
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full h-11 text-sm font-semibold">
+                <Link to="/">Return to Live Scoreboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  const activePresetItem = PRESET_AVATARS.find((p) => p.id === selectedPreset);
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-12">
+      <Navigation />
+      <Header />
+      <MultiMatchLiveBar />
+
+      <main className="container mx-auto px-4 py-4 md:py-6 max-w-4xl space-y-6">
+        {/* Top Breadcrumb Navigation */}
+        <div className="flex items-center justify-between">
+          <Link
+            to="/players"
+            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span>Back to Players Directory</span>
+          </Link>
+
+          {profile?.playerId && (
+            <Link
+              to={`/players/${profile.playerId}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+            >
+              <span>View My Public Stats Card</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          )}
+        </div>
+
+        {/* Hero Profile Overview Card */}
+        <Card className="relative overflow-hidden border border-border/80 shadow-md bg-gradient-to-br from-card via-card/95 to-card">
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary opacity-80" />
+          <CardContent className="p-5 md:p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+              {/* Avatar with Upload trigger */}
+              <div className="relative group shrink-0">
+                <Avatar className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-background shadow-lg">
+                  {photoUrl ? (
+                    <AvatarImage src={photoUrl} alt={name || 'Player'} className="object-cover" />
+                  ) : activePresetItem ? (
+                    <div className={`w-full h-full flex items-center justify-center text-4xl ${activePresetItem.bg}`}>
+                      <span>{activePresetItem.emoji}</span>
+                    </div>
+                  ) : null}
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 via-accent/20 to-primary/10 text-primary font-black text-3xl">
+                    {name
+                      ? name.slice(0, 2).toUpperCase()
+                      : user?.email
+                      ? user.email.slice(0, 2).toUpperCase()
+                      : <User className="w-10 h-10" />}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Camera upload overlay badge */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 p-2 rounded-xl bg-primary text-primary-foreground shadow-md hover:scale-105 transition-all"
+                  title="Change photo"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Identity details */}
+              <div className="text-center sm:text-left flex-1 min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  {getRoleBadge(userRole)}
+                  {jerseyNumber && (
+                    <span className="text-xs font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                      #{jerseyNumber}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted-foreground font-medium bg-muted/60 px-2 py-0.5 rounded-md">
+                    {tournamentId === 'kapl-3-womens' ? "👑 Women's KAPL" : "🏏 Men's KAPL"}
+                  </span>
+                </div>
+
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground truncate">
+                    {name || 'My Player Profile'}
+                  </h1>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {user?.email}
+                  </p>
+                </div>
+
+                {/* Team & Franchise Tag */}
+                {userTeam ? (
+                  <div className="inline-flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-primary/10 border border-primary/20 text-xs font-medium">
+                    <TeamBadge team={userTeam.team} size="sm" showName={false} />
+                    <span className="font-bold text-foreground">{userTeam.team.name}</span>
+                    <Badge variant="outline" className="text-[10px] py-0 px-1 border-primary/40 text-primary">
+                      {userTeam.relationship}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Free Agent — Available for KAPL 3.0 draft & tournament play
+                  </p>
+                )}
+
+                {bio && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 max-w-xl italic pt-1">
+                    "{bio}"
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabbed Profile Management */}
+        <Tabs defaultValue="edit" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+            <TabsTrigger value="edit" className="text-xs font-semibold gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              <span>Edit Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="text-xs font-semibold gap-1.5">
+              <Trophy className="w-3.5 h-3.5" />
+              <span>My Team</span>
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="text-xs font-semibold gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Preferences</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1: EDIT PROFILE */}
+          <TabsContent value="edit">
+            <form onSubmit={handleSaveProfile} className="space-y-6">
+              {/* Avatar Selection Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-primary" />
+                    Profile Photo & Avatar
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Upload your match photo or select an official cricket avatar badge.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Photo Actions */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="gap-2 h-9 text-xs font-semibold"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Photo from Device
+                    </Button>
+                    {photoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPhotoUrl('');
+                          setSelectedPreset(null);
+                        }}
+                        className="text-xs text-destructive hover:bg-destructive/10 h-9"
+                      >
+                        Remove Photo
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Or Direct Image URL */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="photo-url" className="text-xs font-medium">
+                      Or Paste Image URL
+                    </Label>
+                    <Input
+                      id="photo-url"
+                      type="url"
+                      placeholder="https://example.com/my-photo.jpg"
+                      value={photoUrl}
+                      onChange={(e) => {
+                        setPhotoUrl(e.target.value);
+                        setSelectedPreset(null);
+                      }}
+                      className="text-xs h-9"
+                    />
+                  </div>
+
+                  {/* Preset Cricket Badges */}
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground block mb-2">
+                      Quick Cricket Avatar Badges
+                    </Label>
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                      {PRESET_AVATARS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPreset(preset)}
+                          className={`relative p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 ${
+                            selectedPreset === preset.id
+                              ? 'border-primary ring-2 ring-primary/20 bg-primary/10'
+                              : 'border-border/80 hover:bg-muted/60'
+                          }`}
+                        >
+                          <span className="text-2xl">{preset.emoji}</span>
+                          <span className="text-[10px] font-semibold text-center truncate max-w-full">
+                            {preset.label}
+                          </span>
+                          {selectedPreset === preset.id && (
+                            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Personal & Cricket Attributes Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Award className="w-4 h-4 text-primary" />
+                    Player Attributes & Information
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    These details will be displayed across tournament rosters, leaderboards, and scoring audits.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Full Name */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="player-name" className="text-xs font-bold">
+                        Full Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="player-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Rohit Doshi"
+                        required
+                        className="h-10 text-sm font-medium"
+                      />
+                    </div>
+
+                    {/* Mobile / Phone Number */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="player-mobile" className="text-xs font-bold flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-muted-foreground" />
+                        Mobile / WhatsApp Number
+                      </Label>
+                      <Input
+                        id="player-mobile"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        placeholder="e.g. +91 98765 43210"
+                        className="h-10 text-sm font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Primary Role */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Primary Playing Role</Label>
+                      <Select value={role} onValueChange={(val) => setRole(val as PlayerRole)}>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all_rounder">👑 All-Rounder</SelectItem>
+                          <SelectItem value="batter">🏏 Pure Batter</SelectItem>
+                          <SelectItem value="bowler">⚡ Strike Bowler</SelectItem>
+                          <SelectItem value="wicket_keeper">🧤 Wicket-Keeper</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Batting Style */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Batting Style</Label>
+                      <Select value={battingStyle} onValueChange={setBattingStyle}>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Right-hand bat">Right-hand bat</SelectItem>
+                          <SelectItem value="Left-hand bat">Left-hand bat</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Bowling Style */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Bowling Style</Label>
+                      <Select value={bowlingStyle} onValueChange={setBowlingStyle}>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select bowling" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Right-arm medium">Right-arm medium</SelectItem>
+                          <SelectItem value="Right-arm fast">Right-arm fast</SelectItem>
+                          <SelectItem value="Left-arm fast">Left-arm fast</SelectItem>
+                          <SelectItem value="Right-arm off break">Right-arm off break</SelectItem>
+                          <SelectItem value="Right-arm leg break">Right-arm leg break</SelectItem>
+                          <SelectItem value="Left-arm orthodox">Left-arm orthodox</SelectItem>
+                          <SelectItem value="Left-arm chinaman">Left-arm chinaman</SelectItem>
+                          <SelectItem value="Non-bowler">None / Non-bowler</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Preferred Jersey Number */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="jersey-num" className="text-xs font-bold">
+                        Preferred Jersey Number
+                      </Label>
+                      <Input
+                        id="jersey-num"
+                        type="number"
+                        min="0"
+                        max="99"
+                        placeholder="e.g. 7, 18, 45, 99"
+                        value={jerseyNumber}
+                        onChange={(e) => setJerseyNumber(e.target.value)}
+                        className="h-10 text-sm font-medium"
+                      />
+                    </div>
+
+                    {/* Tournament Division */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Tournament Division</Label>
+                      <Select value={tournamentId} onValueChange={setTournamentId}>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Select tournament" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="kapl-3-mens">🏏 KAPL 3.0 Men's Tournament</SelectItem>
+                          <SelectItem value="kapl-3-womens">👑 KAPL 3.0 Women's Tournament</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Player Bio */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="player-bio" className="text-xs font-bold">
+                      Bio / Playing Motto
+                    </Label>
+                    <Textarea
+                      id="player-bio"
+                      rows={3}
+                      placeholder="Share a short summary about your cricket journey, strengths, favorite shots, or team motto..."
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      className="text-xs resize-none"
+                    />
+                  </div>
+                </CardContent>
+
+                <CardFooter className="flex items-center justify-between gap-3 pt-2 pb-5 border-t border-border/60">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReset}
+                    className="text-xs gap-1.5"
+                    disabled={isSubmitting}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    size="default"
+                    className="gap-2 font-bold px-6"
+                    disabled={isSubmitting}
+                  >
+                    <Save className="w-4 h-4" />
+                    {isSubmitting ? 'Saving Changes...' : 'Save Profile Changes'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </form>
+          </TabsContent>
+
+          {/* TAB 2: MY TEAM & TOURNAMENT STATUS */}
+          <TabsContent value="team" className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-primary" />
+                  Franchise & Squad Membership
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Details of the franchise you represent in KAPL Season 3.0.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {userTeam ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl bg-muted/60 border border-border/80 gap-4">
+                      <div className="flex items-center gap-3">
+                        <TeamBadge team={userTeam.team} size="lg" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-black text-foreground">
+                              {userTeam.team.name}
+                            </h3>
+                            <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">
+                              Group {userTeam.team.group}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Status: <span className="font-semibold text-foreground">{userTeam.relationship}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline" className="text-xs font-bold gap-1.5">
+                          <Link to="/points">
+                            <Trophy className="w-3.5 h-3.5" />
+                            View Group Standings
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Squad Members */}
+                    <div>
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Team Squad Roster ({userTeam.team.players?.length || 0} Players)
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {userTeam.team.players?.map((squadPlayer, idx) => (
+                          <div
+                            key={squadPlayer.id || idx}
+                            className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
+                              squadPlayer.name.toLowerCase() === (name || '').toLowerCase()
+                                ? 'bg-primary/15 border-primary/40 font-bold'
+                                : 'bg-card border-border/60'
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                              {idx + 1}
+                            </span>
+                            <span className="truncate flex-1">{squadPlayer.name}</span>
+                            {squadPlayer.name.toLowerCase() === (name || '').toLowerCase() && (
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary text-primary">
+                                You
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div className="max-w-md mx-auto">
+                      <h3 className="text-base font-bold text-foreground">Free Agent / Not Yet Drafted</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You are currently in the open player pool for {currentTournament?.name || "KAPL 3.0"}. During the live auction, team owners will place bids to draft you into their franchises!
+                      </p>
+                    </div>
+                    <Button asChild size="sm" className="gap-2 font-bold text-xs">
+                      <Link to="/auction">
+                        <Gavel className="w-3.5 h-3.5" />
+                        Visit Live Auction Stage
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 3: SETTINGS & PREFERENCES */}
+          <TabsContent value="preferences" className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Stadium Audio & Outdoor Sunlight Mode
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Tailor your match viewing and ground scoring experience.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Sunlight Mode Setting */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-muted/40">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      {isSunlightMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
+                      <span className="text-xs font-bold text-foreground">High-Contrast Outdoor Sunlight Mode</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Optimizes scoreboard contrast for bright direct sunlight on the cricket ground.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={isSunlightMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={toggleSunlightMode}
+                    className="h-8 text-xs font-bold"
+                  >
+                    {isSunlightMode ? 'Active (Sunlight)' : 'Standard (Night)'}
+                  </Button>
+                </div>
+
+                {/* Stadium Audio Setting */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-muted/40">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      {soundOn ? <Volume2 className="w-4 h-4 text-primary" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+                      <span className="text-xs font-bold text-foreground">Crowd Cheers & Boundary Sound Effects</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Plays audio celebrations on boundaries, wickets, and match outcomes.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={soundOn ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={handleSoundToggle}
+                    className="h-8 text-xs font-bold"
+                  >
+                    {soundOn ? 'Enabled 🔊' : 'Muted 🔇'}
+                  </Button>
+                </div>
+
+                {/* Account Security Information */}
+                <div className="pt-2 border-t border-border/60">
+                  <h4 className="text-xs font-bold text-foreground mb-1">Account Credentials</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Signed in as: <code className="bg-muted px-1.5 py-0.5 rounded text-[11px] text-foreground font-mono">{user?.email}</code>
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-2 pb-5 border-t border-border/60 flex items-center justify-between">
+                <p className="text-[11px] text-muted-foreground">
+                  Secured by Supabase Authentication
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async () => {
+                    await signOut();
+                    navigate('/');
+                    toast.success('Signed out successfully');
+                  }}
+                  className="gap-1.5 text-xs font-bold h-9"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign Out
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}

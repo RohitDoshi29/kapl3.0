@@ -1,33 +1,43 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Shield, Trophy, GitBranch, Users, Gavel, BarChart3 } from 'lucide-react';
+import { Home, Shield, Trophy, GitBranch, Users, Gavel, BarChart3, User } from 'lucide-react';
 
-const desktopNavItems = [
+const desktopNavItems: { path: string; label: string; icon: any; requiresAuth?: boolean }[] = [
   { path: '/', label: 'Live', icon: Home },
   { path: '/auction', label: 'Auction', icon: Gavel },
   { path: '/players', label: 'Players', icon: Users },
   { path: '/points', label: 'Points', icon: Trophy },
   { path: '/stats', label: 'Stats', icon: BarChart3 },
   { path: '/bracket', label: 'Bracket', icon: GitBranch },
+  { path: '/profile', label: 'Profile', icon: User, requiresAuth: true },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];
 
-const mobileNavItems = [
+const mobileNavItems: { path: string; label: string; icon: any; alternatePaths?: string[]; requiresAuth?: boolean }[] = [
   { path: '/', label: 'Live', icon: Home },
   { path: '/auction', label: 'Auction', icon: Gavel },
   { path: '/players', label: 'Players', icon: Users },
   { path: '/points', label: 'Standings', icon: Trophy, alternatePaths: ['/points', '/bracket', '/stats'] },
+  { path: '/profile', label: 'Profile', icon: User, requiresAuth: true },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];
 
 export function Navigation() {
   const location = useLocation();
-  const { isAdmin, isScorer } = useAuth();
+  const { isAdmin, isScorer, isAuthenticated } = useAuth();
   const canAccessAdmin = isAdmin || isScorer;
 
-  const currentDesktopItems = desktopNavItems.filter(item => item.path !== '/admin' || canAccessAdmin);
-  const currentMobileItems = mobileNavItems.filter(item => item.path !== '/admin' || canAccessAdmin);
+  const currentDesktopItems = desktopNavItems.filter(item => {
+    if (item.path === '/admin') return canAccessAdmin;
+    if (item.requiresAuth) return isAuthenticated;
+    return true;
+  });
+  const currentMobileItems = mobileNavItems.filter(item => {
+    if (item.path === '/admin') return canAccessAdmin;
+    if (item.requiresAuth) return isAuthenticated;
+    return true;
+  });
 
   return (
     <>

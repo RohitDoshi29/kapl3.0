@@ -20,6 +20,7 @@ const PlayersDirectory = lazy(() => import("./pages/PlayersDirectory"));
 const PlayerProfile = lazy(() => import("./pages/PlayerProfile"));
 const Auction = lazy(() => import("./pages/Auction"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized Query Client with aggressive edge caching for high concurrency
@@ -68,6 +69,7 @@ const App = () => (
                 <Route path="/points" element={<PointsTable />} />
                 <Route path="/bracket" element={<TournamentStructure />} />
                 <Route path="/stats" element={<TeamStats />} />
+                <Route path="/profile" element={<Profile />} />
 
                 {/* Protected Admin & Scoring Route */}
                 <Route
