@@ -284,7 +284,7 @@ export function AdminRolesGovernanceTab() {
         <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border border-border/80 px-3.5 py-1.5 rounded-full text-xs shadow-xs">
           <Crown className="w-4 h-4 text-amber-500 animate-pulse" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Super Admin</span>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Main Admin</span>
             <span className="font-semibold text-foreground truncate max-w-[170px]">
               rohit.doshi2007@gmail.com
             </span>
@@ -434,7 +434,7 @@ export function AdminRolesGovernanceTab() {
                             <div>
                               <p className="font-bold text-xs text-foreground flex items-center gap-1">
                                 Rohit Doshi
-                                <Badge className="bg-amber-500 text-black text-[9px] px-1 py-0 h-4">SUPER ADMIN</Badge>
+                                <Badge className="bg-amber-500 text-black text-[9px] px-1 py-0 h-4 font-black">MAIN ADMIN</Badge>
                               </p>
                               <p className="text-[10px] text-muted-foreground">Tournament Owner & Creator</p>
                             </div>

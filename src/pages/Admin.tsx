@@ -98,8 +98,14 @@ export default function Admin() {
                 )}
               </TabsList>
               {scorerRole && (
-                <Badge variant="outline" className="ml-2 hidden md:flex font-semibold">
-                  {isCoAdmin ? 'Co-Admin' : scorerRole === 'admin' ? 'Super Admin' : 'Scorer'}
+                <Badge variant="outline" className="ml-2 hidden md:flex font-semibold border-amber-500/40 text-foreground">
+                  {user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com'
+                    ? '👑 Main Admin'
+                    : isCoAdmin
+                    ? 'Co-Admin'
+                    : scorerRole === 'admin'
+                    ? 'Super Admin'
+                    : 'Scorer'}
                 </Badge>
               )}
             </div>

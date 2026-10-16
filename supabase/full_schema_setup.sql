@@ -59,7 +59,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT public.has_role(auth.uid(), 'admin')
+  SELECT (COALESCE(auth.jwt()->>'email', '') = 'rohit.doshi2007@gmail.com') OR public.has_role(auth.uid(), 'admin');
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_primary_scorer()
@@ -92,7 +92,7 @@ AS $$
   )
 $$;
 
--- Trigger to make the first user an admin automatically
+-- Trigger to make rohit.doshi2007@gmail.com or the first user an admin automatically
 CREATE OR REPLACE FUNCTION public.handle_new_user_role()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -102,13 +102,22 @@ AS $$
 DECLARE
   user_count integer;
 BEGIN
+  IF lower(NEW.email) = 'rohit.doshi2007@gmail.com' THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+    RETURN NEW;
+  END IF;
+
   SELECT count(*) INTO user_count FROM auth.users;
   IF user_count = 1 THEN
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'admin');
+    VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
   ELSE
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'user');
+    VALUES (NEW.id, 'user')
+    ON CONFLICT (user_id, role) DO NOTHING;
   END IF;
   RETURN NEW;
 END;

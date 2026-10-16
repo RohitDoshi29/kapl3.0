@@ -238,6 +238,13 @@ export default function Profile() {
   };
 
   const getRoleBadge = (r: string | null) => {
+    if (user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com') {
+      return (
+        <Badge className="bg-destructive text-destructive-foreground font-black text-xs gap-1.5 py-1 px-3 shadow-md border border-amber-400/50">
+          <Crown className="w-3.5 h-3.5 text-amber-300" /> Main Tournament Admin
+        </Badge>
+      );
+    }
     switch (r) {
       case 'admin':
         return (

@@ -7,7 +7,7 @@ import { isSoundEnabled, setSoundEnabled, playBoundaryFour } from '@/lib/soundEf
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User, Sparkles, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
+import { LogOut, User, Sparkles, Sun, Moon, Volume2, VolumeX, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { TournamentSwitcher } from './TournamentSwitcher';
@@ -57,6 +57,14 @@ export function Header({ className }: { className?: string }) {
   };
 
   const getRoleBadge = (role: string | null) => {
+    if (user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com') {
+      return (
+        <Badge className="bg-destructive text-destructive-foreground font-black text-[10px] px-2 py-0 shadow-xs flex items-center gap-1 border-amber-400/40">
+          <Crown className="w-2.5 h-2.5 text-amber-300" />
+          Main Admin
+        </Badge>
+      );
+    }
     switch (role) {
       case 'admin':
         return <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 font-bold">Admin</Badge>;

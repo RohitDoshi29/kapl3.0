@@ -28,6 +28,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isCoAdmin: boolean;
   isSuperAdmin: boolean;
+  isMainAdmin: boolean;
   isScorer: boolean;
   isOwner: boolean;
   isCaptain: boolean;
@@ -430,13 +431,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }, []);
 
-  const isAdmin = userRole === 'admin' || userRole === 'co_admin';
-  const isCoAdmin = userRole === 'co_admin';
-  const isSuperAdmin = user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com' || (userRole === 'admin' && userRole !== 'co_admin');
-  const isScorer = userRole === 'admin' || userRole === 'co_admin' || userRole === 'scorer' || userRole === 'primary_scorer' || userRole === 'secondary_scorer';
+  const isMainAdmin = user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com';
+  const isSuperAdmin = isMainAdmin || (userRole === 'admin' && userRole !== 'co_admin');
+  const isAdmin = isMainAdmin || userRole === 'admin' || userRole === 'co_admin';
+  const isCoAdmin = !isMainAdmin && userRole === 'co_admin';
+  const isScorer = isAdmin || userRole === 'scorer' || userRole === 'primary_scorer' || userRole === 'secondary_scorer';
   const isOwner = userRole === 'owner';
-  const isCaptain = userRole === 'admin' || userRole === 'co_admin' || userRole === 'captain';
-  const isPlayer = userRole === 'player' || !userRole || userRole === 'user';
+  const isCaptain = isAdmin || userRole === 'captain';
+  const isPlayer = !isAdmin && (userRole === 'player' || !userRole || userRole === 'user');
 
   return (
     <AuthContext.Provider
@@ -450,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         isCoAdmin,
         isSuperAdmin,
+        isMainAdmin,
         isScorer,
         isOwner,
         isCaptain,
