@@ -11,8 +11,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'user', 'primary_scorer', 'secondary_scorer', 'captain');
+    CREATE TYPE public.app_role AS ENUM ('admin', 'co_admin', 'owner', 'user', 'primary_scorer', 'secondary_scorer', 'captain');
   ELSE
+    ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'co_admin';
+    ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'owner';
     ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'primary_scorer';
     ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'secondary_scorer';
     ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'captain';
@@ -109,6 +111,13 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  IF lower(NEW.email) = 'rohitdoshicolg@gmail.com' THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'owner')
+    ON CONFLICT (user_id, role) DO NOTHING;
+    RETURN NEW;
+  END IF;
+
   SELECT count(*) INTO user_count FROM auth.users;
   IF user_count = 1 THEN
     INSERT INTO public.user_roles (user_id, role)
@@ -160,13 +169,16 @@ CREATE TABLE IF NOT EXISTS public.teams (
   remaining_purse NUMERIC NOT NULL DEFAULT 10000,
   max_squad_size INTEGER NOT NULL DEFAULT 10,
   captain_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  owner_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  owner_name TEXT,
+  owner_email TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 -- Seed 8 Default Teams for Men's Tournament
-INSERT INTO public.teams (id, tournament_id, name, "group", logo, primary_color, players, player_count) VALUES
-  ('a1', 'kapl-3-mens', 'Kapil''s Warriors', 'A', null, '0 84% 60%', '[{"id":"a1-p1","name":"Player 1","photo":null},{"id":"a1-p2","name":"Player 2","photo":null},{"id":"a1-p3","name":"Player 3","photo":null},{"id":"a1-p4","name":"Player 4","photo":null},{"id":"a1-p5","name":"Player 5","photo":null},{"id":"a1-p6","name":"Player 6","photo":null},{"id":"a1-p7","name":"Player 7","photo":null},{"id":"a1-p8","name":"Player 8","photo":null},{"id":"a1-p9","name":"Player 9","photo":null},{"id":"a1-p10","name":"Player 10","photo":null}]', 10),
+INSERT INTO public.teams (id, tournament_id, name, "group", logo, primary_color, players, player_count, owner_name, owner_email) VALUES
+  ('a1', 'kapl-3-mens', 'Kapil''s Warriors', 'A', null, '0 84% 60%', '[{"id":"a1-p1","name":"Player 1","photo":null},{"id":"a1-p2","name":"Player 2","photo":null},{"id":"a1-p3","name":"Player 3","photo":null},{"id":"a1-p4","name":"Player 4","photo":null},{"id":"a1-p5","name":"Player 5","photo":null},{"id":"a1-p6","name":"Player 6","photo":null},{"id":"a1-p7","name":"Player 7","photo":null},{"id":"a1-p8","name":"Player 8","photo":null},{"id":"a1-p9","name":"Player 9","photo":null},{"id":"a1-p10","name":"Player 10","photo":null}]', 10, 'Rohit Doshi', 'rohitdoshicolg@gmail.com'),
   ('a2', 'kapl-3-mens', 'Kapil Falcons', 'A', null, '174 72% 40%', '[{"id":"a2-p1","name":"Player 1","photo":null},{"id":"a2-p2","name":"Player 2","photo":null},{"id":"a2-p3","name":"Player 3","photo":null},{"id":"a2-p4","name":"Player 4","photo":null},{"id":"a2-p5","name":"Player 5","photo":null},{"id":"a2-p6","name":"Player 6","photo":null},{"id":"a2-p7","name":"Player 7","photo":null},{"id":"a2-p8","name":"Player 8","photo":null},{"id":"a2-p9","name":"Player 9","photo":null},{"id":"a2-p10","name":"Player 10","photo":null}]', 10),
   ('a3', 'kapl-3-mens', 'Insta Paltans', 'A', null, '267 84% 51%', '[{"id":"a3-p1","name":"Player 1","photo":null},{"id":"a3-p2","name":"Player 2","photo":null},{"id":"a3-p3","name":"Player 3","photo":null},{"id":"a3-p4","name":"Player 4","photo":null},{"id":"a3-p5","name":"Player 5","photo":null},{"id":"a3-p6","name":"Player 6","photo":null},{"id":"a3-p7","name":"Player 7","photo":null},{"id":"a3-p8","name":"Player 8","photo":null},{"id":"a3-p9","name":"Player 9","photo":null},{"id":"a3-p10","name":"Player 10","photo":null}]', 10),
   ('a4', 'kapl-3-mens', 'Kapil''s Devils', 'A', null, '222 47% 31%', '[{"id":"a4-p1","name":"Player 1","photo":null},{"id":"a4-p2","name":"Player 2","photo":null},{"id":"a4-p3","name":"Player 3","photo":null},{"id":"a4-p4","name":"Player 4","photo":null},{"id":"a4-p5","name":"Player 5","photo":null},{"id":"a4-p6","name":"Player 6","photo":null},{"id":"a4-p7","name":"Player 7","photo":null},{"id":"a4-p8","name":"Player 8","photo":null},{"id":"a4-p9","name":"Player 9","photo":null},{"id":"a4-p10","name":"Player 10","photo":null}]', 10),

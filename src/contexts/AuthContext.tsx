@@ -109,6 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return 'admin';
     }
 
+    // Rohit Doshi Colg is permanent team owner of Kapil's Warriors
+    if (cleanEmail === 'rohitdoshicolg@gmail.com') {
+      return 'owner';
+    }
+
     // Check pre-assigned role by email in localStorage
     if (cleanEmail) {
       try {
@@ -275,6 +280,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, profile, fetchUserProfile]);
 
+  // Seed default owner assignment for rohitdoshicolg@gmail.com
+  useEffect(() => {
+    try {
+      const emailRoles = JSON.parse(localStorage.getItem('kapl_email_roles') || '{}');
+      if (!emailRoles['rohitdoshicolg@gmail.com']) {
+        emailRoles['rohitdoshicolg@gmail.com'] = 'owner';
+        localStorage.setItem('kapl_email_roles', JSON.stringify(emailRoles));
+      }
+
+      const assignments = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+      if (!assignments['rohitdoshicolg@gmail.com']) {
+        assignments['rohitdoshicolg@gmail.com'] = {
+          email: 'rohitdoshicolg@gmail.com',
+          role: 'owner',
+          title: 'Franchise Team Owner',
+          teamName: "Kapil's Warriors",
+          teamId: 'a1',
+          assignedBy: 'Rohit Doshi (Main Admin)',
+          assignedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('kapl_role_assignments', JSON.stringify(assignments));
+      }
+
+      const teamA1 = JSON.parse(localStorage.getItem('kapl_team_meta_a1') || '{}');
+      if (!teamA1.ownerEmail) {
+        teamA1.ownerName = 'Rohit Doshi';
+        teamA1.ownerEmail = 'rohitdoshicolg@gmail.com';
+        localStorage.setItem('kapl_team_meta_a1', JSON.stringify(teamA1));
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -295,13 +332,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const cleanEmail = (session.user.email || '').toLowerCase().trim();
           if (cleanEmail === 'rohit.doshi2007@gmail.com') {
             setUserRole('admin');
+          } else if (cleanEmail === 'rohitdoshicolg@gmail.com') {
+            setUserRole('owner');
           }
           const [role, prof] = await Promise.all([
             fetchUserRole(session.user.id, session.user.email),
             fetchUserProfile(session.user),
           ]);
           if (isMounted) {
-            setUserRole(cleanEmail === 'rohit.doshi2007@gmail.com' ? 'admin' : role);
+            setUserRole(
+              cleanEmail === 'rohit.doshi2007@gmail.com'
+                ? 'admin'
+                : cleanEmail === 'rohitdoshicolg@gmail.com'
+                ? 'owner'
+                : role
+            );
             setProfile(prof);
             setIsLoading(false);
           }
@@ -328,6 +373,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cleanEmail = (session.user.email || '').toLowerCase().trim();
         if (cleanEmail === 'rohit.doshi2007@gmail.com') {
           setUserRole('admin');
+        } else if (cleanEmail === 'rohitdoshicolg@gmail.com') {
+          setUserRole('owner');
         }
         try {
           const [role, prof] = await Promise.all([
@@ -335,7 +382,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fetchUserProfile(session.user),
           ]);
           if (isMounted) {
-            setUserRole(cleanEmail === 'rohit.doshi2007@gmail.com' ? 'admin' : role);
+            setUserRole(
+              cleanEmail === 'rohit.doshi2007@gmail.com'
+                ? 'admin'
+                : cleanEmail === 'rohitdoshicolg@gmail.com'
+                ? 'owner'
+                : role
+            );
             setProfile(prof);
             setIsLoading(false);
           }
