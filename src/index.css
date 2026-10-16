@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* KAPL 3.0 Theme Palette: Stadium Obsidian & Electric Amber */
+    --background: 224 71% 4%; /* Stadium Obsidian #0A0E17 */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 7%; /* Obsidian Glass Card */
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 48 96% 53%; /* Electric Amber #EAB308 */
+    --primary-foreground: 224 71% 4%;
+    --secondary: 160 84% 39%; /* Cyber Emerald #10B981 */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 189 94% 43%; /* Cyan #06B6D4 */
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 48 96% 53%;
+    --radius: 0.85rem;
+    
+    /* Cricket specific colors */
+    --cricket-primary: 48 96% 53%; /* Electric Amber */
+    --cricket-secondary: 160 84% 39%; /* Cyber Emerald */
+    --cricket-accent: 189 94% 43%; /* Cyan */
+    --cricket-four: 160 84% 39%; /* Emerald 4 */
+    --cricket-six: 48 96% 53%; /* Amber 6 */
+    --cricket-extra: 38 92% 50%;
+    
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 48 96% 53%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 217 33% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 18%;
+    --sidebar-ring: 48 96% 53%;
+  }
+
+  .light {
+    --background: 210 40% 98%; /* Crisp Stadium White #F8FAFC */
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 45 93% 47%; /* Amber */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 160 84% 39%; /* Emerald */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 16% 45%;
+    --accent: 189 94% 43%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 45 93% 47%;
+    
+    /* Cricket specific colors - light mode */
+    --cricket-primary: 45 93% 47%;
+    --cricket-secondary: 160 84% 39%;
+    --cricket-accent: 189 94% 43%;
+    --cricket-four: 160 84% 39%;
+    --cricket-six: 45 93% 47%;
+    --cricket-extra: 38 92% 50%;
+    
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 45 93% 47%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 45 93% 47%;
+  }
+
+  /* High-Contrast Outdoor Sunlight Mode (Direct Sunlight ground readability) */
+  .sunlight-mode {
+    --background: 0 0% 100% !important;
+    --foreground: 0 0% 0% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 0 0% 0% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 0 0% 0% !important;
+    --primary: 38 92% 40% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 160 84% 28% !important;
+    --secondary-foreground: 0 0% 100% !important;
+    --muted: 210 20% 93% !important;
+    --muted-foreground: 0 0% 15% !important;
+    --border: 0 0% 0% !important;
+    --input: 0 0% 80% !important;
+    --ring: 0 0% 0% !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, .font-display {
+    font-family: 'Russo One', sans-serif;
+  }
+}
+
+@layer utilities {
+  @keyframes gradient-x {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 4s ease infinite;
+  }
+}
