@@ -32,6 +32,7 @@ import {
   Trophy,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
   LogOut,
   Sun,
   Moon,
@@ -111,18 +112,37 @@ export default function Profile() {
     setSoundOn(isSoundEnabled());
   }, []);
 
-  // Find if user is drafted in any team
+  // Role assignment details from Admin
+  const roleAssignment = useMemo(() => {
+    if (!user?.email) return null;
+    try {
+      const stored = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+      return stored[user.email.toLowerCase().trim()] || null;
+    } catch {
+      return null;
+    }
+  }, [user]);
+
+  // Find if user is drafted in any team or assigned as Owner/Captain
   const userTeam = useMemo(() => {
     if (!user) return null;
-    const cleanEmail = user.email?.toLowerCase();
+    const cleanEmail = user.email?.toLowerCase().trim();
     const cleanName = (profile?.name || name || '').trim().toLowerCase();
 
     // Check by captain / owner or in players list
     for (const team of teams) {
-      if (team.ownerEmail && cleanEmail && team.ownerEmail.toLowerCase() === cleanEmail) {
+      const isOwner = team.ownerEmail && cleanEmail && team.ownerEmail.toLowerCase().trim() === cleanEmail;
+      const isCaptain = (team.captainUserId && team.captainUserId === user.id) ||
+                        (cleanName && team.captainName?.toLowerCase() === cleanName) ||
+                        (isOwner && team.captainPlayerId === 'owner');
+
+      if (isOwner && isCaptain) {
+        return { team, relationship: 'Owner & Captain' };
+      }
+      if (isOwner) {
         return { team, relationship: 'Owner' };
       }
-      if (team.captainUserId && team.captainUserId === user.id) {
+      if (isCaptain) {
         return { team, relationship: 'Captain' };
       }
       const playerInTeam = team.players?.find(
@@ -238,10 +258,31 @@ export default function Profile() {
   };
 
   const getRoleBadge = (r: string | null) => {
-    if (user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com') {
+    if (user?.email?.toLowerCase().trim() === 'rohit.doshi2007@gmail.com') {
       return (
         <Badge className="bg-destructive text-destructive-foreground font-black text-xs gap-1.5 py-1 px-3 shadow-md border border-amber-400/50">
           <Crown className="w-3.5 h-3.5 text-amber-300" /> Main Tournament Admin
+        </Badge>
+      );
+    }
+    if (userTeam?.relationship === 'Owner & Captain') {
+      return (
+        <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs gap-1 py-1 px-3 shadow-md border border-amber-400/50">
+          <Crown className="w-3.5 h-3.5" /> Team Owner & Captain ({userTeam.team.name})
+        </Badge>
+      );
+    }
+    if (r === 'owner' || userTeam?.relationship === 'Owner') {
+      return (
+        <Badge className="bg-amber-500 text-black font-black text-xs gap-1 py-1 px-2.5 shadow-sm">
+          <Crown className="w-3.5 h-3.5" /> Team Owner {userTeam ? `(${userTeam.team.name})` : ''}
+        </Badge>
+      );
+    }
+    if (r === 'captain' || userTeam?.relationship === 'Captain') {
+      return (
+        <Badge className="bg-blue-600 text-white font-bold text-xs gap-1 py-1 px-2.5 shadow-sm">
+          <Star className="w-3.5 h-3.5" /> Team Captain {userTeam ? `(${userTeam.team.name})` : ''}
         </Badge>
       );
     }
@@ -264,18 +305,6 @@ export default function Profile() {
         return (
           <Badge className="bg-primary text-primary-foreground font-bold text-xs gap-1 py-0.5 px-2.5">
             <Award className="w-3 h-3" /> Official Scorer
-          </Badge>
-        );
-      case 'owner':
-        return (
-          <Badge className="bg-amber-500 text-black font-bold text-xs gap-1 py-0.5 px-2.5">
-            <Crown className="w-3 h-3" /> Team Owner
-          </Badge>
-        );
-      case 'captain':
-        return (
-          <Badge className="bg-blue-600 text-white font-bold text-xs gap-1 py-0.5 px-2.5">
-            <Star className="w-3 h-3" /> Team Captain
           </Badge>
         );
       default:
@@ -437,6 +466,175 @@ export default function Profile() {
                   <p className="text-xs text-muted-foreground line-clamp-2 max-w-xl italic pt-1">
                     "{bio}"
                   </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Official Governance & Admin Role Verification Card */}
+        <Card className="relative overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-card via-card/95 to-primary/5 shadow-lg">
+          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-gradient-to-b from-primary via-accent to-primary" />
+          <CardHeader className="pb-3 pl-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base md:text-lg font-black flex items-center gap-2 text-foreground">
+                    Official Tournament Designation
+                    <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> VERIFIED BY ADMIN
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Roles and franchise appointments assigned by Main Tournament Administration.
+                  </CardDescription>
+                </div>
+              </div>
+
+              {/* Quick Status Tag */}
+              <div className="self-start sm:self-auto">
+                {getRoleBadge(userRole)}
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4 pl-6 pt-1">
+            {/* Role Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-muted/60 border border-border/70 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Assigned Role
+                </span>
+                <p className="font-black text-sm text-foreground flex items-center gap-1.5">
+                  {user?.email?.toLowerCase().trim() === 'rohit.doshi2007@gmail.com' ? (
+                    <>👑 Main Tournament Admin</>
+                  ) : userTeam?.relationship === 'Owner & Captain' ? (
+                    <>👑 Franchise Owner & Captain</>
+                  ) : userRole === 'owner' || userTeam?.relationship === 'Owner' ? (
+                    <>👑 Franchise Team Owner</>
+                  ) : userRole === 'captain' || userTeam?.relationship === 'Captain' ? (
+                    <>🦁 Franchise Team Captain</>
+                  ) : userRole === 'co_admin' ? (
+                    <>🛡️ Tournament Co-Admin</>
+                  ) : userRole === 'scorer' || userRole === 'primary_scorer' ? (
+                    <>⚖️ Official Tournament Scorer</>
+                  ) : (
+                    <>🏏 Official Registered Player</>
+                  )}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/60 border border-border/70 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Appointed By
+                </span>
+                <p className="font-bold text-sm text-primary flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5" />
+                  {roleAssignment?.assignedBy || 'Rohit Doshi (Main Admin)'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/60 border border-border/70 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Tournament Division
+                </span>
+                <p className="font-bold text-sm text-foreground">
+                  {tournamentId === 'kapl-3-womens' ? "Women's KAPL 3.0" : "Men's KAPL 3.0"}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/60 border border-border/70 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Governance Status
+                </span>
+                <p className="font-bold text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Active & Confirmed
+                </p>
+              </div>
+            </div>
+
+            {/* Franchise Team Spotlight (If Owner or Captain) */}
+            {userTeam && (
+              <div className="p-4 rounded-2xl bg-card border border-primary/20 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <TeamBadge team={userTeam.team} size="md" showName={false} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-black text-base md:text-lg text-foreground">
+                        {userTeam.team.name}
+                      </h4>
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary font-bold">
+                        Group {userTeam.team.group}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Your officially designated franchise • {userTeam.relationship}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0">
+                  <div className="text-left md:text-right">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block">
+                      Team Wallet (Purse Left)
+                    </span>
+                    <span className="font-mono font-black text-base md:text-lg text-primary">
+                      ₹{(userTeam.team.remainingPurse ?? 10000).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="h-8 w-px bg-border hidden md:block" />
+
+                  <div className="text-left md:text-right">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block">
+                      Squad Size
+                    </span>
+                    <span className="font-mono font-black text-base md:text-lg text-foreground">
+                      {userTeam.team.players?.length || 0} / {userTeam.team.maxSquadSize || 10}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Privileges & Direct Action CTAs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60">
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>
+                  {userRole === 'owner' || userTeam?.relationship === 'Owner' || userTeam?.relationship === 'Owner & Captain'
+                    ? 'You have official franchise bidding rights in the Auction Spotlight Stage and oversight of the team purse.'
+                    : userRole === 'captain' || userTeam?.relationship === 'Captain'
+                    ? 'You are designated to lead team tactics, match toss, and Playing XI selection.'
+                    : userRole === 'admin' || userRole === 'co_admin' || userRole === 'scorer'
+                    ? 'You hold elevated administrative and scoring privileges for all tournament fixtures.'
+                    : 'You are registered in the official tournament player pool for team selection.'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {(userRole === 'owner' || userTeam?.relationship === 'Owner' || userTeam?.relationship === 'Owner & Captain') && (
+                  <Button asChild size="sm" className="h-9 text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-primary text-primary-foreground shadow-sm hover:opacity-95">
+                    <Link to="/auction">
+                      <Gavel className="w-3.5 h-3.5" />
+                      Auction Spotlight Stage & Wallet
+                      <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                    </Link>
+                  </Button>
+                )}
+
+                {(userRole === 'admin' || userRole === 'co_admin' || userRole === 'scorer') && (
+                  <Button asChild size="sm" variant="secondary" className="h-9 text-xs font-bold gap-1.5">
+                    <Link to="/admin">
+                      <Shield className="w-3.5 h-3.5" />
+                      Admin Console
+                      <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                    </Link>
+                  </Button>
                 )}
               </div>
             </div>

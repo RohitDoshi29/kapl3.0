@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
@@ -38,6 +38,9 @@ import {
   Mail,
   UserCheck,
   Building,
+  Award,
+  Star,
+  Shield,
 } from 'lucide-react';
 import { Team } from '@/lib/cricketTypes';
 
@@ -64,7 +67,21 @@ export function AdminRolesGovernanceTab() {
   const { teams, updateTeam } = useCricketStore();
   const { activeTournamentId, setActiveTournamentId } = useTournament();
 
-  const [activeGovernanceTab, setActiveGovernanceTab] = useState<'co_admins' | 'owners'>('co_admins');
+  const [activeGovernanceTab, setActiveGovernanceTab] = useState<'co_admins' | 'owners' | 'scorers_officials'>('co_admins');
+
+  // Direct Role Assigner form state
+  const [directEmail, setDirectEmail] = useState('');
+  const [directRole, setDirectRole] = useState<UserRole>('scorer');
+  const [directTitle, setDirectTitle] = useState('');
+  const [directTeamId, setDirectTeamId] = useState('');
+  const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
+  const [roleAssignments, setRoleAssignments] = useState<Record<string, any>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
   // Co-Admin form state
   const [coAdmins, setCoAdmins] = useState<CoAdminEntry[]>(() => {
@@ -144,8 +161,11 @@ export function AdminRolesGovernanceTab() {
 
     setIsSubmittingCoAdmin(true);
     try {
-      // 1. Assign role by email in Auth system
-      await assignRoleByEmail(cleanEmail, 'co_admin');
+      // 1. Assign role by email in Auth system with audit details
+      await assignRoleByEmail(cleanEmail, 'co_admin', {
+        title: coAdminTitle.trim() || 'Co-Admin Staff',
+        assignedBy: 'Rohit Doshi (Main Admin)',
+      });
 
       // 2. Add to co-admin directory
       const newEntry: CoAdminEntry = {
@@ -217,9 +237,14 @@ export function AdminRolesGovernanceTab() {
       // Update team in store & local/DB storage
       await updateTeam(selectedTeamId, updates);
 
-      // If email provided, assign 'owner' role in Auth system
+      // If email provided, assign 'owner' role in Auth system with audit details
       if (cleanOwnerEmail) {
-        await assignRoleByEmail(cleanOwnerEmail, 'owner');
+        await assignRoleByEmail(cleanOwnerEmail, 'owner', {
+          teamName: team.name,
+          teamId: team.id,
+          title: alsoCaptain ? 'Team Owner & Captain' : 'Team Owner',
+          assignedBy: 'Rohit Doshi (Main Admin)',
+        });
       }
 
       toast.success(
@@ -257,6 +282,69 @@ export function AdminRolesGovernanceTab() {
 
     await updateTeam(teamId, updates);
     toast.info(`Unassigned owner for ${team.name}`);
+  };
+
+  // Handle direct role appointment (Scorers, Captains, Custom Roles)
+  const handleAssignDirectRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = directEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    if (!directRole) {
+      toast.error('Please select a role to assign');
+      return;
+    }
+
+    setIsSubmittingDirect(true);
+    try {
+      const targetTeam = teams.find((t) => t.id === directTeamId);
+      await assignRoleByEmail(cleanEmail, directRole, {
+        title: directTitle.trim() || undefined,
+        teamName: targetTeam?.name,
+        teamId: targetTeam?.id,
+        assignedBy: 'Rohit Doshi (Main Admin)',
+      });
+
+      // If assigning owner or captain and a team is selected, also sync with team
+      if (directTeamId && (directRole === 'owner' || directRole === 'captain')) {
+        const teamUpdates: Partial<Team> = {};
+        if (directRole === 'owner') {
+          teamUpdates.ownerEmail = cleanEmail;
+          if (directTitle.trim()) teamUpdates.ownerName = directTitle.trim();
+        }
+        if (directRole === 'captain') {
+          if (directTitle.trim()) teamUpdates.captainName = directTitle.trim();
+        }
+        await updateTeam(directTeamId, teamUpdates);
+      }
+
+      const updated = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+      setRoleAssignments(updated);
+      setDirectEmail('');
+      setDirectTitle('');
+      setDirectTeamId('');
+      toast.success(`Assigned ${directRole} role to ${cleanEmail}! Player can now see this verified role in their profile.`);
+    } catch {
+      toast.error('Failed to assign role');
+    } finally {
+      setIsSubmittingDirect(false);
+    }
+  };
+
+  // Handle revoking direct role
+  const handleRevokeRole = async (email: string) => {
+    try {
+      await assignRoleByEmail(email, 'player');
+      const updated = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+      delete updated[email.toLowerCase().trim()];
+      localStorage.setItem('kapl_role_assignments', JSON.stringify(updated));
+      setRoleAssignments(updated);
+      toast.info(`Reset ${email} to default Player role`);
+    } catch {
+      toast.error('Failed to revoke role');
+    }
   };
 
   return (
@@ -298,14 +386,18 @@ export function AdminRolesGovernanceTab() {
         onValueChange={(val) => setActiveGovernanceTab(val as any)}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-          <TabsTrigger value="co_admins" className="gap-2 font-bold text-xs md:text-sm">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl mx-auto">
+          <TabsTrigger value="co_admins" className="gap-2 font-bold text-xs sm:text-sm">
             <UserCheck className="w-4 h-4 text-purple-500" />
             Co-Admins ({coAdmins.length})
           </TabsTrigger>
-          <TabsTrigger value="owners" className="gap-2 font-bold text-xs md:text-sm">
+          <TabsTrigger value="owners" className="gap-2 font-bold text-xs sm:text-sm">
             <Crown className="w-4 h-4 text-amber-500" />
             Franchise Owners ({teams.filter((t) => !!t.ownerName).length})
+          </TabsTrigger>
+          <TabsTrigger value="scorers_officials" className="gap-2 font-bold text-xs sm:text-sm">
+            <Award className="w-4 h-4 text-emerald-500" />
+            Scorers & Directory
           </TabsTrigger>
         </TabsList>
 
@@ -759,6 +851,234 @@ export function AdminRolesGovernanceTab() {
                           </TableRow>
                         );
                       })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* TAB 3: SCORERS & ROLE DIRECTORY */}
+        <TabsContent value="scorers_officials" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Direct Role Assignment Card */}
+            <Card className="lg:col-span-1 shadow-md border-emerald-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                  <Award className="w-4 h-4 text-emerald-500" />
+                  Appoint Official / Assign Role
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Appoint Match Scorers, Team Captains, or assign official roles. Players will immediately see their verified role in their profile.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAssignDirectRole} className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="direct-email" className="text-xs font-semibold">
+                      Account Email Address <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
+                      <Input
+                        id="direct-email"
+                        type="email"
+                        placeholder="user@example.com"
+                        value={directEmail}
+                        onChange={(e) => setDirectEmail(e.target.value)}
+                        className="pl-9 h-9 text-xs"
+                        required
+                        disabled={isSubmittingDirect}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="direct-role" className="text-xs font-semibold">
+                      Role to Assign <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={directRole || 'scorer'}
+                      onValueChange={(val) => setDirectRole(val as UserRole)}
+                      disabled={isSubmittingDirect}
+                    >
+                      <SelectTrigger id="direct-role" className="h-9 text-xs">
+                        <SelectValue placeholder="Select official role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="scorer">⚖️ Official Match Scorer</SelectItem>
+                        <SelectItem value="captain">🦁 Franchise Team Captain</SelectItem>
+                        <SelectItem value="owner">👑 Franchise Team Owner</SelectItem>
+                        <SelectItem value="co_admin">🛡️ Tournament Co-Admin</SelectItem>
+                        <SelectItem value="player">🏏 Standard Player</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="direct-title" className="text-xs font-semibold">
+                      Official Title / Name
+                    </Label>
+                    <Input
+                      id="direct-title"
+                      type="text"
+                      placeholder="e.g. Lead Ground Scorer or Captain Name"
+                      value={directTitle}
+                      onChange={(e) => setDirectTitle(e.target.value)}
+                      className="h-9 text-xs"
+                      disabled={isSubmittingDirect}
+                    />
+                  </div>
+
+                  {/* Team association (Optional / for Captain & Owner) */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="direct-team" className="text-xs font-semibold">
+                      Associated Team (Optional)
+                    </Label>
+                    <Select
+                      value={directTeamId}
+                      onValueChange={setDirectTeamId}
+                      disabled={isSubmittingDirect}
+                    >
+                      <SelectTrigger id="direct-team" className="h-9 text-xs">
+                        <SelectValue placeholder="Select team (if applicable)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None / General Official</SelectItem>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name} (Group {t.group})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-9 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                    disabled={isSubmittingDirect}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {isSubmittingDirect ? 'Assigning Role...' : 'Assign Role & Verify'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Official Role Directory Table */}
+            <Card className="lg:col-span-2 shadow-md">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center justify-between text-foreground">
+                  <span className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-500" />
+                    Official Appointments Directory
+                  </span>
+                  <Badge variant="outline" className="text-xs font-semibold">
+                    {Object.keys(roleAssignments).length} Assigned
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  All active role designations. Players can view these verified credentials in their profile page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-bold">Email / User</TableHead>
+                        <TableHead className="text-xs font-bold">Assigned Role</TableHead>
+                        <TableHead className="text-xs font-bold">Franchise / Title</TableHead>
+                        <TableHead className="text-xs font-bold">Appointed By</TableHead>
+                        <TableHead className="text-xs font-bold text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* Permanent Main Admin Entry */}
+                      <TableRow className="bg-amber-500/5 hover:bg-amber-500/10">
+                        <TableCell className="py-2.5">
+                          <span className="font-mono text-xs font-bold text-foreground">
+                            rohit.doshi2007@gmail.com
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-destructive text-destructive-foreground font-black text-[10px] gap-1">
+                            <Crown className="w-3 h-3 text-amber-300" /> Main Admin
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-semibold text-foreground">Tournament Director</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">Permanent Super Admin</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">Protected</Badge>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Dynamic Role Assignments */}
+                      {Object.keys(roleAssignments).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6 text-xs text-muted-foreground">
+                            No custom role appointments yet. Use the form on the left to appoint Scorers or Captains.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        Object.keys(roleAssignments).map((emailKey) => {
+                          const item = roleAssignments[emailKey];
+                          return (
+                            <TableRow key={emailKey} className="hover:bg-muted/50">
+                              <TableCell className="py-2.5">
+                                <span className="font-mono text-xs font-semibold text-foreground">
+                                  {item.email}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={`text-[10px] font-bold capitalize ${
+                                    item.role === 'owner'
+                                      ? 'bg-amber-500 text-black'
+                                      : item.role === 'captain'
+                                      ? 'bg-blue-600 text-white'
+                                      : item.role === 'co_admin'
+                                      ? 'bg-purple-600 text-white'
+                                      : item.role === 'scorer'
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-muted text-foreground'
+                                  }`}
+                                >
+                                  {item.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs text-foreground">
+                                  {item.teamName ? `${item.teamName}` : item.title || '—'}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.assignedBy || 'Rohit Doshi'}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleRevokeRole(item.email)}
+                                  title="Reset to player"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                  Reset
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
                     </TableBody>
                   </Table>
                 </div>

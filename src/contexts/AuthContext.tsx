@@ -40,7 +40,11 @@ interface AuthContextType {
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
   refreshUserRole: () => Promise<void>;
   assignUserRole: (userId: string, role: UserRole) => Promise<{ error: Error | null }>;
-  assignRoleByEmail: (email: string, role: UserRole) => Promise<{ error: Error | null }>;
+  assignRoleByEmail: (
+    email: string,
+    role: UserRole,
+    details?: { title?: string; teamName?: string; teamId?: string; assignedBy?: string }
+  ) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,6 +116,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const assignedRole = storedRoles[cleanEmail];
         if (assignedRole) {
           return assignedRole as UserRole;
+        }
+
+        // Check rich role assignments
+        const assignments = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+        if (assignments[cleanEmail]?.role) {
+          return assignments[cleanEmail].role as UserRole;
+        }
+
+        // Check if assigned as owner in team metadata
+        const metaMap = JSON.parse(localStorage.getItem('kapl_team_metadata') || '{}');
+        for (const tId of Object.keys(metaMap)) {
+          const meta = metaMap[tId];
+          if (meta.ownerEmail && meta.ownerEmail.toLowerCase().trim() === cleanEmail) {
+            return 'owner';
+          }
         }
       } catch (e) {}
     }
@@ -400,7 +419,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const assignRoleByEmail = useCallback(async (email: string, role: UserRole) => {
+  const assignRoleByEmail = useCallback(async (
+    email: string,
+    role: UserRole,
+    details?: { title?: string; teamName?: string; teamId?: string; assignedBy?: string }
+  ) => {
     if (!email.trim() || !role) return { error: null };
     try {
       const cleanEmail = email.toLowerCase().trim();
@@ -408,8 +431,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storedRoles[cleanEmail] = role;
       localStorage.setItem('kapl_email_roles', JSON.stringify(storedRoles));
 
+      const assignments = JSON.parse(localStorage.getItem('kapl_role_assignments') || '{}');
+      assignments[cleanEmail] = {
+        email: cleanEmail,
+        role,
+        title: details?.title,
+        teamName: details?.teamName,
+        teamId: details?.teamId,
+        assignedBy: details?.assignedBy || 'Rohit Doshi (Main Admin)',
+        assignedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('kapl_role_assignments', JSON.stringify(assignments));
+
       // If user currently signed in matches this email, immediately update active role
-      if (user && user.email && user.email.toLowerCase() === cleanEmail) {
+      if (user && user.email && user.email.toLowerCase().trim() === cleanEmail) {
         setUserRole(role);
       }
       return { error: null };

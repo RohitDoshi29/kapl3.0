@@ -104,26 +104,51 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
       if (teamsError) throw teamsError;
 
+      let metaMap: Record<string, any> = {};
+      try {
+        metaMap = JSON.parse(localStorage.getItem('kapl_team_metadata') || '{}');
+      } catch {}
+
       if (teamsData && teamsData.length > 0) {
         setTeams(
-          teamsData.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            group: t.group as any,
-            logo: t.logo,
-            primaryColor: t.primary_color,
-            players: (t.players as any[]) || [],
-            playerCount: t.player_count || 10,
-            tournamentId: t.tournament_id,
-            initialPurse: Number(t.initial_purse || 10000),
-            remainingPurse: Number(t.remaining_purse || 10000),
-            maxSquadSize: t.max_squad_size || 10,
-            captainUserId: t.captain_user_id,
-          }))
+          teamsData.map((t: any) => {
+            const meta = metaMap[t.id] || {};
+            return {
+              id: t.id,
+              name: t.name,
+              group: t.group as any,
+              logo: t.logo,
+              primaryColor: t.primary_color,
+              players: (t.players as any[]) || [],
+              playerCount: t.player_count || 10,
+              tournamentId: t.tournament_id,
+              initialPurse: Number(t.initial_purse || 10000),
+              remainingPurse: Number(t.remaining_purse !== undefined && t.remaining_purse !== null ? t.remaining_purse : 10000),
+              maxSquadSize: t.max_squad_size || 10,
+              captainUserId: t.captain_user_id || meta.captainUserId || null,
+              ownerName: meta.ownerName || t.owner_name || undefined,
+              ownerEmail: meta.ownerEmail || t.owner_email || null,
+              ownerUserId: meta.ownerUserId || t.owner_user_id || null,
+              captainName: meta.captainName || t.captain_name || undefined,
+              captainPlayerId: meta.captainPlayerId || t.captain_player_id || null,
+            };
+          })
         );
       } else {
         const fallback = tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS;
-        setTeams(fallback);
+        setTeams(
+          fallback.map((t) => {
+            const meta = metaMap[t.id] || {};
+            return {
+              ...t,
+              ownerName: meta.ownerName || t.ownerName,
+              ownerEmail: meta.ownerEmail || t.ownerEmail,
+              ownerUserId: meta.ownerUserId || t.ownerUserId,
+              captainName: meta.captainName || t.captainName,
+              captainPlayerId: meta.captainPlayerId || t.captainPlayerId,
+            };
+          })
+        );
       }
 
       setIsLoading(false);
