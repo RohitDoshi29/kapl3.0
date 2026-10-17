@@ -25,22 +25,30 @@ export default function Admin() {
 
   return (
     <AdminPasswordGate>
-      <div className="min-h-screen bg-background pb-20 md:pb-4">
-        <Navigation />
-        <Header />
+      <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+        {/* Ambient Stadium Lighting Mesh */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+        </div>
 
-        <main className="container mx-auto px-4 py-4 md:py-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <Header />
+        <Navigation />
+
+        <main className="relative z-10 container mx-auto px-4 py-4 md:py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-white/[0.08] pb-3">
             <div className="flex flex-wrap items-center gap-2 md:gap-4">
               <Link to="/">
-                <Button variant="outline" size="sm" className="gap-1 md:gap-2 h-8 md:h-9 text-xs md:text-sm">
-                  <Home className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  <span className="hidden sm:inline">Home</span>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8.5 rounded-xl border-white/10 bg-white/[0.04] text-xs font-bold text-foreground">
+                  <Home className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Public View</span>
                 </Button>
               </Link>
-              <p className="text-xs md:text-sm text-muted-foreground truncate max-w-[180px] md:max-w-none">
-                {user?.email}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-xs font-semibold text-muted-foreground truncate max-w-[180px] md:max-w-none">
+                  Signed in as <span className="text-foreground font-bold">{user?.email}</span>
+                </p>
+              </div>
             </div>
             <Button
               variant="outline"
@@ -53,16 +61,16 @@ export default function Admin() {
                   toast.success('Signed out successfully');
                 }
               }}
-              className="gap-1 md:gap-2 h-8 md:h-9 text-xs md:text-sm"
+              className="gap-1.5 h-8.5 rounded-xl text-xs font-bold border-red-500/30 text-red-400 hover:bg-red-500/10"
             >
-              <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <LogOut className="w-3.5 h-3.5" />
               Sign Out
             </Button>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <TabsList className={`grid w-full max-w-4xl mx-auto ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
+              <TabsList className={`grid w-full max-w-4xl mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
                 <TabsTrigger value="scorer" className="gap-2">
                   <Shield className="w-4 h-4" />
                   <span className="hidden sm:inline">Scorer</span>

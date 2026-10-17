@@ -31,45 +31,50 @@ export default function Auction() {
   } = useAuction(activeTournamentId);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-6">
-      <Navigation />
+    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+      {/* Ambient Stadium Lighting Mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+      </div>
+
       <Header />
+      <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="container mx-auto px-4 py-4 md:py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-4 py-4 md:py-6 space-y-6">
         {/* Tournament Switcher & Live Status Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card border rounded-2xl p-3.5 md:p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-white/[0.08] bg-card/85 backdrop-blur-xl rounded-3xl p-4 md:p-5 shadow-xl shadow-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Gavel className="w-5 h-5 text-primary" />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/15 border border-amber-500/30 flex items-center justify-center shadow-xs">
+              <Gavel className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-black text-foreground flex items-center gap-2">
-                Live Player Auction (Bidding Round)
-                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] font-bold">
-                  <Sparkles className="w-2.5 h-2.5 mr-0.5" /> KAPL 3.0
+              <h1 className="text-lg md:text-2xl font-black text-foreground flex items-center gap-2 font-display tracking-tight">
+                Live Player <span className="text-gradient-gold">Auction Room</span>
+                <Badge variant="gold" className="text-[10px] font-black tracking-wider">
+                  <Sparkles className="w-2.5 h-2.5 mr-0.5 text-amber-300" /> KAPL 3.0
                 </Badge>
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Category-wise bidding • Single player spotlight • Team purse management
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Category-wise bidding • Single player spotlight hammer • Team purse management
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
             {/* Live Indicator */}
-            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-1 rounded-full text-xs font-bold">
-              <Radio className="w-3.5 h-3.5 animate-pulse" />
-              AUCTION ROOM
+            <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
+              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+              LIVE AUCTION
             </span>
 
             {/* Division Switcher */}
-            <div className="flex items-center bg-muted p-1 rounded-xl text-xs font-semibold">
+            <div className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-xl text-xs font-semibold backdrop-blur-sm">
               <button
                 onClick={() => setActiveTournamentId('kapl-3-mens')}
                 className={`px-3 py-1 rounded-lg transition-all ${
                   activeTournamentId === 'kapl-3-mens'
-                    ? 'bg-background text-foreground shadow font-bold'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -79,7 +84,7 @@ export default function Auction() {
                 onClick={() => setActiveTournamentId('kapl-3-womens')}
                 className={`px-3 py-1 rounded-lg transition-all ${
                   activeTournamentId === 'kapl-3-womens'
-                    ? 'bg-background text-foreground shadow font-bold'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -91,17 +96,17 @@ export default function Auction() {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-            <TabsTrigger value="spotlight" className="gap-1.5 text-xs md:text-sm font-semibold">
-              <Gavel className="w-4 h-4" />
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md">
+            <TabsTrigger value="spotlight" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
+              <Gavel className="w-4 h-4 text-amber-400" />
               Spotlight Stage
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1.5 text-xs md:text-sm font-semibold">
-              <Users className="w-4 h-4" />
+            <TabsTrigger value="categories" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
+              <Users className="w-4 h-4 text-amber-400" />
               Categories ({playerPool.length})
             </TabsTrigger>
-            <TabsTrigger value="teams" className="gap-1.5 text-xs md:text-sm font-semibold">
-              <Wallet className="w-4 h-4" />
+            <TabsTrigger value="teams" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
+              <Wallet className="w-4 h-4 text-amber-400" />
               Team Purses ({teams.length})
             </TabsTrigger>
           </TabsList>

@@ -42,9 +42,9 @@ export function Navigation() {
   return (
     <>
       {/* Desktop & Tablet Top/Sub Navbar */}
-      <nav className="hidden md:block sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b shadow-xs">
+      <nav className="hidden md:block sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-white/[0.08] shadow-sm">
         <div className="container mx-auto">
-          <div className="flex items-center justify-center gap-1.5 py-2.5">
+          <div className="flex items-center justify-center gap-2 py-2">
             {currentDesktopItems.map(({ path, label, icon: Icon }) => {
               const isActive =
                 location.pathname === path ||
@@ -55,13 +55,13 @@ export function Navigation() {
                   key={path}
                   to={path}
                   className={cn(
-                    'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-all duration-150',
+                    'flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm font-semibold transition-all duration-200 select-none',
                     isActive
-                      ? 'text-primary bg-primary/15 border border-primary/25 shadow-xs font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+                      ? 'text-amber-300 bg-gradient-to-r from-amber-500/20 to-yellow-500/15 border border-amber-500/35 shadow-sm shadow-amber-500/15 font-black'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.05]'
                   )}
                 >
-                  <Icon className={cn('w-4 h-4', isActive && 'text-primary')} />
+                  <Icon className={cn('w-4 h-4', isActive ? 'text-amber-400' : 'text-muted-foreground')} />
                   <span>{label}</span>
                 </Link>
               );
@@ -71,7 +71,7 @@ export function Navigation() {
       </nav>
 
       {/* Mobile-First Ergonomic Bottom Dock */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border/80 shadow-lg px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-2xl border-t border-white/[0.1] shadow-2xl px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
         <div className="flex items-center justify-around">
           {currentMobileItems.map(({ path, label, icon: Icon, alternatePaths }) => {
             const isActive =
@@ -84,27 +84,29 @@ export function Navigation() {
                 key={path}
                 to={path}
                 className={cn(
-                  'relative flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all duration-150 min-w-0',
+                  'relative flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 min-w-0 select-none',
                   isActive
-                    ? 'text-primary font-bold'
+                    ? 'text-amber-300 font-black'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 <div
                   className={cn(
-                    'p-1 rounded-xl transition-all',
-                    isActive ? 'bg-primary/15 text-primary scale-110 shadow-xs' : 'text-muted-foreground'
+                    'p-1.5 rounded-xl transition-all duration-200',
+                    isActive
+                      ? 'bg-gradient-to-br from-amber-500/25 to-yellow-500/15 text-amber-400 scale-110 shadow-sm border border-amber-500/35'
+                      : 'text-muted-foreground'
                   )}
                 >
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-full">
+                <span className="text-[10px] tracking-tight mt-1 truncate max-w-full font-medium">
                   {label}
                 </span>
 
                 {/* Active Indicator Glow Pip */}
                 {isActive && (
-                  <span className="absolute bottom-0 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary))]" />
+                  <span className="absolute bottom-0 w-2 h-0.5 bg-amber-400 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.9)]" />
                 )}
               </Link>
             );

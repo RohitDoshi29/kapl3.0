@@ -724,13 +724,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         <CardContent className="space-y-3 md:space-y-4">
           {/* Negative Runs */}
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Penalty Runs</p>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1.5 md:mb-2 uppercase tracking-wider">Penalty Runs</p>
             <div className="grid grid-cols-2 gap-1.5 md:gap-2">
               {[-2, -1].map((runs) => (
                 <Button
                   key={runs}
                   variant="destructive"
-                  className="h-11 md:h-14 text-lg md:text-xl font-bold"
+                  className="h-11 md:h-14 text-lg md:text-xl font-black rounded-xl shadow-sm hover:shadow-rose-500/20 active:scale-95 transition-all"
                   onClick={() => handleAddBall(runs)}
                   disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
                 >
@@ -742,13 +742,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Runs */}
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Runs</p>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1.5 md:mb-2 uppercase tracking-wider">Runs</p>
             <div className="grid grid-cols-5 gap-1.5 md:gap-2">
               {[0, 1, 2, 3].map((runs) => (
                 <Button
                   key={runs}
                   variant="outline"
-                  className="h-11 md:h-14 text-lg md:text-xl font-bold"
+                  className="h-11 md:h-14 text-lg md:text-xl font-black rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.1] active:scale-95 transition-all"
                   onClick={() => handleAddBall(runs)}
                   disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
                 >
@@ -757,7 +757,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               ))}
               <Button
                 variant="outline"
-                className="h-11 md:h-14 text-sm md:text-lg font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                className="h-11 md:h-14 text-sm md:text-lg font-black rounded-xl border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-slate-950 active:scale-95 transition-all shadow-sm shadow-amber-500/10"
                 onClick={() => handleAddBall(1, false, false, false, true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
                 title="1 Run Declared (No Strike Change)"
@@ -769,38 +769,38 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Boundaries */}
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Boundaries</p>
-            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1.5 md:mb-2 uppercase tracking-wider">Boundaries</p>
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
               <Button
-                className="h-11 md:h-14 text-lg md:text-xl font-bold bg-cricket-four hover:bg-cricket-four/90"
+                className="h-12 md:h-16 text-xl md:text-2xl font-black rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 border-0 active:scale-95 transition-all"
                 onClick={() => handleAddBall(4)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
-                4
+                FOUR (4)
               </Button>
               <Button
-                className="h-11 md:h-14 text-lg md:text-xl font-bold bg-cricket-six hover:bg-cricket-six/90"
+                className="h-12 md:h-16 text-xl md:text-2xl font-black rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-green-600 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/25 border-0 active:scale-95 transition-all"
                 onClick={() => handleAddBall(6)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
-                6
+                SIX (6)
               </Button>
             </div>
           </div>
 
           {/* Extras */}
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Extras</p>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1.5 md:mb-2 uppercase tracking-wider">Extras</p>
             <div className="grid grid-cols-2 gap-1.5 md:gap-2">
               <Button
-                className="h-10 md:h-12 text-sm md:text-base font-bold bg-cricket-extra text-black hover:bg-cricket-extra/90"
+                className="h-11 md:h-13 text-sm md:text-base font-bold rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 shadow-sm active:scale-95 transition-all"
                 onClick={() => handleAddBall(1, false, true, false)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
                 Wide (+1)
               </Button>
               <Button
-                className="h-10 md:h-12 text-sm md:text-base font-bold bg-amber-500 text-black hover:bg-amber-600 shadow-sm"
+                className="h-11 md:h-13 text-sm md:text-base font-bold rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500 hover:text-slate-950 shadow-sm active:scale-95 transition-all"
                 onClick={() => setNoBallModalOpen(true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
@@ -811,11 +811,11 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Wickets */}
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Wickets</p>
-            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1.5 md:mb-2 uppercase tracking-wider">Wickets & Dismissals</p>
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
               <Button
                 variant="destructive"
-                className="h-12 md:h-16 text-lg md:text-xl font-bold shadow-md"
+                className="h-13 md:h-16 text-base md:text-lg font-black rounded-2xl bg-gradient-to-r from-rose-600 via-red-600 to-pink-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xl shadow-rose-600/30 border-0 active:scale-95 transition-all"
                 onClick={() => setDismissalModalOpen(true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
@@ -823,7 +823,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               </Button>
               <Button
                 variant="destructive"
-                className="h-12 md:h-16 text-lg md:text-xl font-bold shadow-md"
+                className="h-13 md:h-16 text-base md:text-lg font-black rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-xl shadow-orange-600/30 border-0 active:scale-95 transition-all"
                 onClick={() => setDismissalModalOpen(true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >

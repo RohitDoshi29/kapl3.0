@@ -355,17 +355,22 @@ export default function Profile() {
   const activePresetItem = PRESET_AVATARS.find((p) => p.id === selectedPreset);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <Navigation />
+    <div className="relative min-h-screen bg-background pb-20 md:pb-12">
+      {/* Ambient Stadium Lighting Mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+      </div>
+
       <Header />
+      <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="container mx-auto px-4 py-4 md:py-6 max-w-4xl space-y-6">
+      <main className="relative z-10 container mx-auto px-4 py-4 md:py-6 max-w-4xl space-y-6">
         {/* Top Breadcrumb Navigation */}
         <div className="flex items-center justify-between">
           <Link
             to="/players"
-            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+            className="inline-flex items-center gap-2 text-xs md:text-sm font-bold text-muted-foreground hover:text-amber-400 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Players Directory</span>
@@ -374,7 +379,7 @@ export default function Profile() {
           {profile?.playerId && (
             <Link
               to={`/players/${profile.playerId}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:underline"
             >
               <span>View My Public Stats Card</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -383,8 +388,8 @@ export default function Profile() {
         </div>
 
         {/* Hero Profile Overview Card */}
-        <Card className="relative overflow-hidden border border-border/80 shadow-md bg-gradient-to-br from-card via-card/95 to-card">
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary opacity-80" />
+        <Card className="relative overflow-hidden border border-white/[0.08] shadow-2xl bg-card/85 backdrop-blur-xl rounded-3xl">
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-500 via-emerald-500 to-cyan-500 opacity-80" />
           <CardContent className="p-5 md:p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
               {/* Avatar with Upload trigger */}

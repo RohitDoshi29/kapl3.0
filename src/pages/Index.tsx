@@ -87,70 +87,75 @@ const Index = () => {
         teamName={animation.teamName}
         onComplete={clearAnimation}
       />
-      <div className="min-h-screen bg-background pb-20 md:pb-4">
-        <Navigation />
+      <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+        {/* Ambient Stadium Lighting Mesh */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+        </div>
+
         <Header />
+        <Navigation />
         <MultiMatchLiveBar />
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
         {match && team1 && team2 ? (
           <>
             {/* Match Status */}
             <div className="text-center space-y-2">
               {match.status === 'super_over' ? (
-                <span className="inline-flex items-center gap-2 bg-gradient-to-r from-primary/20 to-accent/20 text-primary px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
-                  <span className="text-lg">⚡</span>
+                <span className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-300 border border-amber-500/40 px-4 py-1.5 rounded-full text-xs font-black tracking-wider animate-pulse shadow-sm">
+                  <span className="text-sm">⚡</span>
                   SUPER OVER
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
-                  <span className="w-2 h-2 bg-destructive rounded-full" />
-                  LIVE
+                <span className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-1.5 rounded-full text-xs font-black tracking-wider animate-pulse shadow-sm">
+                  <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                  LIVE MATCH
                 </span>
               )}
-              <div className="text-lg font-semibold text-foreground">
+              <div className="text-lg font-bold text-foreground font-display tracking-tight">
                 {MATCH_TYPE_LABELS[match.matchType]} {match.matchType === 'group' && `- Group ${match.group}`}
               </div>
             </div>
 
             {/* Super Over Score Display */}
             {match.superOver && (
-              <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary">
-                <CardContent className="p-4">
+              <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-card to-yellow-500/10 shadow-lg shadow-amber-500/10">
+                <CardContent className="p-5">
                   <div className="text-center mb-3">
-                    <Badge className="bg-primary/20 text-primary">⚡ Super Over</Badge>
+                    <Badge variant="gold">⚡ Super Over</Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="font-bold">{team1.name}</div>
-                      <div className="text-2xl font-bold text-primary">
+                      <div className="font-bold text-sm text-foreground">{team1.name}</div>
+                      <div className="text-3xl font-black text-amber-400 font-display">
                         {match.superOver.innings1?.runs || 0}/{match.superOver.innings1?.wickets || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         ({match.superOver.innings1?.currentOver || 0}.{match.superOver.innings1?.currentBall || 0} ov)
                       </div>
                     </div>
                     <div>
-                      <div className="font-bold">{team2.name}</div>
-                      <div className="text-2xl font-bold text-primary">
+                      <div className="font-bold text-sm text-foreground">{team2.name}</div>
+                      <div className="text-3xl font-black text-amber-400 font-display">
                         {match.superOver.innings2?.runs || 0}/{match.superOver.innings2?.wickets || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         ({match.superOver.innings2?.currentOver || 0}.{match.superOver.innings2?.currentBall || 0} ov)
                       </div>
                     </div>
                   </div>
                   {match.superOver.currentInnings === 2 && match.superOver.innings1 && (
-                    <div className="text-center mt-3 text-sm">
+                    <div className="text-center mt-3 text-sm font-semibold">
                       <span className="text-muted-foreground">Target: </span>
-                      <span className="font-bold">{match.superOver.innings1.runs + 1}</span>
+                      <span className="text-amber-400 font-black">{match.superOver.innings1.runs + 1}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Single-Focus Hero Scoreboard (No Split Screen for Live Audience) */}
+            {/* Single-Focus Hero Scoreboard */}
             {currentInnings && battingTeam && bowlingTeam && (
               <LiveScoreHero
                 match={match}
@@ -175,7 +180,7 @@ const Index = () => {
             )}
 
             {/* Ball Ticker */}
-            <div className="bg-card rounded-xl p-4 shadow-sm">
+            <div className="rounded-2xl border border-white/[0.08] bg-card/85 backdrop-blur-md p-4 shadow-lg shadow-black/20">
               <BallTicker balls={allBalls} />
             </div>
 
@@ -200,14 +205,16 @@ const Index = () => {
               />
             )}
             
-            <div className="text-center py-12 space-y-6">
-              <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
-                <span className="text-4xl">🏏</span>
+            <div className="text-center py-12 px-6 rounded-3xl border border-white/[0.08] bg-card/60 backdrop-blur-xl shadow-xl max-w-xl mx-auto space-y-5">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/15">
+                <span className="text-4xl animate-bounce">🏏</span>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold mb-2">No Live Match in {currentTournament?.name || "KAPL"}</h2>
-                <p className="text-muted-foreground">
-                  Waiting for the next match to begin...
+              <div className="space-y-1.5">
+                <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
+                  No Live Match in {currentTournament?.name || "KAPL"}
+                </h2>
+                <p className="text-xs md:text-sm text-muted-foreground max-w-sm mx-auto">
+                  The pitch is being prepared. Explore the player directory or check the live auction room while you wait.
                 </p>
               </div>
             </div>

@@ -85,14 +85,14 @@ export function Header({ className }: { className?: string }) {
   };
 
   return (
-    <header className={cn('relative overflow-hidden py-3 md:py-5 bg-card border-b', className)}>
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 opacity-70" />
+    <header className={cn('relative overflow-hidden py-3 md:py-4 bg-card/85 backdrop-blur-xl border-b border-white/[0.08] shadow-md shadow-black/20', className)}>
+      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-emerald-500/5 to-cyan-500/10 opacity-70 pointer-events-none" />
 
       <div className="relative container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Title & Branding */}
         <div className="text-center md:text-left flex items-center gap-3">
-          <Link to="/" className="group flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-amber-400 to-emerald-400 flex items-center justify-center shadow-md shadow-primary/20 group-hover:scale-105 transition-transform text-black">
+          <Link to="/" className="group flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/25 group-hover:scale-105 group-hover:shadow-amber-500/40 transition-all text-black font-black">
               <span className="text-xl">🏏</span>
             </div>
             <div>
@@ -100,11 +100,11 @@ export function Header({ className }: { className?: string }) {
                 <span className="text-xl md:text-2xl font-black tracking-tight text-foreground font-display">
                   KAPL
                 </span>
-                <Badge variant="outline" className="border-primary/50 text-primary font-bold text-[11px] px-1.5 py-0 shadow-xs">
-                  <Sparkles className="w-2.5 h-2.5 mr-0.5 text-primary" /> 3.0
+                <Badge variant="gold" className="text-[11px] px-2 py-0.5 tracking-wider font-black">
+                  <Sparkles className="w-2.5 h-2.5 mr-1 text-amber-300" /> 3.0
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground font-medium">
+              <p className="text-[11px] text-muted-foreground font-medium tracking-wide">
                 Premier Cricket League
               </p>
             </div>
@@ -123,11 +123,11 @@ export function Header({ className }: { className?: string }) {
             variant="outline"
             size="icon"
             onClick={handleSoundToggle}
-            className="h-8 w-8 rounded-xl border-border/80 bg-background/80 hover:bg-background shadow-xs"
+            className="h-8.5 w-8.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08] shadow-xs"
             title={soundOn ? 'Mute Sound Effects' : 'Enable Sound Effects'}
           >
             {soundOn ? (
-              <Volume2 className="w-4 h-4 text-primary" />
+              <Volume2 className="w-4 h-4 text-amber-400" />
             ) : (
               <VolumeX className="w-4 h-4 text-muted-foreground" />
             )}
@@ -139,10 +139,10 @@ export function Header({ className }: { className?: string }) {
             size="icon"
             onClick={handleSunlightToggle}
             className={cn(
-              'h-8 w-8 rounded-xl shadow-xs transition-all',
+              'h-8.5 w-8.5 rounded-xl shadow-xs transition-all',
               isSunlightMode
                 ? 'bg-amber-500 text-black border-amber-600 hover:bg-amber-400'
-                : 'border-border/80 bg-background/80 hover:bg-background'
+                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
             )}
             title={isSunlightMode ? 'Switch to Stadium Night Mode' : 'Switch to Outdoor High-Contrast Sunlight Mode'}
           >
@@ -155,17 +155,17 @@ export function Header({ className }: { className?: string }) {
 
           {/* User Account / Auth */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-1.5 bg-muted/60 backdrop-blur-sm border rounded-full pl-1.5 pr-2 py-1 shadow-sm">
+            <div className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl pl-2 pr-2.5 py-1 shadow-sm transition-all">
               <Link
                 to="/profile"
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity group"
+                className="flex items-center gap-2 group"
                 title="View & Edit My Profile"
               >
-                <Avatar className="w-6 h-6 border border-primary/30 group-hover:border-primary transition-colors">
+                <Avatar className="w-7 h-7 border border-amber-500/40 group-hover:border-amber-400 transition-colors shadow-xs">
                   {profile?.photoUrl && (
                     <AvatarImage src={profile.photoUrl} alt={profile.name || 'User avatar'} className="object-cover" />
                   )}
-                  <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                  <AvatarFallback className="bg-amber-500/20 text-amber-300 text-[10px] font-bold">
                     {profile?.name
                       ? profile.name.slice(0, 2).toUpperCase()
                       : user.email
@@ -175,7 +175,7 @@ export function Header({ className }: { className?: string }) {
                 </Avatar>
 
                 <div className="flex flex-col text-left">
-                  <span className="text-[11px] font-semibold text-foreground max-w-[100px] md:max-w-[140px] truncate leading-tight group-hover:text-primary transition-colors">
+                  <span className="text-[11px] font-bold text-foreground max-w-[100px] md:max-w-[140px] truncate leading-tight group-hover:text-amber-400 transition-colors">
                     {profile?.name || user.email}
                   </span>
                   <div className="flex items-center gap-1 mt-0.5">
@@ -184,21 +184,21 @@ export function Header({ className }: { className?: string }) {
                 </div>
               </Link>
 
-              <div className="h-4 w-px bg-border/60 mx-1" />
+              <div className="h-4 w-px bg-white/10 mx-0.5" />
 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                className="h-7 w-7 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
                 onClick={handleSignOut}
                 title="Sign Out"
               >
-                <LogOut className="w-3 h-3" />
+                <LogOut className="w-3.5 h-3.5" />
               </Button>
             </div>
           ) : (
             <Link to="/auth">
-              <Button size="sm" variant="outline" className="h-8 rounded-xl text-xs font-bold border-primary/40 text-primary hover:bg-primary/10">
+              <Button size="sm" variant="default" className="h-8.5 rounded-xl text-xs font-bold shadow-md shadow-amber-500/20">
                 Sign In
               </Button>
             </Link>

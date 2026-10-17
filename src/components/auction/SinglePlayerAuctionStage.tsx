@@ -321,10 +321,10 @@ export function SinglePlayerAuctionStage({
                               setSelectedTeamId(t.id);
                               setActiveOwnerTeamId(t.id);
                             }}
-                            className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                            className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all ${
                               isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary text-primary font-bold shadow-sm'
-                                : 'border-muted bg-popover hover:bg-muted text-foreground'
+                                ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-amber-300 font-bold shadow-md shadow-amber-500/15'
+                                : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-foreground'
                             }`}
                           >
                             <span className="text-xs font-bold truncate max-w-full">{t.name}</span>
@@ -352,7 +352,7 @@ export function SinglePlayerAuctionStage({
                           type="number"
                           value={soldAmount}
                           onChange={(e) => setSoldAmount(Number(e.target.value) || 0)}
-                          className="pl-8 text-lg font-black tracking-tight h-12"
+                          className="pl-8 text-lg font-black tracking-tight h-12 bg-white/[0.03] border-white/10 rounded-xl"
                           min={player.basePrice}
                           step={50}
                         />
@@ -366,7 +366,7 @@ export function SinglePlayerAuctionStage({
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-12 px-2.5 font-bold text-xs"
+                            className="h-12 px-2.5 font-bold text-xs rounded-xl"
                             onClick={() => setSoldAmount((prev) => prev + inc)}
                           >
                             +{inc}
@@ -381,7 +381,8 @@ export function SinglePlayerAuctionStage({
                     <Button
                       type="button"
                       size="lg"
-                      className="h-14 font-black text-base gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                      variant="glow"
+                      className="h-14 font-black text-base gap-2 rounded-2xl"
                       onClick={handleConfirmSale}
                     >
                       <CheckCircle2 className="w-5 h-5" />
@@ -392,7 +393,7 @@ export function SinglePlayerAuctionStage({
                       type="button"
                       size="lg"
                       variant="destructive"
-                      className="h-14 font-black text-base gap-2 shadow-lg shadow-destructive/20"
+                      className="h-14 font-black text-base gap-2 rounded-2xl"
                       onClick={() => onDecideUnsold(player.id)}
                     >
                       <XCircle className="w-5 h-5" />
@@ -683,16 +684,16 @@ export function SinglePlayerAuctionStage({
                   setActiveOwnerTeamId(t.id);
                   if (isAdmin) setSelectedTeamId(t.id);
                 }}
-                className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all ${
+                className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all duration-200 ${
                   isCurrentInspected
-                    ? 'border-primary bg-primary/10 ring-2 ring-primary/40 shadow-md'
-                    : 'border-border bg-card hover:bg-muted/60'
+                    ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/15'
+                    : 'border-white/[0.08] bg-card/85 backdrop-blur-md hover:bg-white/[0.06] hover:border-white/20'
                 }`}
               >
                 {/* User Owner Marker */}
                 {isUserOwner && (
-                  <Badge className="absolute -top-2 right-2 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0 shadow-xs">
-                    MY FRANCHISE
+                  <Badge variant="gold" className="absolute -top-2.5 right-2 text-[9px] font-black px-2 py-0.5 tracking-wider">
+                    👑 MY FRANCHISE
                   </Badge>
                 )}
 

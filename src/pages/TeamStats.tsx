@@ -192,26 +192,31 @@ export default function TeamStats() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-4">
-      <Navigation />
-      <Header />
+    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+      {/* Ambient Stadium Lighting Mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+      </div>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <Header />
+      <Navigation />
+
+      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
         {/* Tournament Honors: Orange Cap, Purple Cap & Maximum Sixes */}
         <TournamentHonors />
 
         {/* Team Filter */}
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="w-5 h-5 text-primary" />
-              Tournament Leaderboard
+        <Card className="border-white/[0.08] bg-card/85 backdrop-blur-xl shadow-xl">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-white/[0.06] bg-white/[0.01]">
+            <CardTitle className="flex items-center gap-2 text-lg font-display">
+              <Users className="w-5 h-5 text-amber-400" />
+              Tournament <span className="text-gradient-gold">Leaderboard</span>
             </CardTitle>
             <TournamentSwitcher size="sm" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-              <SelectTrigger className="w-full md:w-64">
+              <SelectTrigger className="w-full md:w-64 bg-white/[0.04] border-white/10 rounded-xl">
                 <SelectValue placeholder="Select team" />
               </SelectTrigger>
               <SelectContent>

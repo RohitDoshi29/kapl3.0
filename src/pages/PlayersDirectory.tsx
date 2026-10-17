@@ -201,21 +201,26 @@ export default function PlayersDirectory() {
     sortBy !== 'runs';
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-10">
-      <Navigation />
+    <div className="relative min-h-screen bg-background pb-20 md:pb-10">
+      {/* Ambient Stadium Lighting Mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+      </div>
+
       <Header />
+      <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="container mx-auto px-4 py-4 md:py-6 max-w-7xl">
+      <main className="relative z-10 container mx-auto px-4 py-4 md:py-6 max-w-7xl">
         {/* Top bar with Tournament Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-white/[0.08] pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/15 border border-amber-500/30 text-amber-400 shadow-xs">
                 <Users className="w-5 h-5" />
               </span>
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
-                Player Directory
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-display">
+                Player <span className="text-gradient-gold">Directory</span>
               </h1>
             </div>
             <p className="text-xs md:text-sm text-muted-foreground mt-1">
@@ -230,8 +235,8 @@ export default function PlayersDirectory() {
 
         {/* Quick Highlights / KPI Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <Card className="bg-gradient-to-br from-card to-card/60 border border-border/80 shadow-xs">
-            <CardContent className="p-3 md:p-4 flex items-center justify-between">
+          <Card className="border-white/[0.08] bg-card/85 backdrop-blur-xl shadow-lg">
+            <CardContent className="p-4 flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Total Players
@@ -310,17 +315,17 @@ export default function PlayersDirectory() {
         </div>
 
         {/* Search, Filter & Sort Controls */}
-        <div className="bg-card border border-border/70 rounded-2xl p-4 mb-6 shadow-sm space-y-3">
+        <div className="border border-white/[0.08] bg-card/85 backdrop-blur-xl rounded-2xl p-4 mb-6 shadow-lg shadow-black/20 space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search players by name or team..."
+                placeholder="Search players by name, team, or skills..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-10 h-10 bg-background/60 rounded-xl border-border/80 focus-visible:ring-primary/20"
+                className="pl-10 h-10 bg-white/[0.04] rounded-xl border-white/[0.08] focus-visible:ring-amber-400/40 text-foreground"
               />
               {searchQuery && (
                 <button
@@ -513,7 +518,7 @@ export default function PlayersDirectory() {
                   to={`/players/${player.id}`}
                   className="group block transition-all"
                 >
-                  <Card className="h-full overflow-hidden border border-border/70 hover:border-primary/50 hover:shadow-md transition-all duration-200 bg-card/95 hover:bg-card">
+                  <Card className="h-full overflow-hidden border border-white/[0.08] hover:border-amber-400/40 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 bg-card/85 backdrop-blur-md rounded-2xl group-hover:-translate-y-1">
                     {/* Card Top: Avatar, Role & Auction Price */}
                     <div className="p-4 pb-3">
                       <div className="flex items-start justify-between gap-3">
@@ -522,10 +527,10 @@ export default function PlayersDirectory() {
                             <img
                               src={player.photoUrl}
                               alt={player.name}
-                              className="w-14 h-14 rounded-2xl object-cover border-2 border-border group-hover:border-primary/50 transition-colors shadow-xs"
+                              className="w-14 h-14 rounded-2xl object-cover border border-white/10 group-hover:border-amber-400/50 transition-colors shadow-sm"
                             />
                           ) : (
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-muted flex items-center justify-center font-black text-lg text-primary border-2 border-border group-hover:border-primary/50 transition-colors shadow-xs">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-muted flex items-center justify-center font-black text-lg text-amber-400 border border-white/10 group-hover:border-amber-400/50 transition-colors shadow-sm">
                               {player.name
                                 .split(' ')
                                 .map(n => n[0])

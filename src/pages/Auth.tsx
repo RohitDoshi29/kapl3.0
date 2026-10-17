@@ -126,25 +126,25 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/40 to-background p-4 relative overflow-hidden">
-      {/* Decorative Background Glows */}
-      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Decorative Background Stadium Glows */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <Card className="w-full max-w-md shadow-2xl border-primary/20 backdrop-blur-sm bg-card/95 relative z-10">
+      <Card className="w-full max-w-md shadow-2xl border border-white/[0.1] backdrop-blur-2xl bg-card/85 relative z-10 rounded-3xl">
         <CardHeader className="text-center space-y-2 pb-4">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-            <Trophy className="w-8 h-8 text-primary-foreground animate-bounce" />
+          <div className="mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/30 text-black">
+            <Trophy className="w-8 h-8 text-black animate-bounce" />
           </div>
           <div>
-            <Badge variant="outline" className="mb-2 border-primary/40 text-primary px-3 py-0.5 text-xs font-semibold">
-              <Sparkles className="w-3 h-3 mr-1" />
+            <Badge variant="gold" className="mb-2 px-3 py-1 text-xs font-black tracking-wider">
+              <Sparkles className="w-3 h-3 mr-1 text-amber-300" />
               KAPL SEASON 3.0
             </Badge>
-            <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Player Portal
+            <CardTitle className="text-2xl md:text-3xl font-black tracking-tight font-display text-foreground">
+              Player <span className="text-gradient-gold">Portal</span>
             </CardTitle>
-            <CardDescription className="text-xs md:text-sm mt-1">
+            <CardDescription className="text-xs md:text-sm mt-1 text-muted-foreground">
               Sign in or create your player account for KAPL Season 3.0
             </CardDescription>
           </div>
@@ -155,7 +155,7 @@ export default function Auth() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 gap-2 font-medium border-muted-foreground/20 hover:bg-muted"
+            className="w-full h-11 gap-2.5 font-bold border-white/10 bg-white/[0.04] hover:bg-white/[0.08] rounded-xl text-foreground"
             onClick={handleGoogleSignIn}
             disabled={isSubmitting}
           >
@@ -182,35 +182,51 @@ export default function Auth() {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-muted" />
+              <span className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or with email</span>
+              <span className="bg-card px-2 text-muted-foreground font-semibold">Or with email</span>
             </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'signin' | 'signup')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Register as Player</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-white/[0.04] border border-white/10 p-1 rounded-2xl">
+              <TabsTrigger value="signin" className="rounded-xl font-bold data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300">
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-xl font-bold data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300">
+                Register as Player
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="signin-email">Email Address</Label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail('rohit.doshi2007@gmail.com');
-                        setErrors((prev) => ({ ...prev, email: undefined }));
-                      }}
-                      className="text-[11px] text-primary hover:underline font-medium inline-flex items-center gap-1"
-                    >
-                      <Shield className="w-3 h-3" />
-                      Main Admin (Rohit)
-                    </button>
+                    <Label htmlFor="signin-email" className="font-semibold text-xs">Email Address</Label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmail('rohit.doshi2007@gmail.com');
+                          setErrors((prev) => ({ ...prev, email: undefined }));
+                        }}
+                        className="text-[10px] text-amber-400 hover:underline font-bold inline-flex items-center gap-0.5"
+                      >
+                        <Shield className="w-2.5 h-2.5" /> Admin
+                      </button>
+                      <span className="text-white/20">•</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmail('rohitdoshicolg@gmail.com');
+                          setErrors((prev) => ({ ...prev, email: undefined }));
+                        }}
+                        className="text-[10px] text-emerald-400 hover:underline font-bold inline-flex items-center gap-0.5"
+                      >
+                        👑 Owner
+                      </button>
+                    </div>
                   </div>
                   <Input
                     id="signin-email"
@@ -221,7 +237,7 @@ export default function Auth() {
                       setEmail(e.target.value);
                       setErrors((prev) => ({ ...prev, email: undefined }));
                     }}
-                    className={errors.email ? 'border-destructive' : ''}
+                    className={errors.email ? 'border-destructive bg-white/[0.03]' : 'bg-white/[0.03] border-white/10'}
                     disabled={isSubmitting}
                     autoComplete="email"
                   />

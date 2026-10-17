@@ -118,17 +118,22 @@ export default function PlayerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-12">
-      <Navigation />
+    <div className="relative min-h-screen bg-background pb-20 md:pb-12">
+      {/* Ambient Stadium Lighting Mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
+      </div>
+
       <Header />
+      <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="container mx-auto px-4 py-4 md:py-6 max-w-6xl space-y-6">
+      <main className="relative z-10 container mx-auto px-4 py-4 md:py-6 max-w-6xl space-y-6">
         {/* Breadcrumb / Top Navigation Bar */}
         <div className="flex items-center justify-between">
           <Link
             to="/players"
-            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+            className="inline-flex items-center gap-2 text-xs md:text-sm font-bold text-muted-foreground hover:text-amber-400 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Players Directory</span>
@@ -138,24 +143,24 @@ export default function PlayerProfile() {
             variant="outline"
             size="sm"
             onClick={handleShare}
-            className="h-8 text-xs gap-1.5 rounded-xl border-border/80"
+            className="h-8.5 text-xs gap-1.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
           >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Share</span>
+            <Share2 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Share Profile</span>
           </Button>
         </div>
 
         {/* Hero Section Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card via-card/95 to-card shadow-sm">
+        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-card/85 backdrop-blur-xl shadow-2xl">
           {/* Decorative backdrop glow */}
           <div
-            className="absolute top-0 left-0 right-0 h-32 opacity-20 pointer-events-none blur-3xl"
+            className="absolute top-0 left-0 right-0 h-40 opacity-25 pointer-events-none blur-3xl"
             style={{
               backgroundColor: team?.primaryColor ? `hsl(${team.primaryColor})` : 'hsl(var(--primary))',
             }}
           />
 
-          <div className="relative p-5 md:p-8">
+          <div className="relative p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               {/* Left Column: Avatar & Core Identity */}
               <div className="flex items-center gap-4 md:gap-6">
