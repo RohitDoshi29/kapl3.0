@@ -22,9 +22,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw, Wifi, WifiOff, Zap, ShieldAlert } from 'lucide-react';
+import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw, Wifi, WifiOff, Zap, ShieldAlert, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Match, Ball, DismissalType } from '@/lib/cricketTypes';
+import { Match, Ball, DismissalType, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import MatchHistoryDetails from './MatchHistoryDetails';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
@@ -58,6 +58,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     switchBattingTeam,
     swapStrike,
     endMatch,
+    abandonMatch,
     selectBatsman,
     selectBowler,
     getPlayingPlayers,
@@ -68,7 +69,19 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     isSyncing,
     syncOfflineQueue,
   } = useCricketStore();
-  const match = matchState.currentMatch;
+  let match = matchState.currentMatch;
+  if (!match) {
+    try {
+      const cached = localStorage.getItem('kapl_local_match_state');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.current_match && parsed.current_match.status === 'live') {
+          match = parsed.current_match;
+        }
+      }
+    } catch (e) {}
+  }
+
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
@@ -83,9 +96,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     ball: Ball | null;
   } | null>(null);
 
-  const team1 = match ? getTeam(match.team1Id) : null;
-  const team2 = match ? getTeam(match.team2Id) : null;
-  const currentInnings = match?.currentInnings === 1 ? match.innings1 : match?.innings2;
+  const team1 = match ? (getTeam(match.team1Id) || DEFAULT_TEAMS.find(t => t.id === match.team1Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === match.team1Id)) : null;
+  const team2 = match ? (getTeam(match.team2Id) || DEFAULT_TEAMS.find(t => t.id === match.team2Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === match.team2Id)) : null;
+  const currentInnings = match ? (
+    match.currentInnings === 1 
+      ? (match.innings1 || { battingTeamId: match.team1Id, bowlingTeamId: match.team2Id, runs: 0, wickets: 0, overs: [{ number: 1, balls: [] }], currentOver: 0, currentBall: 0, batterStats: {}, bowlerStats: {}, battingOrder: [] }) 
+      : (match.innings2 || { battingTeamId: match.team2Id, bowlingTeamId: match.team1Id, runs: 0, wickets: 0, overs: [{ number: 1, balls: [] }], currentOver: 0, currentBall: 0, batterStats: {}, bowlerStats: {}, battingOrder: [] })
+  ) : null;
   const battingTeam = match?.currentInnings === 1 ? team1 : team2;
   const bowlingTeam = match?.currentInnings === 1 ? team2 : team1;
   
@@ -998,6 +1015,36 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleEndMatch}>
                   End Match
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="w-full h-12 gap-2 text-rose-500 border-rose-500/30 hover:bg-rose-500/10 font-bold">
+                <Trash2 className="w-5 h-5" />
+                Abandon / Discard Match
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Abandon Match?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will discard the current live match without recording it in the points table or match history.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    await abandonMatch();
+                    toast.success('Live match discarded');
+                    onNavigateToSetup();
+                  }}
+                  className="bg-destructive hover:bg-destructive/90 text-white font-bold"
+                >
+                  Discard Match
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

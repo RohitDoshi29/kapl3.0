@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { PlayerRecord, PlayerRole, Team, Match, MatchType, MATCH_TYPE_LABELS, Innings } from '@/lib/cricketTypes';
+import { MOCK_AUCTION_PLAYERS, generateAuctionPlayers } from '@/lib/mockPlayersData';
 
 export interface PlayerCareerBatting {
   matches: number;
@@ -76,8 +77,10 @@ export interface RadarMetric {
 
 export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?: string) {
   const { teams, matchHistory, matchState, getTeam } = useCricketStore();
-  const [dbPlayer, setDbPlayer] = useState<PlayerRecord | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [dbPlayer, setDbPlayer] = useState<PlayerRecord | null>(() => {
+    return MOCK_AUCTION_PLAYERS.find(p => p.id === playerId) || null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => !MOCK_AUCTION_PLAYERS.some(p => p.id === playerId));
 
   // Fetch player record from database (or find in teams)
   useEffect(() => {
@@ -123,12 +126,13 @@ export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?
         console.warn('Network error loading player from DB:', err);
       }
 
-      // Fallback: search in teams
+      // Fallback: search in teams or mock auction players
       if (isMounted) {
+        let foundRecord: PlayerRecord | null = null;
         for (const t of teams) {
           const found = t.players?.find(p => p.id === playerId);
           if (found) {
-            setDbPlayer({
+            foundRecord = {
               id: found.id,
               tournamentId: t.tournamentId || 'kapl-3-mens',
               teamId: t.id,
@@ -141,9 +145,15 @@ export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?
               soldPrice: found.soldPrice || null,
               auctionStatus: found.auctionStatus || (found.soldPrice ? 'sold' : 'pending'),
               jerseyNumber: null,
-            });
+            };
             break;
           }
+        }
+        if (!foundRecord) {
+          foundRecord = MOCK_AUCTION_PLAYERS.find(p => p.id === playerId) || null;
+        }
+        if (foundRecord) {
+          setDbPlayer(foundRecord);
         }
         setIsLoading(false);
       }
@@ -516,14 +526,28 @@ export interface PlayerDirectoryItem {
 
 export function usePlayersDirectory(tournamentIdFilter?: string) {
   const { teams, matchHistory, matchState, getTeam } = useCricketStore();
-  const [players, setPlayers] = useState<PlayerDirectoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Initialize immediately with the 80 mock players so the directory is NEVER blank or stuck loading
+  const [rawPlayers, setRawPlayers] = useState<PlayerRecord[]>(() => {
+    const tid = (!tournamentIdFilter || tournamentIdFilter === 'all') ? 'kapl-3-mens' : tournamentIdFilter;
+    try {
+      const raw = localStorage.getItem(`kapl_auction_players_${tid}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.length === 80 && !parsed.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return generateAuctionPlayers(tid);
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Sync with Supabase in background without resetting UI state
   useEffect(() => {
     let isMounted = true;
 
-    async function loadDirectory() {
-      setIsLoading(true);
+    async function loadDbPlayers() {
       try {
         let query = supabase.from('players').select('*');
         if (tournamentIdFilter && tournamentIdFilter !== 'all') {
@@ -531,14 +555,15 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         }
         const { data: dbData, error } = await query.order('name');
         if (error) {
-          console.warn('Error loading players for directory:', error);
+          console.warn('Error loading players for directory from DB:', error);
+          return;
         }
 
-        const playerMap = new Map<string, PlayerRecord>();
+        const isLegacyDbData = Boolean(dbData && dbData.length > 0 && dbData.some((p) => /^[ab][1-4]-/.test(p.id)));
 
-        // 1. Add DB players
-        (dbData || []).forEach(p => {
-          playerMap.set(p.id, {
+        let loaded: PlayerRecord[] = [];
+        if (dbData && dbData.length > 0 && !isLegacyDbData) {
+          loaded = dbData.map((p) => ({
             id: p.id,
             tournamentId: p.tournament_id || 'kapl-3-mens',
             teamId: p.team_id,
@@ -552,191 +577,209 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
             auctionStatus: (p.auction_status as any) || 'pending',
             jerseyNumber: p.jersey_number,
             mobileNumber: p.mobile_number,
-          });
-        });
-
-        // 2. Fallback / supplement from teams store (e.g. women's league or unpersisted teams)
-        teams.forEach(team => {
-          if (tournamentIdFilter && tournamentIdFilter !== 'all' && (team.tournamentId || 'kapl-3-mens') !== tournamentIdFilter) {
-            return;
-          }
-          (team.players || []).forEach(p => {
-            if (!playerMap.has(p.id)) {
-              playerMap.set(p.id, {
-                id: p.id,
-                tournamentId: team.tournamentId || 'kapl-3-mens',
-                teamId: team.id,
-                name: p.name,
-                role: p.role || 'all_rounder',
-                battingStyle: p.battingStyle || 'Right-hand bat',
-                bowlingStyle: p.bowlingStyle || 'Right-arm medium',
-                photoUrl: p.photo,
-                basePrice: p.basePrice || 100,
-                soldPrice: p.soldPrice || null,
-                auctionStatus: p.auctionStatus || (p.soldPrice ? 'sold' : 'pending'),
-                jerseyNumber: null,
-              });
+          }));
+        } else {
+          const tid = (!tournamentIdFilter || tournamentIdFilter === 'all') ? 'kapl-3-mens' : tournamentIdFilter;
+          try {
+            const raw = localStorage.getItem(`kapl_auction_players_${tid}`);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed.length === 80 && !parsed.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
+                loaded = parsed;
+              }
             }
-          });
-        });
-
-        // 3. Aggregate match stats across all completed and live matches
-        const allMatches: Match[] = [];
-        if (matchState.currentMatch) {
-          allMatches.push(matchState.currentMatch);
-        }
-        matchHistory.forEach(m => allMatches.push(m));
-
-        interface StatAccumulator {
-          matchIds: Set<string>;
-          runs: number;
-          ballsFaced: number;
-          timesOut: number;
-          highestScore: number;
-          fours: number;
-          sixes: number;
-          ballsBowled: number;
-          runsConceded: number;
-          wickets: number;
-          bestWickets: number;
-          bestRuns: number;
-        }
-
-        const statsAccum = new Map<string, StatAccumulator>();
-        const getAccum = (id: string): StatAccumulator => {
-          let acc = statsAccum.get(id);
-          if (!acc) {
-            acc = {
-              matchIds: new Set(),
-              runs: 0,
-              ballsFaced: 0,
-              timesOut: 0,
-              highestScore: 0,
-              fours: 0,
-              sixes: 0,
-              ballsBowled: 0,
-              runsConceded: 0,
-              wickets: 0,
-              bestWickets: 0,
-              bestRuns: 999,
-            };
-            statsAccum.set(id, acc);
+          } catch {}
+          if (loaded.length === 0) {
+            loaded = generateAuctionPlayers(tid);
           }
-          return acc;
-        };
+        }
 
-        allMatches.forEach(match => {
-          const inningsList = [match.innings1, match.innings2].filter(Boolean) as Innings[];
-          inningsList.forEach(innings => {
-            // Batsmen
-            const batterStats = innings.batterStats || {};
-            Object.values(batterStats).forEach(b => {
-              if (!b?.id) return;
-              const acc = getAccum(b.id);
-              acc.matchIds.add(match.id);
-              acc.runs += b.runs || 0;
-              acc.ballsFaced += b.balls || 0;
-              acc.fours += b.fours || 0;
-              acc.sixes += b.sixes || 0;
-              if (b.runs > acc.highestScore) {
-                acc.highestScore = b.runs;
-              }
-              if (b.isOut) {
-                acc.timesOut += 1;
-              }
-            });
-
-            // Bowlers
-            const bowlerStats = innings.bowlerStats || {};
-            Object.values(bowlerStats).forEach(bowler => {
-              if (!bowler?.id) return;
-              const acc = getAccum(bowler.id);
-              acc.matchIds.add(match.id);
-              const balls = (bowler.overs || 0) * 6 + (bowler.balls || 0);
-              acc.ballsBowled += balls;
-              acc.runsConceded += bowler.runsConceded || 0;
-              acc.wickets += bowler.wickets || 0;
-
-              // Check best bowling in this innings
-              if (
-                bowler.wickets > acc.bestWickets ||
-                (bowler.wickets === acc.bestWickets && bowler.runsConceded < acc.bestRuns)
-              ) {
-                acc.bestWickets = bowler.wickets;
-                acc.bestRuns = bowler.runsConceded;
-              }
-            });
-          });
-        });
-
-        // 4. Assemble final directory list
-        const directoryList: PlayerDirectoryItem[] = Array.from(playerMap.values()).map(p => {
-          const acc = statsAccum.get(p.id);
-          const assignedTeam = p.teamId
-            ? getTeam(p.teamId) || teams.find(t => t.id === p.teamId)
-            : teams.find(t => t.players?.some(pl => pl.id === p.id));
-
-          const runs = acc?.runs || 0;
-          const balls = acc?.ballsFaced || 0;
-          const timesOut = acc?.timesOut || 0;
-          const strikeRate = balls > 0 ? Number(((runs / balls) * 100).toFixed(1)) : 0;
-          const battingAverage = timesOut > 0 ? Number((runs / timesOut).toFixed(1)) : runs;
-          const ballsBowled = acc?.ballsBowled || 0;
-          const overs = Math.floor(ballsBowled / 6) + (ballsBowled % 6) / 10;
-          const runsConceded = acc?.runsConceded || 0;
-          const wickets = acc?.wickets || 0;
-          const economy = ballsBowled > 0 ? Number(((runsConceded / ballsBowled) * 6).toFixed(2)) : 0;
-          const bestBowling = acc && acc.bestWickets > 0 ? `${acc.bestWickets}/${acc.bestRuns}` : '-';
-
-          return {
-            id: p.id,
-            name: p.name,
-            tournamentId: p.tournamentId,
-            teamId: assignedTeam?.id || p.teamId || null,
-            teamName: assignedTeam?.name || null,
-            teamLogo: assignedTeam?.logo || null,
-            teamColor: assignedTeam?.primaryColor || null,
-            role: p.role,
-            battingStyle: p.battingStyle,
-            bowlingStyle: p.bowlingStyle,
-            photoUrl: p.photoUrl,
-            basePrice: p.basePrice,
-            soldPrice: p.soldPrice,
-            auctionStatus: p.auctionStatus,
-            jerseyNumber: p.jerseyNumber,
-            mobileNumber: p.mobileNumber,
-            matchesPlayed: acc?.matchIds.size || 0,
-            runs,
-            ballsFaced: balls,
-            strikeRate,
-            battingAverage,
-            highestScore: acc?.highestScore || 0,
-            fours: acc?.fours || 0,
-            sixes: acc?.sixes || 0,
-            wickets,
-            overs,
-            runsConceded,
-            economy,
-            bestBowling,
-          };
-        });
-
-        if (isMounted) {
-          setPlayers(directoryList);
-          setIsLoading(false);
+        if (isMounted && loaded.length > 0) {
+          setRawPlayers(loaded);
         }
       } catch (err) {
         console.error('Failed to load players directory:', err);
+      } finally {
         if (isMounted) setIsLoading(false);
       }
     }
 
-    loadDirectory();
+    loadDbPlayers();
 
     return () => {
       isMounted = false;
     };
-  }, [tournamentIdFilter, teams, matchHistory, matchState.currentMatch, getTeam]);
+  }, [tournamentIdFilter]);
+
+  // Reactive player directory aggregation (instantly recomputes when match state or teams change)
+  const players = useMemo<PlayerDirectoryItem[]>(() => {
+    const playerMap = new Map<string, PlayerRecord>();
+    rawPlayers.forEach(p => playerMap.set(p.id, p));
+
+    // Supplement from teams store (e.g. women's league or unpersisted teams)
+    teams.forEach(team => {
+      if (tournamentIdFilter && tournamentIdFilter !== 'all' && (team.tournamentId || 'kapl-3-mens') !== tournamentIdFilter) {
+        return;
+      }
+      (team.players || []).forEach(p => {
+        if (!playerMap.has(p.id)) {
+          playerMap.set(p.id, {
+            id: p.id,
+            tournamentId: team.tournamentId || 'kapl-3-mens',
+            teamId: team.id,
+            name: p.name,
+            role: p.role || 'all_rounder',
+            battingStyle: p.battingStyle || 'Right-hand bat',
+            bowlingStyle: p.bowlingStyle || 'Right-arm medium',
+            photoUrl: p.photo,
+            basePrice: p.basePrice || 100,
+            soldPrice: p.soldPrice || null,
+            auctionStatus: p.auctionStatus || (p.soldPrice ? 'sold' : 'pending'),
+            jerseyNumber: null,
+          });
+        }
+      });
+    });
+
+    // Aggregate match stats across all completed and live matches
+    const allMatches: Match[] = [];
+    if (matchState.currentMatch && (matchState.currentMatch as any)?.id !== '1792091739936') {
+      allMatches.push(matchState.currentMatch);
+    }
+    matchHistory.forEach(m => allMatches.push(m));
+
+    interface StatAccumulator {
+      matchIds: Set<string>;
+      runs: number;
+      ballsFaced: number;
+      timesOut: number;
+      highestScore: number;
+      fours: number;
+      sixes: number;
+      ballsBowled: number;
+      runsConceded: number;
+      wickets: number;
+      bestWickets: number;
+      bestRuns: number;
+    }
+
+    const statsAccum = new Map<string, StatAccumulator>();
+    const getAccum = (id: string): StatAccumulator => {
+      let acc = statsAccum.get(id);
+      if (!acc) {
+        acc = {
+          matchIds: new Set(),
+          runs: 0,
+          ballsFaced: 0,
+          timesOut: 0,
+          highestScore: 0,
+          fours: 0,
+          sixes: 0,
+          ballsBowled: 0,
+          runsConceded: 0,
+          wickets: 0,
+          bestWickets: 0,
+          bestRuns: 999,
+        };
+        statsAccum.set(id, acc);
+      }
+      return acc;
+    };
+
+    allMatches.forEach(match => {
+      const inningsList = [match.innings1, match.innings2].filter(Boolean) as Innings[];
+      inningsList.forEach(innings => {
+        // Batsmen
+        const batterStats = innings.batterStats || {};
+        Object.values(batterStats).forEach(b => {
+          if (!b?.id) return;
+          const acc = getAccum(b.id);
+          acc.matchIds.add(match.id);
+          acc.runs += b.runs || 0;
+          acc.ballsFaced += b.balls || 0;
+          acc.fours += b.fours || 0;
+          acc.sixes += b.sixes || 0;
+          if (b.runs > acc.highestScore) {
+            acc.highestScore = b.runs;
+          }
+          if (b.isOut) {
+            acc.timesOut += 1;
+          }
+        });
+
+        // Bowlers
+        const bowlerStats = innings.bowlerStats || {};
+        Object.values(bowlerStats).forEach(bowler => {
+          if (!bowler?.id) return;
+          const acc = getAccum(bowler.id);
+          acc.matchIds.add(match.id);
+          const balls = (bowler.overs || 0) * 6 + (bowler.balls || 0);
+          acc.ballsBowled += balls;
+          acc.runsConceded += bowler.runsConceded || 0;
+          acc.wickets += bowler.wickets || 0;
+
+          if (
+            bowler.wickets > acc.bestWickets ||
+            (bowler.wickets === acc.bestWickets && bowler.runsConceded < acc.bestRuns)
+          ) {
+            acc.bestWickets = bowler.wickets;
+            acc.bestRuns = bowler.runsConceded;
+          }
+        });
+      });
+    });
+
+    return Array.from(playerMap.values()).map(p => {
+      const acc = statsAccum.get(p.id);
+      const assignedTeam = p.teamId
+        ? getTeam(p.teamId) || teams.find(t => t.id === p.teamId)
+        : teams.find(t => t.players?.some(pl => pl.id === p.id));
+
+      const runs = acc?.runs || 0;
+      const balls = acc?.ballsFaced || 0;
+      const timesOut = acc?.timesOut || 0;
+      const strikeRate = balls > 0 ? Number(((runs / balls) * 100).toFixed(1)) : 0;
+      const battingAverage = timesOut > 0 ? Number((runs / timesOut).toFixed(1)) : runs;
+      const ballsBowled = acc?.ballsBowled || 0;
+      const overs = Math.floor(ballsBowled / 6) + (ballsBowled % 6) / 10;
+      const runsConceded = acc?.runsConceded || 0;
+      const wickets = acc?.wickets || 0;
+      const economy = ballsBowled > 0 ? Number(((runsConceded / ballsBowled) * 6).toFixed(2)) : 0;
+      const bestBowling = acc && acc.bestWickets > 0 ? `${acc.bestWickets}/${acc.bestRuns}` : '-';
+
+      return {
+        id: p.id,
+        name: p.name,
+        tournamentId: p.tournamentId,
+        teamId: assignedTeam?.id || p.teamId || null,
+        teamName: assignedTeam?.name || null,
+        teamLogo: assignedTeam?.logo || null,
+        teamColor: assignedTeam?.primaryColor || null,
+        role: p.role,
+        battingStyle: p.battingStyle,
+        bowlingStyle: p.bowlingStyle,
+        photoUrl: p.photoUrl,
+        basePrice: p.basePrice,
+        soldPrice: p.soldPrice,
+        auctionStatus: p.auctionStatus,
+        jerseyNumber: p.jerseyNumber,
+        mobileNumber: p.mobileNumber,
+        matchesPlayed: acc?.matchIds.size || 0,
+        runs,
+        ballsFaced: balls,
+        strikeRate,
+        battingAverage,
+        highestScore: acc?.highestScore || 0,
+        fours: acc?.fours || 0,
+        sixes: acc?.sixes || 0,
+        wickets,
+        overs,
+        runsConceded,
+        economy,
+        bestBowling,
+      };
+    });
+  }, [rawPlayers, teams, matchHistory, matchState.currentMatch, getTeam, tournamentIdFilter]);
 
   return {
     players,

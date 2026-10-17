@@ -8,7 +8,9 @@ import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Trophy, Medal, Award } from 'lucide-react';
+import { Trophy, Medal, Award, Sparkles } from 'lucide-react';
+import { TournamentCeremonyModal } from '@/components/cricket/TournamentCeremonyModal';
+import { useTournamentHonors } from '@/hooks/useTournamentHonors';
 
 interface TournamentState {
   id: string;
@@ -26,6 +28,8 @@ export function AdminTournamentTab() {
   const { activeTournamentId, currentTournament } = useTournament();
   const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ceremonyOpen, setCeremonyOpen] = useState(false);
+  const honors = useTournamentHonors(activeTournamentId);
 
   const tournamentTeams = teams.filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
   const groupATeams = tournamentTeams.filter(t => t.group === 'A');
@@ -297,6 +301,20 @@ export function AdminTournamentTab() {
             <p className="text-xs text-muted-foreground">
               {getTeamName(tournamentState?.sf1_winner || null)} vs {getTeamName(tournamentState?.sf2_winner || null)}
             </p>
+
+            {tournamentState?.final_winner && (
+              <div className="pt-3 border-t border-white/10">
+                <Button
+                  variant="glow"
+                  size="default"
+                  onClick={() => setCeremonyOpen(true)}
+                  className="w-full gap-2 font-bold rounded-xl"
+                >
+                  <Trophy className="w-4 h-4 text-slate-950" />
+                  🏆 Launch Official Championship Ceremony & Honors
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -338,6 +356,27 @@ export function AdminTournamentTab() {
       >
         Reset All Selections
       </Button>
+
+      {/* Grand Champions Presentation Ceremony Modal */}
+      {tournamentState?.final_winner && teams.find(t => t.id === tournamentState.final_winner) && (
+        <TournamentCeremonyModal
+          isOpen={ceremonyOpen}
+          onClose={() => setCeremonyOpen(false)}
+          tournamentName={currentTournament?.name || "KAPL 3.0 Championship"}
+          championTeam={teams.find(t => t.id === tournamentState.final_winner)!}
+          runnerUpTeam={
+            tournamentState?.sf1_winner && tournamentState?.sf2_winner
+              ? tournamentState.final_winner === tournamentState.sf1_winner
+                ? teams.find(t => t.id === tournamentState.sf2_winner)
+                : teams.find(t => t.id === tournamentState.sf1_winner)
+              : null
+          }
+          orangeCapWinner={honors.orangeCap}
+          purpleCapWinner={honors.purpleCap}
+          maxSixesWinner={honors.maxSixes}
+          mvpWinner={honors.mvp}
+        />
+      )}
     </div>
   );
 }

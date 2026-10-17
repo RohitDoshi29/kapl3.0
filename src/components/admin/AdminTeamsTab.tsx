@@ -175,12 +175,8 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
     );
   }, [team.playerCount, team.ownerName, team.ownerEmail, team.captainPlayerId, team.captainName]);
 
-  // Ensure players array exists and matches playerCount
-  const players = team.players?.slice(0, playerCount) || Array.from({ length: playerCount }, (_, i) => ({
-    id: `${team.id}-p${i + 1}`,
-    name: `Player ${i + 1}`,
-    photo: null,
-  }));
+  // Players currently allocated to this team roster
+  const players = team.players || [];
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -542,20 +538,29 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
         <Collapsible open={playersOpen} onOpenChange={setPlayersOpen}>
           <CollapsibleTrigger asChild>
             <Button variant="outline" className="w-full justify-between">
-              <span>Players ({playerCount})</span>
+              <span>Allocated Players ({players.length} / {playerCount || 10})</span>
               <ChevronDown className={cn("w-4 h-4 transition-transform", playersOpen && "rotate-180")} />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3 space-y-2">
-            {players.slice(0, playerCount).map((player, index) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                index={index}
-                teamColor={team.primaryColor}
-                onUpdate={(updates) => handlePlayerUpdate(index, updates)}
-              />
-            ))}
+            {players.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-border/80 text-center space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground">No players allocated yet</p>
+                <p className="text-[11px] text-muted-foreground/80">
+                  Players (1 to 80) will be drafted into this team during the Live Auction stage.
+                </p>
+              </div>
+            ) : (
+              players.slice(0, playerCount).map((player, index) => (
+                <PlayerCard
+                  key={player.id}
+                  player={player}
+                  index={index}
+                  teamColor={team.primaryColor}
+                  onUpdate={(updates) => handlePlayerUpdate(index, updates)}
+                />
+              ))
+            )}
           </CollapsibleContent>
         </Collapsible>
 

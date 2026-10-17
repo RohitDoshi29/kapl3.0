@@ -1,0 +1,709 @@
+import { useState, useMemo } from 'react';
+import { PlayerRecord, Team, PlayerRole } from '@/lib/cricketTypes';
+import { AUCTION_CATEGORIES, AuctionSaleLog } from '@/hooks/useAuction';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Gavel,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Sparkles,
+  Wallet,
+  RotateCcw,
+  Search,
+  User,
+  Crown,
+  ChevronRight,
+  TrendingUp,
+  History,
+  AlertTriangle,
+  Radio,
+  Zap,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+interface AdminAuctionDeskProps {
+  playerPool: PlayerRecord[];
+  teams: Team[];
+  currentPlayer: PlayerRecord | null;
+  onSpotlightPlayer: (player: PlayerRecord) => void;
+  onDecideSold: (playerId: string, teamId: string, amount: number) => Promise<void> | void;
+  onDecideUnsold: (playerId: string) => Promise<void> | void;
+  onRevertStatus: (playerId: string) => Promise<void> | void;
+  onResetAuction: () => Promise<any> | void;
+  salesHistory: AuctionSaleLog[];
+}
+
+export function AdminAuctionDesk({
+  playerPool,
+  teams,
+  currentPlayer,
+  onSpotlightPlayer,
+  onDecideSold,
+  onDecideUnsold,
+  onRevertStatus,
+  onResetAuction,
+  salesHistory,
+}: AdminAuctionDeskProps) {
+  // Bidding & Hammer Controls
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(teams[0]?.id || '');
+  const [soldPrice, setSoldPrice] = useState<number>(currentPlayer?.basePrice || 100);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Queue Filters
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Keep price synced with active spotlight player
+  useMemo(() => {
+    if (currentPlayer) {
+      setSoldPrice(currentPlayer.soldPrice || currentPlayer.basePrice);
+      if (currentPlayer.teamId) {
+        setSelectedTeamId(currentPlayer.teamId);
+      } else if (teams.length > 0 && !selectedTeamId) {
+        setSelectedTeamId(teams[0].id);
+      }
+    }
+  }, [currentPlayer, teams]);
+
+  const formatMoney = (val: number) => `₹${val.toLocaleString('en-IN')}`;
+
+  const selectedTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
+  const isCurrentSold = currentPlayer?.auctionStatus === 'sold';
+  const isCurrentUnsold = currentPlayer?.auctionStatus === 'unsold';
+
+  // Statistics
+  const stats = useMemo(() => {
+    const total = playerPool.length;
+    const sold = playerPool.filter((p) => p.auctionStatus === 'sold').length;
+    const unsold = playerPool.filter((p) => p.auctionStatus === 'unsold').length;
+    const pending = playerPool.filter((p) => p.auctionStatus === 'pending').length;
+    const totalSpent = playerPool.reduce((acc, p) => acc + (p.soldPrice || 0), 0);
+    return { total, sold, unsold, pending, totalSpent };
+  }, [playerPool]);
+
+  // Filtered queue of players
+  const filteredQueue = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return playerPool.filter((p) => {
+      // Role filter
+      if (selectedRole !== 'all' && p.role !== selectedRole) return false;
+
+      // Status filter
+      if (selectedStatus !== 'all' && p.auctionStatus !== selectedStatus) return false;
+
+      // Search query
+      if (q) {
+        const matchesName = p.name.toLowerCase().includes(q);
+        const matchesRole = p.role.toLowerCase().includes(q);
+        const matchesStyle = (p.battingStyle || '').toLowerCase().includes(q) || (p.bowlingStyle || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesRole && !matchesStyle) return false;
+      }
+
+      return true;
+    });
+  }, [playerPool, selectedRole, selectedStatus, searchQuery]);
+
+  // Handle Hammer Sold
+  const handleConfirmSold = async () => {
+    if (!currentPlayer) {
+      toast.error('No player currently selected for auction');
+      return;
+    }
+    if (!selectedTeamId) {
+      toast.error('Please select the winning franchise team');
+      return;
+    }
+    if (soldPrice < currentPlayer.basePrice) {
+      toast.error(`Sold price cannot be lower than base price (${formatMoney(currentPlayer.basePrice)})`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onDecideSold(currentPlayer.id, selectedTeamId, soldPrice);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Mark Unsold
+  const handleMarkUnsold = async () => {
+    if (!currentPlayer) return;
+    setIsSubmitting(true);
+    try {
+      await onDecideUnsold(currentPlayer.id);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Quick increment buttons
+  const addPrice = (inc: number) => {
+    setSoldPrice((prev) => Math.max(currentPlayer?.basePrice || 100, prev + inc));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 1. TOP OVERVIEW & STATS BAR */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Card className="border border-white/10 bg-card/80 p-3.5 rounded-2xl shadow-sm">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Pool</p>
+          <p className="text-xl md:text-2xl font-black text-foreground mt-0.5">{stats.total} Players</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">80 Test Candidates</p>
+        </Card>
+        <Card className="border border-emerald-500/20 bg-emerald-500/5 p-3.5 rounded-2xl shadow-sm">
+          <p className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Drafted / Sold</p>
+          <p className="text-xl md:text-2xl font-black text-emerald-400 mt-0.5">{stats.sold} Sold</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Total: {formatMoney(stats.totalSpent)}</p>
+        </Card>
+        <Card className="border border-amber-500/20 bg-amber-500/5 p-3.5 rounded-2xl shadow-sm">
+          <p className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Remaining Pending</p>
+          <p className="text-xl md:text-2xl font-black text-amber-400 mt-0.5">{stats.pending} Left</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Waiting for auction</p>
+        </Card>
+        <Card className="border border-destructive/20 bg-destructive/5 p-3.5 rounded-2xl shadow-sm">
+          <p className="text-[10px] uppercase font-bold text-destructive tracking-wider">Passed / Unsold</p>
+          <p className="text-xl md:text-2xl font-black text-destructive mt-0.5">{stats.unsold}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Eligible for re-auction</p>
+        </Card>
+        <Card className="border border-primary/20 bg-primary/5 p-3.5 rounded-2xl shadow-sm flex flex-col justify-between col-span-2 sm:col-span-1">
+          <div>
+            <p className="text-[10px] uppercase font-bold text-primary tracking-wider">Franchise Purse</p>
+            <p className="text-xs text-muted-foreground mt-0.5">₹10,000 / team initial</p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1 mt-2">
+                <RotateCcw className="w-3 h-3" /> Reset Season
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset Auction & Squads?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will empty all team rosters to ₹10,000 purse, clear all bids, and reset all 80 players back to pending status.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onResetAuction} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
+                  Confirm Reset
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </Card>
+      </div>
+
+      {/* 2. AUCTIONEER SPOTLIGHT HAMMER CONSOLE */}
+      <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-card via-card to-amber-950/10 rounded-3xl shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-transparent p-4 border-b border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <Gavel className="w-5 h-5" />
+            </span>
+            <div>
+              <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                Live Auctioneer Podium
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px] font-black uppercase tracking-wider">
+                  Real-time Sync to Viewers
+                </Badge>
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Set player-by-player on the hammer. Every decision immediately syncs to all viewers' screens.
+              </p>
+            </div>
+          </div>
+
+          {currentPlayer && (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <Radio className="w-3 h-3 animate-pulse text-emerald-400" />
+                Active on Stage: {currentPlayer.name}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <CardContent className="p-5 md:p-6 space-y-6">
+          {currentPlayer ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left 4 Cols: Spotlighted Player Identity */}
+              <div className="lg:col-span-4 bg-muted/30 border rounded-2xl p-4 text-center space-y-3">
+                <Avatar className="w-24 h-24 mx-auto border-2 border-amber-400/50 shadow-md">
+                  <AvatarImage src={currentPlayer.photoUrl || undefined} alt={currentPlayer.name} />
+                  <AvatarFallback className="bg-amber-500/20 text-amber-400 text-2xl font-black">
+                    {currentPlayer.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div>
+                  <h4 className="text-xl font-black text-foreground">{currentPlayer.name}</h4>
+                  <div className="flex items-center justify-center gap-1.5 mt-1">
+                    <Badge variant="outline" className="text-xs font-bold uppercase">
+                      {currentPlayer.role.replace('_', ' ')}
+                    </Badge>
+                    <Badge
+                      className={`text-[10px] font-bold uppercase ${
+                        isCurrentSold
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : isCurrentUnsold
+                          ? 'bg-destructive/20 text-destructive border border-destructive/30'
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      }`}
+                    >
+                      {currentPlayer.auctionStatus}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                    {currentPlayer.battingStyle && <p>🏏 {currentPlayer.battingStyle}</p>}
+                    {currentPlayer.bowlingStyle && <p>⚡ {currentPlayer.bowlingStyle}</p>}
+                  </div>
+                </div>
+
+                <div className="bg-card/90 border rounded-xl p-2.5 flex items-center justify-around text-center">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Base Price</span>
+                    <span className="text-sm font-black text-foreground">{formatMoney(currentPlayer.basePrice)}</span>
+                  </div>
+                  <div className="h-6 w-px bg-border" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Current Bid</span>
+                    <span className="text-sm font-black text-amber-400">{formatMoney(soldPrice)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right 8 Cols: Franchise Selector & Final Hammer Controls */}
+              <div className="lg:col-span-8 space-y-5">
+                {/* 1. Winning Franchise Selection */}
+                <div>
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                    1. Select Winning Franchise Team:
+                  </Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {teams.map((t) => {
+                      const isSelected = t.id === selectedTeamId;
+                      const squadCount = t.players?.length || 0;
+                      const teamPurse = t.remainingPurse !== undefined && t.remainingPurse !== null
+                        ? (squadCount === 0 ? (t.initialPurse || 10000) : t.remainingPurse)
+                        : (t.initialPurse || 10000);
+                      const canAfford = teamPurse >= soldPrice;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedTeamId(t.id)}
+                          className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                            isSelected
+                              ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400 shadow-md'
+                              : 'border-white/10 bg-card hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="font-bold text-xs truncate text-foreground">{t.name}</span>
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: t.primaryColor ? `hsl(${t.primaryColor})` : '#f59e0b' }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span className={canAfford ? 'text-emerald-400 font-bold' : 'text-destructive font-bold'}>
+                              {formatMoney(teamPurse)}
+                            </span>
+                            <span>{squadCount}/10 squad</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Final Sold Price Controls */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      2. Final Sold Price:
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      Base Price: <strong className="text-foreground">{formatMoney(currentPlayer.basePrice)}</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₹</span>
+                      <Input
+                        type="number"
+                        min={currentPlayer.basePrice}
+                        step={50}
+                        value={soldPrice}
+                        onChange={(e) => setSoldPrice(Number(e.target.value) || currentPlayer.basePrice)}
+                        className="pl-8 text-base font-black bg-background border-white/20 h-11"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSoldPrice(currentPlayer.basePrice)}
+                      className="h-11 px-3 text-xs"
+                      title="Reset to Base Price"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+
+                  {/* Quick Increment Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[11px] text-muted-foreground mr-1">Quick Add:</span>
+                    {[50, 100, 250, 500, 1000].map((inc) => (
+                      <button
+                        key={inc}
+                        type="button"
+                        onClick={() => addPrice(inc)}
+                        className="text-xs font-bold px-2.5 py-1 rounded-lg border border-white/10 bg-muted/50 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/30 transition-colors"
+                      >
+                        +{inc}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Warning if team can't afford */}
+                  {selectedTeam && (selectedTeam.remainingPurse !== undefined && (selectedTeam.players?.length || 0) === 0 ? (selectedTeam.initialPurse || 10000) : (selectedTeam.remainingPurse ?? 10000)) < soldPrice && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-400 mt-2 bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>
+                        Notice: {selectedTeam.name} has only {formatMoney((selectedTeam.players?.length || 0) === 0 ? (selectedTeam.initialPurse || 10000) : (selectedTeam.remainingPurse ?? 10000))} remaining in purse.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Action Buttons */}
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-white/10">
+                  <Button
+                    onClick={handleConfirmSold}
+                    disabled={isSubmitting}
+                    className="flex-1 min-w-[200px] h-11 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm gap-2 shadow-lg shadow-emerald-950/20"
+                  >
+                    <Gavel className="w-4 h-4" />
+                    Hammer SOLD to {selectedTeam?.name || 'Selected Team'} for {formatMoney(soldPrice)}!
+                  </Button>
+
+                  <Button
+                    variant="destructive"
+                    onClick={handleMarkUnsold}
+                    disabled={isSubmitting}
+                    className="h-11 px-4 text-xs font-bold gap-1.5"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Pass (UNSOLD)
+                  </Button>
+
+                  {(isCurrentSold || isCurrentUnsold) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => onRevertStatus(currentPlayer.id)}
+                      disabled={isSubmitting}
+                      className="h-11 px-3 text-xs font-bold gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Revert Status
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              <Gavel className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
+              <p className="font-bold">No Player Currently on Spotlight Hammer</p>
+              <p className="text-xs mt-1">Select any player from the Master Queue below to bring them to the podium.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 3. SET AUCTION PLAYER-BY-PLAYER: MASTER QUEUE */}
+      <Card className="border border-white/10 bg-card/85 rounded-3xl shadow-lg">
+        <CardHeader className="p-5 border-b border-white/10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                Player-by-Player Auction Queue ({filteredQueue.length} shown of {playerPool.length})
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Browse all 80 candidates. Click "Bring to Spotlight" to set any player onto the live hammer stage across all devices.
+              </CardDescription>
+            </div>
+
+            {/* Role Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedRole('all')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  selectedRole === 'all'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All (80)
+              </button>
+              {AUCTION_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
+                const count = playerPool.filter((p) => p.role === cat.id).length;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedRole(cat.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      selectedRole === cat.id
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {cat.icon} {cat.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Search & Status Filters */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-white/10">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search candidates by name (e.g. Player 15)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs bg-background/60 border-white/10 rounded-xl"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 self-end sm:self-auto text-xs">
+              <span className="text-muted-foreground font-medium text-[11px] mr-1">Status:</span>
+              {(['all', 'pending', 'sold', 'unsold'] as const).map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setSelectedStatus(st)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize transition-all ${
+                    selectedStatus === st
+                      ? 'bg-foreground text-background font-black'
+                      : 'bg-muted/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-muted/50 text-muted-foreground font-bold border-b border-white/10 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="py-3 px-4">Candidate</th>
+                  <th className="py-3 px-3">Role & Style</th>
+                  <th className="py-3 px-3">Base Price</th>
+                  <th className="py-3 px-3">Auction Status</th>
+                  <th className="py-3 px-3">Allocated Franchise</th>
+                  <th className="py-3 px-4 text-right">Auctioneer Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filteredQueue.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      No candidates found matching the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredQueue.map((p) => {
+                    const isSpotlight = currentPlayer?.id === p.id;
+                    const assignedTeam = teams.find((t) => t.id === p.teamId);
+                    const isSold = p.auctionStatus === 'sold';
+                    const isUnsold = p.auctionStatus === 'unsold';
+
+                    return (
+                      <tr
+                        key={p.id}
+                        className={`hover:bg-muted/30 transition-colors ${
+                          isSpotlight ? 'bg-amber-500/10 font-medium' : ''
+                        }`}
+                      >
+                        {/* Player name & avatar */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="w-8 h-8 rounded-lg border border-white/10">
+                              <AvatarImage src={p.photoUrl || undefined} alt={p.name} />
+                              <AvatarFallback className="text-[10px] font-black bg-muted">
+                                {p.name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <span className="font-bold text-foreground block text-xs">{p.name}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">{p.id}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Role & Styles */}
+                        <td className="py-3 px-3">
+                          <div>
+                            <span className="font-semibold text-primary capitalize block">
+                              {p.role.replace('_', ' ')}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground truncate block">
+                              {p.battingStyle || 'Right-hand bat'} • {p.bowlingStyle || 'None'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Base Price */}
+                        <td className="py-3 px-3 font-mono font-bold text-foreground">
+                          {formatMoney(p.basePrice)}
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-3 px-3">
+                          {isSpotlight ? (
+                            <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black gap-1 animate-pulse">
+                              <Radio className="w-3 h-3" /> ON HAMMER
+                            </Badge>
+                          ) : isSold ? (
+                            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> SOLD ({formatMoney(p.soldPrice || p.basePrice)})
+                            </Badge>
+                          ) : isUnsold ? (
+                            <Badge variant="destructive" className="text-[10px] font-bold gap-1">
+                              <XCircle className="w-3 h-3" /> UNSOLD
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              PENDING
+                            </Badge>
+                          )}
+                        </td>
+
+                        {/* Allocated Team */}
+                        <td className="py-3 px-3">
+                          {assignedTeam ? (
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: assignedTeam.primaryColor ? `hsl(${assignedTeam.primaryColor})` : '#f59e0b' }}
+                              />
+                              <span className="font-bold text-foreground text-xs">{assignedTeam.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-[11px]">—</span>
+                          )}
+                        </td>
+
+                        {/* Action Buttons */}
+                        <td className="py-3 px-4 text-right space-x-1.5">
+                          {isSpotlight ? (
+                            <Button size="sm" variant="secondary" disabled className="h-7 text-xs font-bold gap-1">
+                              Active Podium
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => onSpotlightPlayer(p)}
+                              className="h-7 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1 shadow-xs"
+                            >
+                              <Zap className="w-3 h-3" />
+                              Bring to Spotlight
+                            </Button>
+                          )}
+
+                          {(isSold || isUnsold) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onRevertStatus(p.id)}
+                              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                              title="Reset player to Pending"
+                            >
+                              Revert
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. LIVE SALES & TRANSACTION FEED (Who bought whom & for how much) */}
+      <Card className="border border-white/10 bg-card/80 rounded-3xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <History className="w-4 h-4" />
+            </span>
+            <h4 className="font-bold text-sm text-foreground">Recent Auction Transactions & Sales Log</h4>
+          </div>
+          <span className="text-xs text-muted-foreground">{salesHistory.length} Total Sales Recorded</span>
+        </div>
+
+        {salesHistory.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            No players have been drafted yet. Select any player above and click Hammer SOLD to record allocations.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {salesHistory.slice(0, 9).map((log) => (
+              <div
+                key={log.id}
+                className="p-2.5 rounded-xl border border-white/5 bg-background/60 flex items-center justify-between text-xs"
+              >
+                <div>
+                  <span className="font-bold text-foreground block">{log.playerName}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">
+                    {log.playerRole.replace('_', ' ')} • {log.status === 'sold' ? log.teamName : 'Unsold'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="font-mono font-bold text-emerald-400 block">{formatMoney(log.amount)}</span>
+                  <span className="text-[9px] text-muted-foreground">
+                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+

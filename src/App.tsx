@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TournamentProvider } from "@/contexts/TournamentContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 // Eagerly loaded critical landing page
 import Index from "./pages/Index";
@@ -58,33 +59,35 @@ const App = () => (
       <AuthProvider>
         <TournamentProvider>
           <BrowserRouter>
-            <Suspense fallback={<PageLoadingFallback />}>
-              <Routes>
-                {/* Public Auth & Tournament Spectator Routes */}
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/players" element={<PlayersDirectory />} />
-                <Route path="/players/:id" element={<PlayerProfile />} />
-                <Route path="/auction" element={<Auction />} />
-                <Route path="/points" element={<PointsTable />} />
-                <Route path="/bracket" element={<TournamentStructure />} />
-                <Route path="/stats" element={<TeamStats />} />
-                <Route path="/profile" element={<Profile />} />
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoadingFallback />}>
+                <Routes>
+                  {/* Public Auth & Tournament Spectator Routes */}
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={<Index />} />
+                  <Route path="/players" element={<PlayersDirectory />} />
+                  <Route path="/players/:id" element={<PlayerProfile />} />
+                  <Route path="/auction" element={<Auction />} />
+                  <Route path="/points" element={<PointsTable />} />
+                  <Route path="/bracket" element={<TournamentStructure />} />
+                  <Route path="/stats" element={<TeamStats />} />
+                  <Route path="/profile" element={<Profile />} />
 
-                {/* Protected Admin & Scoring Route */}
-                <Route
-                  path="/admin"
-                  element={
-                    <AuthGuard allowedRoles={['admin', 'co_admin', 'scorer', 'primary_scorer']}>
-                      <Admin />
-                    </AuthGuard>
-                  }
-                />
+                  {/* Protected Admin & Scoring Route */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <AuthGuard allowedRoles={['admin', 'co_admin']}>
+                        <Admin />
+                      </AuthGuard>
+                    }
+                  />
 
-                {/* Fallback */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+                  {/* Fallback */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
           </BrowserRouter>
         </TournamentProvider>
       </AuthProvider>

@@ -202,6 +202,24 @@ export interface Innings {
 
 export type MatchType = 'group' | 'semi_final_1' | 'semi_final_2' | 'final';
 
+export interface MatchFixture {
+  id: string;
+  tournamentId: string;
+  matchNumber: number;
+  team1Id: string;
+  team2Id: string;
+  group?: 'A' | 'B';
+  matchType: MatchType;
+  scheduledTime: string; // e.g. "09:30 AM"
+  scheduledDate: string; // e.g. "Day 1 - Morning" or "Today"
+  venue: string; // e.g. "Ground 1 (Pavilion End)"
+  status: 'scheduled' | 'live' | 'completed';
+  winnerTeamId?: string | null;
+  matchId?: string;
+  summary?: string;
+  notes?: string;
+}
+
 export interface SuperOver {
   innings1: Innings | null;  // Team 1 batting
   innings2: Innings | null;  // Team 2 batting
@@ -265,24 +283,24 @@ const createDefaultPlayers = (teamId: string, count: number = 10): Player[] =>
   }));
 
 export const DEFAULT_TEAMS: Team[] = [
-  { id: 'a1', tournamentId: 'kapl-3-mens', name: 'Kapil\'s Warriors', group: 'A', logo: null, primaryColor: '0 84% 60%', players: createDefaultPlayers('a1'), playerCount: 10, remainingPurse: 10000, ownerName: 'Rohit Doshi', ownerEmail: 'rohitdoshicolg@gmail.com' },
-  { id: 'a2', tournamentId: 'kapl-3-mens', name: 'Kapil Falcons', group: 'A', logo: null, primaryColor: '174 72% 40%', players: createDefaultPlayers('a2'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'a3', tournamentId: 'kapl-3-mens', name: 'Insta Paltans', group: 'A', logo: null, primaryColor: '267 84% 51%', players: createDefaultPlayers('a3'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'a4', tournamentId: 'kapl-3-mens', name: 'Kapil\'s Devils', group: 'A', logo: null, primaryColor: '222 47% 31%', players: createDefaultPlayers('a4'), playerCount: 10, remainingPurse: 10000 },
+  { id: 'a1', tournamentId: 'kapl-3-mens', name: 'Kapil\'s Warriors', group: 'A', logo: null, primaryColor: '0 84% 60%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10, ownerName: 'Rohit Doshi', ownerEmail: 'rohitdoshicolg@gmail.com' },
+  { id: 'a2', tournamentId: 'kapl-3-mens', name: 'Kapil Falcons', group: 'A', logo: null, primaryColor: '174 72% 40%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'a3', tournamentId: 'kapl-3-mens', name: 'Insta Paltans', group: 'A', logo: null, primaryColor: '267 84% 51%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'a4', tournamentId: 'kapl-3-mens', name: 'Kapil\'s Devils', group: 'A', logo: null, primaryColor: '222 47% 31%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
   // Group B
-  { id: 'b1', tournamentId: 'kapl-3-mens', name: 'Goodness Royals', group: 'B', logo: null, primaryColor: '43 96% 56%', players: createDefaultPlayers('b1'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'b2', tournamentId: 'kapl-3-mens', name: 'Kapil Ke Singham', group: 'B', logo: null, primaryColor: '199 89% 48%', players: createDefaultPlayers('b2'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'b3', tournamentId: 'kapl-3-mens', name: 'Super Strikers', group: 'B', logo: null, primaryColor: '280 68% 51%', players: createDefaultPlayers('b3'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'b4', tournamentId: 'kapl-3-mens', name: 'Kapil Avengers', group: 'B', logo: null, primaryColor: '25 95% 53%', players: createDefaultPlayers('b4'), playerCount: 10, remainingPurse: 10000 },
+  { id: 'b1', tournamentId: 'kapl-3-mens', name: 'Goodness Royals', group: 'B', logo: null, primaryColor: '43 96% 56%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'b2', tournamentId: 'kapl-3-mens', name: 'Kapil Ke Singham', group: 'B', logo: null, primaryColor: '199 89% 48%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'b3', tournamentId: 'kapl-3-mens', name: 'Super Strikers', group: 'B', logo: null, primaryColor: '280 68% 51%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'b4', tournamentId: 'kapl-3-mens', name: 'Kapil Avengers', group: 'B', logo: null, primaryColor: '25 95% 53%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
 ];
 
 export const DEFAULT_WOMENS_TEAMS: Team[] = [
   // Group A
-  { id: 'w_a1', tournamentId: 'kapl-3-womens', name: 'Kapil Queens', group: 'A', logo: null, primaryColor: '326 78% 60%', players: createDefaultPlayers('w_a1'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'w_a2', tournamentId: 'kapl-3-womens', name: 'Falconettes', group: 'A', logo: null, primaryColor: '174 72% 40%', players: createDefaultPlayers('w_a2'), playerCount: 10, remainingPurse: 10000 },
+  { id: 'w_a1', tournamentId: 'kapl-3-womens', name: 'Kapil Queens', group: 'A', logo: null, primaryColor: '326 78% 60%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'w_a2', tournamentId: 'kapl-3-womens', name: 'Falconettes', group: 'A', logo: null, primaryColor: '174 72% 40%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
   // Group B
-  { id: 'w_b1', tournamentId: 'kapl-3-womens', name: 'Royal Challengers Women', group: 'B', logo: null, primaryColor: '0 84% 60%', players: createDefaultPlayers('w_b1'), playerCount: 10, remainingPurse: 10000 },
-  { id: 'w_b2', tournamentId: 'kapl-3-womens', name: 'Super Strikers Women', group: 'B', logo: null, primaryColor: '280 68% 51%', players: createDefaultPlayers('w_b2'), playerCount: 10, remainingPurse: 10000 },
+  { id: 'w_b1', tournamentId: 'kapl-3-womens', name: 'Royal Challengers Women', group: 'B', logo: null, primaryColor: '0 84% 60%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
+  { id: 'w_b2', tournamentId: 'kapl-3-womens', name: 'Super Strikers Women', group: 'B', logo: null, primaryColor: '280 68% 51%', players: [], playerCount: 0, remainingPurse: 10000, initialPurse: 10000, maxSquadSize: 10 },
 ];
 
 export const PRESET_COLORS = [

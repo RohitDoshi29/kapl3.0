@@ -14,18 +14,30 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { PlayCircle, AlertCircle, Trophy, Users, UserCheck } from 'lucide-react';
-import { MatchType, MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
+import { PlayCircle, AlertCircle, Trophy, Users, UserCheck, Trash2 } from 'lucide-react';
+import { MatchType, MATCH_TYPE_LABELS, MatchFixture } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import { Badge } from '@/components/ui/badge';
 import { useTournament } from '@/contexts/TournamentContext';
+import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface AdminMatchSetupTabProps {
   onNavigateToScorer: () => void;
 }
 
 export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSetupTabProps) {
-  const { getTeamsByGroup, getTeam, startMatch, matchState, teams } = useCricketStore();
+  const { getTeamsByGroup, getTeam, startMatch, abandonMatch, matchState, teams } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
   const [selectedGroup, setSelectedGroup] = useState<'A' | 'B'>('A');
   const [team1Id, setTeam1Id] = useState<string>('');
@@ -51,6 +63,37 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   const team2 = team2Id ? getTeam(team2Id) : null;
   const knockoutTeam1 = knockoutTeam1Id ? getTeam(knockoutTeam1Id) : null;
   const knockoutTeam2 = knockoutTeam2Id ? getTeam(knockoutTeam2Id) : null;
+
+  const handleSelectFixture = (fixture: MatchFixture) => {
+    const t1 = getTeam(fixture.team1Id);
+    const t2 = getTeam(fixture.team2Id);
+
+    if (fixture.matchType === 'group') {
+      setMatchType('group');
+      if (fixture.group) setSelectedGroup(fixture.group);
+      setTeam1Id(fixture.team1Id);
+      setTeam2Id(fixture.team2Id);
+      setTossWinner('');
+      setTossDecision('');
+      if (t1) setTeam1PlayingPlayers(t1.players.slice(0, MATCH_CONSTANTS.PLAYING_PLAYERS).map(p => p.id));
+      if (t2) setTeam2PlayingPlayers(t2.players.slice(0, MATCH_CONSTANTS.PLAYING_PLAYERS).map(p => p.id));
+    } else {
+      setMatchType('knockout');
+      setKnockoutType(fixture.matchType as 'semi_final_1' | 'semi_final_2' | 'final');
+      setKnockoutTeam1Id(fixture.team1Id);
+      setKnockoutTeam2Id(fixture.team2Id);
+      setKnockoutTossWinner('');
+      setKnockoutTossDecision('');
+      if (t1) setKnockoutTeam1PlayingPlayers(t1.players.slice(0, MATCH_CONSTANTS.PLAYING_PLAYERS).map(p => p.id));
+      if (t2) setKnockoutTeam2PlayingPlayers(t2.players.slice(0, MATCH_CONSTANTS.PLAYING_PLAYERS).map(p => p.id));
+    }
+
+    toast.success(`Loaded fixture: ${t1?.name || fixture.team1Id} vs ${t2?.name || fixture.team2Id}`);
+    const elem = document.getElementById('match-setup-form');
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleGroupChange = (group: 'A' | 'B') => {
     setSelectedGroup(group);
@@ -137,7 +180,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
     return { battingTeamId: t2Id, bowlingTeamId: t1Id };
   };
 
-  const handleStartGroupMatch = () => {
+  const handleStartGroupMatch = async () => {
     if (!team1Id || !team2Id) {
       toast.error('Please select both teams');
       return;
@@ -163,12 +206,12 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       [team1Id]: team1PlayingPlayers,
       [team2Id]: team2PlayingPlayers,
     };
-    startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group', playingPlayers, activeTournamentId);
+    await startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group', playingPlayers, activeTournamentId);
     toast.success('Group match started!');
     onNavigateToScorer();
   };
 
-  const handleStartKnockoutMatch = () => {
+  const handleStartKnockoutMatch = async () => {
     if (!knockoutTeam1Id || !knockoutTeam2Id) {
       toast.error('Please select both teams');
       return;
@@ -195,7 +238,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       [knockoutTeam2Id]: knockoutTeam2PlayingPlayers,
     };
     // Use 'A' as default group for knockout matches
-    startMatch('A', battingTeamId, bowlingTeamId, knockoutType, playingPlayers, activeTournamentId);
+    await startMatch('A', battingTeamId, bowlingTeamId, knockoutType, playingPlayers, activeTournamentId);
     toast.success(`${MATCH_TYPE_LABELS[knockoutType]} started!`);
     onNavigateToScorer();
   };
@@ -266,9 +309,39 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               <span className="text-xl font-bold">vs</span>
               {activeTeam2 && <TeamBadge team={activeTeam2} size="md" />}
             </div>
-            <Button className="w-full" onClick={onNavigateToScorer}>
-              Go to Scorer
-            </Button>
+            <div className="grid gap-2">
+              <Button className="w-full" onClick={onNavigateToScorer}>
+                Go to Scorer
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full gap-2 font-bold">
+                    <Trash2 className="w-4 h-4" />
+                    Discard / Remove This Match
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Discard Match in Progress?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will immediately remove this match ({activeTeam1?.name || 'Team 1'} vs {activeTeam2?.name || 'Team 2'}) without saving it to points table or match history. You can then start a fresh match immediately.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        await abandonMatch();
+                        toast.success('Match in progress has been removed');
+                      }}
+                      className="bg-destructive hover:bg-destructive/90 text-white font-bold"
+                    >
+                      Yes, Discard Match
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -276,8 +349,11 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <Card>
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Tournament Fixtures & Quick Launcher */}
+      <MatchFixturesCalendar onSelectFixtureForScoring={handleSelectFixture} isAdminView={true} />
+
+      <Card id="match-setup-form" className="max-w-lg mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>New Match Setup</span>

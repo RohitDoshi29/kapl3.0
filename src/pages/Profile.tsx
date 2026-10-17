@@ -299,14 +299,6 @@ export default function Profile() {
             <Shield className="w-3 h-3" /> Co-Admin
           </Badge>
         );
-      case 'scorer':
-      case 'primary_scorer':
-      case 'secondary_scorer':
-        return (
-          <Badge className="bg-primary text-primary-foreground font-bold text-xs gap-1 py-0.5 px-2.5">
-            <Award className="w-3 h-3" /> Official Scorer
-          </Badge>
-        );
       default:
         return (
           <Badge variant="secondary" className="font-semibold text-xs gap-1 py-0.5 px-2.5">
@@ -524,8 +516,6 @@ export default function Profile() {
                     <>🦁 Franchise Team Captain</>
                   ) : userRole === 'co_admin' ? (
                     <>🛡️ Tournament Co-Admin</>
-                  ) : userRole === 'scorer' || userRole === 'primary_scorer' ? (
-                    <>⚖️ Official Tournament Scorer</>
                   ) : (
                     <>🏏 Official Registered Player</>
                   )}
@@ -615,7 +605,7 @@ export default function Profile() {
                     ? 'You have official franchise bidding rights in the Auction Spotlight Stage and oversight of the team purse.'
                     : userRole === 'captain' || userTeam?.relationship === 'Captain'
                     ? 'You are designated to lead team tactics, match toss, and Playing XI selection.'
-                    : userRole === 'admin' || userRole === 'co_admin' || userRole === 'scorer'
+                    : userRole === 'admin' || userRole === 'co_admin'
                     ? 'You hold elevated administrative and scoring privileges for all tournament fixtures.'
                     : 'You are registered in the official tournament player pool for team selection.'}
                 </span>
@@ -632,7 +622,7 @@ export default function Profile() {
                   </Button>
                 )}
 
-                {(userRole === 'admin' || userRole === 'co_admin' || userRole === 'scorer') && (
+                {(userRole === 'admin' || userRole === 'co_admin') && (
                   <Button asChild size="sm" variant="secondary" className="h-9 text-xs font-bold gap-1.5">
                     <Link to="/admin">
                       <Shield className="w-3.5 h-3.5" />

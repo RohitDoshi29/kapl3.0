@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Zap, ArrowRight, Radio } from 'lucide-react';
 
 export function MultiMatchLiveBar() {
-  const { matchState, getTeam } = useCricketStore();
+  const { allTournamentMatches, matchState, getTeam } = useCricketStore();
   const { activeTournamentId, setActiveTournamentId, isMens } = useTournament();
 
-  const match = matchState.currentMatch;
-  if (!match || match.status !== 'live') return null;
+  const otherTournamentId = activeTournamentId === 'kapl-3-mens' ? 'kapl-3-womens' : 'kapl-3-mens';
+  const match = allTournamentMatches?.[otherTournamentId] || 
+    (matchState.currentMatch && matchState.currentMatch.tournamentId === otherTournamentId ? matchState.currentMatch : null);
+
+  if (!match || (match.status !== 'live' && match.status !== 'super_over')) return null;
 
   // Determine which tournament this live match belongs to
-  const matchTournamentId = match.tournamentId || 'kapl-3-mens';
+  const matchTournamentId = match.tournamentId || otherTournamentId;
 
   // If match belongs to the tournament currently active, we don't need a crossover alert
   if (matchTournamentId === activeTournamentId) {

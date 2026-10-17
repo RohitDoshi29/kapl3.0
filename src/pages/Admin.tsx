@@ -15,6 +15,7 @@ import AdminSettingsTab from '@/components/admin/AdminSettingsTab';
 import PlayerStatsTab from '@/components/admin/PlayerStatsTab';
 import { AdminTournamentTab } from '@/components/admin/AdminTournamentTab';
 import AdminRolesGovernanceTab from '@/components/admin/AdminRolesGovernanceTab';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
@@ -24,8 +25,9 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState('scorer');
 
   return (
-    <AdminPasswordGate>
-      <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+    <ErrorBoundary fallbackTitle="KAPL Admin Console Error" fallbackDescription="An unexpected error occurred while loading the Admin interface.">
+      <AdminPasswordGate>
+        <div className="relative min-h-screen bg-background pb-20 md:pb-8">
         {/* Ambient Stadium Lighting Mesh */}
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -105,15 +107,13 @@ export default function Admin() {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {scorerRole && (
+              {isAdmin && (
                 <Badge variant="outline" className="ml-2 hidden md:flex font-semibold border-amber-500/40 text-foreground">
                   {user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com'
                     ? '👑 Main Admin'
                     : isCoAdmin
-                    ? 'Co-Admin'
-                    : scorerRole === 'admin'
-                    ? 'Super Admin'
-                    : 'Scorer'}
+                    ? '🛡️ Co-Admin'
+                    : '🛡️ Tournament Admin'}
                 </Badge>
               )}
             </div>
@@ -151,5 +151,6 @@ export default function Admin() {
         </main>
       </div>
     </AdminPasswordGate>
+    </ErrorBoundary>
   );
 }

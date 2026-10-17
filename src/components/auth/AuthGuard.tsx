@@ -62,16 +62,14 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     (user?.email && user.email.toLowerCase().trim() === 'rohit.doshi2007@gmail.com')
   );
 
-  // Admins always have access to all routes
+  // Admins and Co-Admins have access to administrative routes
   const isElevatedAdmin = isMain || isAdmin || isSuperAdmin || hasGroundAccess;
-  const hasScorerPrivilege = isScorer || userRole === 'scorer' || userRole === 'primary_scorer';
 
   // Role-Based Authorization Check (if allowedRoles specified)
   const hasRole = Boolean(
     !allowedRoles ||
     allowedRoles.length === 0 ||
     isElevatedAdmin ||
-    ((allowedRoles.includes('scorer') || allowedRoles.includes('primary_scorer')) && hasScorerPrivilege) ||
     (userRole && (allowedRoles.includes(userRole) || userRole === 'admin'))
   );
 
@@ -175,10 +173,10 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
             <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2.5">
               <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
                 <KeyRound className="w-4 h-4 shrink-0" />
-                <span>Ground Official / Scorer Emergency Unlock</span>
+                <span>Ground Official Emergency Unlock</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                If you are a match official or scorer on ground, enter the tournament emergency passcode to unlock access on this device:
+                If you are a tournament official or administrator on ground, enter the emergency passcode to unlock access on this device:
               </p>
               <form onSubmit={handleUnlockWithPin} className="flex gap-2">
                 <div className="relative flex-1">

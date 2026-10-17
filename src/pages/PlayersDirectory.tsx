@@ -481,7 +481,7 @@ export default function PlayersDirectory() {
         </div>
 
         {/* Players Loading State */}
-        {isLoading && (
+        {isLoading && players.length === 0 && (
           <div className="py-20 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mb-3" />
             <p className="text-sm text-muted-foreground">Loading player directory & stats...</p>
@@ -489,7 +489,7 @@ export default function PlayersDirectory() {
         )}
 
         {/* Empty State */}
-        {!isLoading && filteredPlayers.length === 0 && (
+        {(!isLoading || players.length > 0) && filteredPlayers.length === 0 && (
           <div className="py-16 text-center bg-card border border-border/70 rounded-2xl p-8">
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-muted-foreground">
               <Users className="w-6 h-6" />
@@ -505,7 +505,7 @@ export default function PlayersDirectory() {
         )}
 
         {/* View Mode: Card Grid */}
-        {!isLoading && filteredPlayers.length > 0 && viewMode === 'grid' && (
+        {filteredPlayers.length > 0 && viewMode === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredPlayers.map(player => {
               const roleMeta = ROLE_LABELS[player.role] || ROLE_LABELS.all_rounder;
@@ -679,7 +679,7 @@ export default function PlayersDirectory() {
         )}
 
         {/* View Mode: Dense Table View */}
-        {!isLoading && filteredPlayers.length > 0 && viewMode === 'table' && (
+        {filteredPlayers.length > 0 && viewMode === 'table' && (
           <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">

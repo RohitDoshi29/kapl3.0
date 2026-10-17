@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
 import { Badge } from '@/components/ui/badge';
+import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
 
 export default function PointsTable() {
   const { teams, getTeamStats, getTeam, matchHistory } = useCricketStore();
@@ -233,6 +234,9 @@ export default function PointsTable() {
             </CardContent>
           </Card>
         )}
+
+        {/* Tournament Fixtures & Schedule */}
+        <MatchFixturesCalendar />
       </main>
     </div>
   );

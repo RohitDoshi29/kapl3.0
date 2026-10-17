@@ -70,10 +70,6 @@ export function Header({ className }: { className?: string }) {
         return <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 font-bold">Admin</Badge>;
       case 'co_admin':
         return <Badge className="bg-purple-600 text-white font-bold text-[10px] px-1.5 py-0 shadow-xs">Co-Admin</Badge>;
-      case 'scorer':
-      case 'primary_scorer':
-      case 'secondary_scorer':
-        return <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 font-bold">Scorer</Badge>;
       case 'owner':
         return <Badge className="bg-amber-500 text-black font-bold text-[10px] px-1.5 py-0 shadow-xs">Owner</Badge>;
       case 'captain':

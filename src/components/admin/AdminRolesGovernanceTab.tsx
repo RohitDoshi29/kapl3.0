@@ -52,26 +52,18 @@ export interface CoAdminEntry {
   addedAt: string;
 }
 
-const DEFAULT_CO_ADMINS: CoAdminEntry[] = [
-  {
-    id: 'co-admin-1',
-    email: 'admin.operations@kapl.com',
-    name: 'Tournament Director',
-    title: 'Match Operations & Umpiring',
-    addedAt: '2026-10-01',
-  },
-];
+const DEFAULT_CO_ADMINS: CoAdminEntry[] = [];
 
 export function AdminRolesGovernanceTab() {
   const { user, isSuperAdmin, assignRoleByEmail } = useAuth();
   const { teams, updateTeam } = useCricketStore();
   const { activeTournamentId, setActiveTournamentId } = useTournament();
 
-  const [activeGovernanceTab, setActiveGovernanceTab] = useState<'co_admins' | 'owners' | 'scorers_officials'>('co_admins');
+  const [activeGovernanceTab, setActiveGovernanceTab] = useState<'co_admins' | 'owners' | 'roles_directory'>('co_admins');
 
   // Direct Role Assigner form state
   const [directEmail, setDirectEmail] = useState('');
-  const [directRole, setDirectRole] = useState<UserRole>('scorer');
+  const [directRole, setDirectRole] = useState<UserRole>('captain');
   const [directTitle, setDirectTitle] = useState('');
   const [directTeamId, setDirectTeamId] = useState('');
   const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
@@ -395,9 +387,9 @@ export function AdminRolesGovernanceTab() {
             <Crown className="w-4 h-4 text-amber-500" />
             Franchise Owners ({teams.filter((t) => !!t.ownerName).length})
           </TabsTrigger>
-          <TabsTrigger value="scorers_officials" className="gap-2 font-bold text-xs sm:text-sm">
+          <TabsTrigger value="roles_directory" className="gap-2 font-bold text-xs sm:text-sm">
             <Award className="w-4 h-4 text-emerald-500" />
-            Scorers & Directory
+            Roles & Members Directory
           </TabsTrigger>
         </TabsList>
 
@@ -859,18 +851,18 @@ export function AdminRolesGovernanceTab() {
           </div>
         </TabsContent>
 
-        {/* TAB 3: SCORERS & ROLE DIRECTORY */}
-        <TabsContent value="scorers_officials" className="space-y-6">
+        {/* TAB 3: ROLES & MEMBERS DIRECTORY */}
+        <TabsContent value="roles_directory" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Direct Role Assignment Card */}
             <Card className="lg:col-span-1 shadow-md border-emerald-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
                   <Award className="w-4 h-4 text-emerald-500" />
-                  Appoint Official / Assign Role
+                  Appoint Role / Member
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Appoint Match Scorers, Team Captains, or assign official roles. Players will immediately see their verified role in their profile.
+                  Assign Team Captains, Franchise Owners, or Co-Admins. Players will immediately see their verified role in their profile.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -899,7 +891,7 @@ export function AdminRolesGovernanceTab() {
                       Role to Assign <span className="text-destructive">*</span>
                     </Label>
                     <Select
-                      value={directRole || 'scorer'}
+                      value={directRole || 'captain'}
                       onValueChange={(val) => setDirectRole(val as UserRole)}
                       disabled={isSubmittingDirect}
                     >
@@ -907,7 +899,6 @@ export function AdminRolesGovernanceTab() {
                         <SelectValue placeholder="Select official role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="scorer">⚖️ Official Match Scorer</SelectItem>
                         <SelectItem value="captain">🦁 Franchise Team Captain</SelectItem>
                         <SelectItem value="owner">👑 Franchise Team Owner</SelectItem>
                         <SelectItem value="co_admin">🛡️ Tournament Co-Admin</SelectItem>
@@ -923,7 +914,7 @@ export function AdminRolesGovernanceTab() {
                     <Input
                       id="direct-title"
                       type="text"
-                      placeholder="e.g. Lead Ground Scorer or Captain Name"
+                      placeholder="e.g. Captain or Owner Name"
                       value={directTitle}
                       onChange={(e) => setDirectTitle(e.target.value)}
                       className="h-9 text-xs"
@@ -1009,7 +1000,7 @@ export function AdminRolesGovernanceTab() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-semibold text-foreground">Tournament Director</span>
+                          <span className="text-xs font-semibold text-foreground">Tournament Main Admin</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-muted-foreground">Permanent Super Admin</span>
@@ -1023,7 +1014,7 @@ export function AdminRolesGovernanceTab() {
                       {Object.keys(roleAssignments).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-6 text-xs text-muted-foreground">
-                            No custom role appointments yet. Use the form on the left to appoint Scorers or Captains.
+                            No custom role appointments yet. Use the form on the left to appoint Captains, Owners, or Co-Admins.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -1045,8 +1036,6 @@ export function AdminRolesGovernanceTab() {
                                       ? 'bg-blue-600 text-white'
                                       : item.role === 'co_admin'
                                       ? 'bg-purple-600 text-white'
-                                      : item.role === 'scorer'
-                                      ? 'bg-emerald-600 text-white'
                                       : 'bg-muted text-foreground'
                                   }`}
                                 >

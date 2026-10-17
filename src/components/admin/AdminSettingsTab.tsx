@@ -13,10 +13,20 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { RefreshCcw, Trash2, Database, History } from 'lucide-react';
+import { RefreshCcw, Trash2, Database, History, Gavel, Sparkles } from 'lucide-react';
+import { resetTeamsAndSeed80Players } from '@/lib/mockPlayersData';
 
 export default function AdminSettingsTab() {
   const { matchHistory, resetSeason, resetEverything, teams } = useCricketStore();
+
+  const handleSeed80Players = async () => {
+    const res = await resetTeamsAndSeed80Players();
+    if (res.success) {
+      toast.success('🎉 Successfully populated 80 auction players and emptied all team squads!');
+    } else {
+      toast.error('Failed to seed auction players: ' + res.error);
+    }
+  };
 
   const handleResetSeason = () => {
     resetSeason();
@@ -82,6 +92,51 @@ export default function AdminSettingsTab() {
           <CardDescription>Reset data for new season or fresh start</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Seed 80 Auction Players & Empty Squads */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 gap-3">
+            <div>
+              <h4 className="font-bold flex items-center gap-2 text-amber-500">
+                <Gavel className="w-4 h-4" />
+                Initialize 80 Auction Players & Empty Team Squads
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Generates 80 structured fake players (25 Batters, 25 Bowlers, 20 All-Rounders, 10 Keepers) with batting/bowling styles and ₹100-₹500 base prices. Removes all players from all 8 teams and replenishes each franchise purse to ₹10,000 for the Live Auction.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shrink-0 gap-1.5 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Seed 80 Players & Reset Squads
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Initialize 80 Auction Players?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will:
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                      <li>Generate Player 1 to Player 80 as unassigned auction candidates</li>
+                      <li>Distribute roles (25 Batters, 25 Bowlers, 20 All-rounders, 10 Keepers)</li>
+                      <li>Empty all 8 franchise squads (0 players currently allocated)</li>
+                      <li>Replenish each team's remaining purse to full ₹10,000</li>
+                      <li>Reset the auction spotlight to Player 1 ready for bidding</li>
+                    </ul>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleSeed80Players}
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                  >
+                    Confirm & Initialize 80 Players
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
           {/* Reset Season */}
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div>

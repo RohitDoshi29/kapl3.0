@@ -12,24 +12,49 @@ import { LiveMatchInfo, LastMatchResult } from '@/components/cricket/LiveMatchIn
 import { MatchHistory } from '@/components/cricket/MatchHistory';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MATCH_TYPE_LABELS, Match } from '@/lib/cricketTypes';
+import { MATCH_TYPE_LABELS, Match, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS } from '@/lib/cricketTypes';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 import { TournamentHonors } from '@/components/cricket/TournamentHonors';
+import { LiveCommentaryFeed } from '@/components/cricket/LiveCommentaryFeed';
+import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
 
 const Index = () => {
-  const { matchState, matchHistory, getTeam, isLoaded } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
+  const { matchState, allTournamentMatches, matchHistory, getTeam, isLoaded } = useCricketStore(activeTournamentId);
   const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
   const lastProcessedBallRef = useRef<string | null>(null);
   
-  const rawMatch = matchState.currentMatch;
-  const matchTournId = rawMatch?.tournamentId || (rawMatch ? getTeam(rawMatch.team1Id)?.tournamentId : null) || 'kapl-3-mens';
-  const isMatchInActiveTournament = Boolean(rawMatch && matchTournId === activeTournamentId);
+  let rawMatch = matchState.currentMatch;
+  if (!rawMatch && allTournamentMatches?.[activeTournamentId]) {
+    rawMatch = allTournamentMatches[activeTournamentId];
+  }
+  if (!rawMatch) {
+    try {
+      const cached = localStorage.getItem(`kapl_local_match_state_${activeTournamentId}`) || localStorage.getItem('kapl_local_match_state');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const m = parsed.current_match;
+        if (m && (m.status === 'live' || m.status === 'super_over')) {
+          const tId = m.tournamentId || (getTeam(m.team1Id)?.tournamentId) || 'kapl-3-mens';
+          if (tId === activeTournamentId) {
+            rawMatch = m;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  const matchTournId = rawMatch?.tournamentId || (rawMatch ? (getTeam(rawMatch.team1Id)?.tournamentId || DEFAULT_TEAMS.find(t => t.id === rawMatch.team1Id)?.tournamentId || DEFAULT_WOMENS_TEAMS.find(t => t.id === rawMatch.team1Id)?.tournamentId) : null) || 'kapl-3-mens';
+  const isMatchInActiveTournament = Boolean(rawMatch && (matchTournId === activeTournamentId || (!rawMatch.tournamentId && activeTournamentId === 'kapl-3-mens')));
   const match = isMatchInActiveTournament ? rawMatch : null;
 
-  const team1 = match ? getTeam(match.team1Id) : null;
-  const team2 = match ? getTeam(match.team2Id) : null;
-  const currentInnings = match?.currentInnings === 1 ? match.innings1 : match?.innings2;
+  const team1 = match ? (getTeam(match.team1Id) || DEFAULT_TEAMS.find(t => t.id === match.team1Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === match.team1Id)) : null;
+  const team2 = match ? (getTeam(match.team2Id) || DEFAULT_TEAMS.find(t => t.id === match.team2Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === match.team2Id)) : null;
+  const currentInnings = match ? (
+    match.currentInnings === 1 
+      ? (match.innings1 || { battingTeamId: match.team1Id, bowlingTeamId: match.team2Id, runs: 0, wickets: 0, overs: [{ number: 1, balls: [] }], currentOver: 0, currentBall: 0, batterStats: {}, bowlerStats: {}, battingOrder: [] }) 
+      : (match.innings2 || { battingTeamId: match.team2Id, bowlingTeamId: match.team1Id, runs: 0, wickets: 0, overs: [{ number: 1, balls: [] }], currentOver: 0, currentBall: 0, batterStats: {}, bowlerStats: {}, battingOrder: [] })
+  ) : null;
   const battingTeam = match?.currentInnings === 1 ? team1 : team2;
   const bowlingTeam = match?.currentInnings === 1 ? team2 : team1;
   const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
@@ -184,8 +209,21 @@ const Index = () => {
               <BallTicker balls={allBalls} />
             </div>
 
+            {/* Live Ball-by-Ball Commentary Feed */}
+            {currentInnings && battingTeam && bowlingTeam && (
+              <LiveCommentaryFeed
+                currentInnings={currentInnings}
+                battingTeam={battingTeam}
+                bowlingTeam={bowlingTeam}
+                inningsNumber={match.currentInnings}
+              />
+            )}
+
             {/* Over Table */}
             {currentInnings && <OverTable overs={currentInnings.overs} />}
+
+            {/* Tournament Fixtures & Schedule */}
+            <MatchFixturesCalendar />
 
             {/* Tournament Honors & Caps */}
             <TournamentHonors tournamentId={activeTournamentId} />
@@ -214,10 +252,13 @@ const Index = () => {
                   No Live Match in {currentTournament?.name || "KAPL"}
                 </h2>
                 <p className="text-xs md:text-sm text-muted-foreground max-w-sm mx-auto">
-                  The pitch is being prepared. Explore the player directory or check the live auction room while you wait.
+                  The pitch is being prepared. Explore the tournament schedule below or check the live auction room.
                 </p>
               </div>
             </div>
+
+            {/* Tournament Fixtures & Schedule (When No Live Match) */}
+            <MatchFixturesCalendar />
 
             {/* Tournament Honors & Caps */}
             <TournamentHonors tournamentId={activeTournamentId} />

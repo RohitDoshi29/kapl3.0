@@ -16,9 +16,11 @@ export function TeamPurseList({ teams, playerPool }: TeamPurseListProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {teams.map((team) => {
-        const teamPlayers = playerPool.filter((p) => p.teamId === team.id);
-        const spent = team.initialPurse! - team.remainingPurse!;
-        const pursePercentage = Math.round((team.remainingPurse! / team.initialPurse!) * 100);
+        const teamPlayers = playerPool.filter((p) => p.teamId === team.id && p.auctionStatus === 'sold');
+        const teamInitial = team.initialPurse || 10000;
+        const spent = teamPlayers.reduce((acc, p) => acc + (p.soldPrice || p.basePrice || 0), 0);
+        const teamRemaining = Math.max(0, teamInitial - spent);
+        const pursePercentage = Math.round((teamRemaining / teamInitial) * 100);
         const squadCount = teamPlayers.length;
         const maxSquad = team.maxSquadSize || 10;
 
@@ -64,12 +66,12 @@ export function TeamPurseList({ teams, playerPool }: TeamPurseListProps) {
                   <span className="text-muted-foreground flex items-center gap-1 font-medium">
                     <Wallet className="w-3.5 h-3.5 text-primary" /> Remaining Purse
                   </span>
-                  <span className="font-extrabold text-foreground">{formatMoney(team.remainingPurse!)}</span>
+                  <span className="font-extrabold text-foreground">{formatMoney(teamRemaining)}</span>
                 </div>
                 <Progress value={pursePercentage} className="h-2" />
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                   <span>Spent: {formatMoney(spent)}</span>
-                  <span>Total: {formatMoney(team.initialPurse!)}</span>
+                  <span>Total: {formatMoney(teamInitial)}</span>
                 </div>
               </div>
 

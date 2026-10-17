@@ -7,13 +7,28 @@ import { MultiMatchLiveBar } from '@/components/cricket/MultiMatchLiveBar';
 import { SinglePlayerAuctionStage } from '@/components/auction/SinglePlayerAuctionStage';
 import { CategoryPlayerGrid } from '@/components/auction/CategoryPlayerGrid';
 import { TeamPurseList } from '@/components/auction/TeamPurseList';
+import { AdminAuctionDesk } from '@/components/auction/AdminAuctionDesk';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Gavel, Wallet, Users, Radio, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { Gavel, Wallet, Users, Radio, Sparkles, RotateCcw, Zap } from 'lucide-react';
 
 export default function Auction() {
   const { activeTournamentId, setActiveTournamentId } = useTournament();
-  const [activeTab, setActiveTab] = useState<'spotlight' | 'categories' | 'teams'>('spotlight');
+  const [activeTab, setActiveTab] = useState<'spotlight' | 'categories' | 'teams' | 'admin'>('spotlight');
+  const [isResetting, setIsResetting] = useState(false);
 
   const {
     currentPlayer,
@@ -28,7 +43,25 @@ export default function Auction() {
     adminDecideSold,
     adminDecideUnsold,
     revertPlayerStatus,
+    salesHistory,
+    initializeAuctionData,
   } = useAuction(activeTournamentId);
+
+  const handleResetAuctionData = async () => {
+    setIsResetting(true);
+    try {
+      const res = await initializeAuctionData();
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.warning(res.message);
+      }
+    } catch (e: any) {
+      toast.error('Failed to reset auction data: ' + e.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen bg-background pb-20 md:pb-8">
@@ -61,7 +94,47 @@ export default function Auction() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isResetting}
+                    className="h-8 text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+                    Reset & Seed 80 Players
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset Auction & Seed 80 Players?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will:
+                      <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                        <li>Purge existing players and insert 80 structured players (Player 1 to 80)</li>
+                        <li>Distribute roles (25 Batters, 25 Bowlers, 20 All-rounders, 10 Keepers)</li>
+                        <li>Clear all team rosters (0 players allocated)</li>
+                        <li>Restore each team's purse to full ₹10,000</li>
+                        <li>Set auction spotlight to Player 1 ready for live bidding</li>
+                      </ul>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleResetAuctionData}
+                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                    >
+                      Confirm Reset & Seed
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             {/* Live Indicator */}
             <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
               <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
@@ -96,7 +169,7 @@ export default function Auction() {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md">
+          <TabsList className={`grid w-full ${isAdmin ? 'max-w-2xl grid-cols-2 sm:grid-cols-4' : 'max-w-md grid-cols-3'} mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md`}>
             <TabsTrigger value="spotlight" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
               <Gavel className="w-4 h-4 text-amber-400" />
               Spotlight Stage
@@ -109,19 +182,31 @@ export default function Auction() {
               <Wallet className="w-4 h-4 text-amber-400" />
               Team Purses ({teams.length})
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger
+                value="admin"
+                className="gap-1.5 text-xs md:text-sm font-black rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/25 data-[state=active]:to-yellow-500/20 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/40 text-amber-400/90"
+              >
+                <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+                Admin Desk
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* TAB 1: Single Player Spotlight Stage */}
           <TabsContent value="spotlight" className="space-y-6">
             <SinglePlayerAuctionStage
               player={currentPlayer}
+              playerPool={playerPool}
               teams={teams}
               isAdmin={isAdmin}
               onNext={() => nextPlayer('next')}
               onPrev={() => nextPlayer('prev')}
+              onSpotlightPlayer={spotlightPlayer}
               onDecideSold={adminDecideSold}
               onDecideUnsold={adminDecideUnsold}
               onRevert={revertPlayerStatus}
+              salesHistory={salesHistory}
             />
 
             {/* Category Players Bar Below Spotlight for Quick Navigation */}
@@ -159,6 +244,23 @@ export default function Auction() {
           <TabsContent value="teams">
             <TeamPurseList teams={teams} playerPool={playerPool} />
           </TabsContent>
+
+          {/* TAB 4: Admin Auction Desk (Set Auction Player-by-Player) */}
+          {isAdmin && (
+            <TabsContent value="admin" className="space-y-6">
+              <AdminAuctionDesk
+                playerPool={playerPool}
+                teams={teams}
+                currentPlayer={currentPlayer}
+                onSpotlightPlayer={spotlightPlayer}
+                onDecideSold={adminDecideSold}
+                onDecideUnsold={adminDecideUnsold}
+                onRevertStatus={revertPlayerStatus}
+                onResetAuction={handleResetAuctionData}
+                salesHistory={salesHistory}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

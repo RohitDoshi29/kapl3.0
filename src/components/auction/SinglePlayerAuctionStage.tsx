@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PlayerRecord, Team, PlayerRole } from '@/lib/cricketTypes';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,57 +15,56 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
-  Clock,
   Sparkles,
-  TrendingUp,
   Wallet,
   RotateCcw,
   User,
-  ShieldCheck,
   Crown,
   Users,
-  Shield,
-  ArrowUpRight,
-  Flame,
-  Star,
-  AlertCircle,
-  Percent,
+  Clock,
+  ArrowRight,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { playAuctionGavel } from '@/lib/soundEffects';
-import { triggerQuickBurst } from '@/lib/confetti';
+import { AuctionSaleLog } from '@/hooks/useAuction';
 
 interface SinglePlayerAuctionStageProps {
   player: PlayerRecord | null;
+  playerPool?: PlayerRecord[];
   teams: Team[];
   isAdmin: boolean;
   onNext: () => void;
   onPrev: () => void;
+  onSpotlightPlayer?: (player: PlayerRecord) => void;
   onDecideSold: (playerId: string, teamId: string, amount: number) => void;
   onDecideUnsold: (playerId: string) => void;
   onRevert: (playerId: string) => void;
+  salesHistory?: AuctionSaleLog[];
 }
 
 export function SinglePlayerAuctionStage({
   player,
+  playerPool = [],
   teams,
   isAdmin,
   onNext,
   onPrev,
+  onSpotlightPlayer,
   onDecideSold,
   onDecideUnsold,
   onRevert,
+  salesHistory = [],
 }: SinglePlayerAuctionStageProps) {
   const { user } = useAuth();
   const cleanUserEmail = user?.email?.toLowerCase().trim();
 
-  // Find user-owned franchise if the logged in user is a Team Owner
+  // Find user-owned franchise if logged in user is a Team Owner
   const userOwnedTeam = useMemo(() => {
     if (!cleanUserEmail) return null;
     return teams.find((t) => t.ownerEmail && t.ownerEmail.toLowerCase().trim() === cleanUserEmail) || null;
   }, [teams, cleanUserEmail]);
 
-  // Selected team for Admin decision
+  // Selected team for Admin hammer decision
   const [selectedTeamId, setSelectedTeamId] = useState<string>(teams[0]?.id || '');
   const [soldAmount, setSoldAmount] = useState<number>(100);
 
@@ -83,7 +82,7 @@ export function SinglePlayerAuctionStage({
     }
   }, [userOwnedTeam, teams]);
 
-  // Sync price when player changes
+  // Sync sold amount when spotlight player changes
   useEffect(() => {
     if (player) {
       setSoldAmount(player.soldPrice || player.basePrice);
@@ -95,71 +94,75 @@ export function SinglePlayerAuctionStage({
     }
   }, [player, teams]);
 
-  if (!player) {
-    return (
-      <Card className="p-8 text-center border-dashed border-2 rounded-3xl bg-card/60">
-        <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
-          <User className="w-8 h-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-bold mb-1">No Player Selected</h3>
-        <p className="text-muted-foreground text-xs">
-          Select a player from the categories below to start the spotlight auction.
-        </p>
-      </Card>
-    );
-  }
+  const fallbackTeam: Team = {
+    id: 'placeholder',
+    name: 'Franchise Hub',
+    group: 'A',
+    logo: null,
+    primaryColor: '0 84% 60%',
+    players: [],
+    playerCount: 0,
+    initialPurse: 10000,
+    remainingPurse: 10000,
+    maxSquadSize: 10,
+  };
 
-  const selectedTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
-  const inspectedTeam = teams.find((t) => t.id === activeOwnerTeamId) || userOwnedTeam || selectedTeam || teams[0];
-  const assignedTeam = teams.find((t) => t.id === player.teamId);
-  const isSold = player.auctionStatus === 'sold';
-  const isUnsold = player.auctionStatus === 'unsold';
+  const selectedTeam = teams.find((t) => t.id === selectedTeamId) || teams[0] || fallbackTeam;
+  const inspectedTeam = teams.find((t) => t.id === activeOwnerTeamId) || userOwnedTeam || selectedTeam || teams[0] || fallbackTeam;
+  const assignedTeam = teams.find((t) => t.id === player?.teamId);
+  const isSold = player?.auctionStatus === 'sold';
+  const isUnsold = player?.auctionStatus === 'unsold';
 
   const formatMoney = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 
   const getRoleBadge = (role: PlayerRole) => {
     switch (role) {
       case 'all_rounder':
-        return <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 font-bold">👑 ALL-ROUNDER</Badge>;
+        return <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">👑 ALL-ROUNDER</Badge>;
       case 'batter':
-        return <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30 font-bold">🏏 BATTER</Badge>;
+        return <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold">🏏 BATTER</Badge>;
       case 'bowler':
-        return <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 font-bold">⚡ BOWLER</Badge>;
+        return <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">⚡ BOWLER</Badge>;
       case 'wicket_keeper':
-        return <Badge className="bg-purple-500/20 text-purple-500 border-purple-500/30 font-bold">🧤 WICKET-KEEPER</Badge>;
+        return <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold">🧤 WICKET-KEEPER</Badge>;
     }
   };
 
-  // Compute live wallet & squad statistics for inspected team
-  const initialPurse = inspectedTeam.initialPurse || 10000;
-  const remainingPurse = inspectedTeam.remainingPurse !== undefined && inspectedTeam.remainingPurse !== null ? inspectedTeam.remainingPurse : 10000;
+  // Squad role breakdown for team analytics
+  const squadPlayers = inspectedTeam?.players || [];
+  const initialPurse = inspectedTeam?.initialPurse || 10000;
+  const spentFromSquad = squadPlayers.reduce((acc: number, p: any) => acc + (Number(p.soldPrice) || 0), 0);
+  const remainingPurse = inspectedTeam?.remainingPurse !== undefined && inspectedTeam?.remainingPurse !== null
+    ? (squadPlayers.length === 0 ? initialPurse : inspectedTeam.remainingPurse)
+    : Math.max(0, initialPurse - spentFromSquad);
   const spentPurse = Math.max(0, initialPurse - remainingPurse);
   const spentPercent = Math.min(100, Math.round((spentPurse / initialPurse) * 100));
 
-  const maxSquadSize = inspectedTeam.maxSquadSize || 10;
-  const currentSquadCount = inspectedTeam.players?.length || 0;
+  const maxSquadSize = inspectedTeam?.maxSquadSize || 10;
+  const currentSquadCount = squadPlayers.length;
   const openSlots = Math.max(0, maxSquadSize - currentSquadCount);
 
-  // Maximum safe bid reserving ₹100 for each other open slot
-  const reserveForOtherSlots = Math.max(0, (openSlots - 1) * 100);
-  const maxSafeBid = Math.max(0, remainingPurse - reserveForOtherSlots);
-
-  // Squad role breakdown
-  const squadPlayers = inspectedTeam.players || [];
   const battersCount = squadPlayers.filter((p: any) => p.role === 'batter').length;
   const bowlersCount = squadPlayers.filter((p: any) => p.role === 'bowler').length;
   const allRoundersCount = squadPlayers.filter((p: any) => p.role === 'all_rounder').length;
   const keepersCount = squadPlayers.filter((p: any) => p.role === 'wicket_keeper').length;
 
-  // Affordability & Fit for current player
-  const canAffordBase = remainingPurse >= player.basePrice;
   const isViewerTheOwner = Boolean(
-    inspectedTeam.ownerEmail && cleanUserEmail && inspectedTeam.ownerEmail.toLowerCase().trim() === cleanUserEmail
+    inspectedTeam?.ownerEmail && cleanUserEmail && inspectedTeam.ownerEmail.toLowerCase().trim() === cleanUserEmail
   );
 
+  // Upcoming candidates in queue (who are coming next)
+  const upcomingCandidates = useMemo(() => {
+    if (!playerPool || playerPool.length === 0) return [];
+    return playerPool
+      .filter((p) => p.auctionStatus === 'pending' && p.id !== player?.id)
+      .slice(0, 5);
+  }, [playerPool, player?.id]);
+
   const handleConfirmSale = () => {
+    if (!player) return;
     if (!selectedTeamId) {
-      toast.error('Please select a team for this player');
+      toast.error('Please select a winning franchise for this candidate');
       return;
     }
     if (soldAmount < player.basePrice) {
@@ -169,46 +172,48 @@ export function SinglePlayerAuctionStage({
     onDecideSold(player.id, selectedTeamId, soldAmount);
   };
 
-  // Owner Quick-Bid intent handler
-  const handleOwnerExpressBid = (amount: number) => {
-    playAuctionGavel();
-    triggerQuickBurst();
-
-    if (isAdmin) {
-      setSelectedTeamId(inspectedTeam.id);
-      setSoldAmount(amount);
-      toast.success(`Set winning bid to ${formatMoney(amount)} for ${inspectedTeam.name}!`);
-    } else {
-      toast.success(`🔨 ${inspectedTeam.name} announced bid of ${formatMoney(amount)} for ${player.name}!`);
-    }
-  };
+  if (!player) {
+    return (
+      <Card className="p-8 text-center border-dashed border-2 rounded-3xl bg-card/60">
+        <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
+          <User className="w-8 h-8 text-primary" />
+        </div>
+        <h3 className="text-xl font-bold mb-1">No Player Selected</h3>
+        <p className="text-muted-foreground text-xs">
+          Select any candidate from the queue below to start the spotlight auction.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Top Navigation between players */}
-      <div className="flex items-center justify-between bg-card border rounded-2xl p-2.5 px-4 shadow-sm">
-        <Button variant="ghost" size="sm" onClick={onPrev} className="gap-1 text-xs font-semibold">
-          <ChevronLeft className="w-4 h-4" /> Previous Player
+      {/* 1. TOP STAGE BAR */}
+      <div className="flex items-center justify-between bg-card/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 px-4 shadow-sm">
+        <Button variant="ghost" size="sm" onClick={onPrev} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="w-4 h-4" /> Previous Candidate
         </Button>
+
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Spotlight Stage
+          <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+            Spotlight Podium
           </span>
           {userOwnedTeam && (
-            <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold gap-1">
-              <Crown className="w-3 h-3 text-amber-500" />
-              Owner: {userOwnedTeam.name}
+            <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-black gap-1">
+              <Crown className="w-3 h-3 text-amber-400" />
+              My Franchise: {userOwnedTeam.name} (Purse: {formatMoney(userOwnedTeam.remainingPurse ?? 10000)})
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onNext} className="gap-1 text-xs font-semibold">
-          Next Player <ChevronRight className="w-4 h-4" />
+
+        <Button variant="ghost" size="sm" onClick={onNext} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+          Next Candidate <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* Main Single Player Spotlight Card */}
-      <Card className="relative overflow-hidden border-2 border-primary/30 rounded-3xl shadow-xl bg-gradient-to-b from-card via-card to-muted/20">
-        {/* SOLD Celebratory Ribbon */}
+      {/* 2. MAIN SINGLE PLAYER SPOTLIGHT CARD */}
+      <Card className="relative overflow-hidden border-2 border-amber-500/30 rounded-3xl shadow-2xl bg-gradient-to-b from-card via-card to-amber-950/10">
+        {/* SOLD Celebratory Banner */}
         {isSold && assignedTeam && (
           <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 text-white p-3 text-center font-black tracking-wide text-sm md:text-base flex items-center justify-center gap-2 shadow-md">
             <Sparkles className="w-4 h-4 text-yellow-300" />
@@ -217,24 +222,29 @@ export function SinglePlayerAuctionStage({
           </div>
         )}
 
-        {/* UNSOLD Ribbon */}
+        {/* UNSOLD Banner */}
         {isUnsold && (
-          <div className="bg-destructive text-destructive-foreground p-2.5 text-center font-bold tracking-wide text-xs md:text-sm">
+          <div className="bg-destructive text-destructive-foreground p-2.5 text-center font-black tracking-wide text-xs md:text-sm">
             ❌ PLAYER MARKED UNSOLD
           </div>
         )}
 
         <div className="p-6 md:p-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Player Profile & Bio (Left 5 cols) */}
-            <div className="lg:col-span-5 flex flex-col items-center text-center space-y-4 border-b lg:border-b-0 lg:border-r pb-6 lg:pb-0 lg:pr-6">
+            {/* Player Profile & Base Value (Left 5 cols) */}
+            <div className="lg:col-span-5 flex flex-col items-center text-center space-y-4 border-b lg:border-b-0 lg:border-r border-white/10 pb-6 lg:pb-0 lg:pr-6">
               <div className="relative">
-                <Avatar className="w-36 h-36 md:w-48 md:h-48 border-4 border-primary/30 shadow-2xl rounded-full">
+                <Avatar className="w-36 h-36 md:w-44 md:h-44 border-4 border-amber-500/30 shadow-2xl rounded-full">
                   <AvatarImage src={player.photoUrl || undefined} alt={player.name} className="object-cover" />
-                  <AvatarFallback className="bg-primary/10 text-primary text-4xl md:text-5xl font-black">
+                  <AvatarFallback className="bg-amber-500/10 text-amber-400 text-4xl md:text-5xl font-black">
                     {player.name.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
+                {player.jerseyNumber && (
+                  <Badge className="absolute bottom-1 right-2 bg-slate-950 border border-amber-400 text-amber-300 font-mono text-xs font-black px-2 py-0.5 rounded-full">
+                    #{player.jerseyNumber}
+                  </Badge>
+                )}
               </div>
 
               <div>
@@ -244,68 +254,81 @@ export function SinglePlayerAuctionStage({
                 </h2>
                 <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground mt-2">
                   {player.battingStyle && (
-                    <span className="bg-muted px-2.5 py-1 rounded-md font-medium">
+                    <span className="bg-white/[0.04] border border-white/10 px-2.5 py-1 rounded-md font-medium">
                       🏏 {player.battingStyle}
                     </span>
                   )}
                   {player.bowlingStyle && (
-                    <span className="bg-muted px-2.5 py-1 rounded-md font-medium">
+                    <span className="bg-white/[0.04] border border-white/10 px-2.5 py-1 rounded-md font-medium">
                       ⚡ {player.bowlingStyle}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Base Price & Status Badge */}
-              <div className="w-full bg-muted/60 border rounded-2xl p-3.5 flex items-center justify-around text-center">
+              {/* BASE VALUE / PRICE PROMINENT DISPLAY */}
+              <div className="w-full bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 flex items-center justify-around text-center shadow-inner">
                 <div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Base Price</span>
-                  <span className="text-xl font-black text-foreground">{formatMoney(player.basePrice)}</span>
+                  <span className="text-[10px] text-amber-400/90 uppercase font-bold tracking-wider block">
+                    Current Player Base Value
+                  </span>
+                  <span className="text-2xl md:text-3xl font-black text-amber-400 font-mono">
+                    {formatMoney(player.basePrice)}
+                  </span>
                 </div>
-                <div className="h-8 w-px bg-border" />
+                <div className="h-10 w-px bg-white/10" />
                 <div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold block">Status</span>
-                  <span className={`text-xs font-black uppercase ${isSold ? 'text-emerald-500' : isUnsold ? 'text-destructive' : 'text-amber-500'}`}>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    Auction Status
+                  </span>
+                  <span
+                    className={`text-xs font-black uppercase tracking-wider ${
+                      isSold ? 'text-emerald-400' : isUnsold ? 'text-destructive' : 'text-amber-400'
+                    }`}
+                  >
                     {player.auctionStatus}
                   </span>
                 </div>
               </div>
 
-              {/* Quick Summary Pill */}
-              <div className="w-full text-xs text-muted-foreground bg-card/80 p-3 rounded-xl border text-left space-y-1">
+              {/* Tournament Meta Pill */}
+              <div className="w-full text-xs text-muted-foreground bg-white/[0.02] p-3 rounded-xl border border-white/5 text-left space-y-1">
                 <div className="flex justify-between items-center text-[11px]">
-                  <span>Tournament:</span>
+                  <span>Tournament League:</span>
                   <span className="font-semibold text-foreground">KAPL Season 3.0</span>
                 </div>
                 <div className="flex justify-between items-center text-[11px]">
-                  <span>Bidding Category:</span>
-                  <span className="font-semibold text-primary capitalize">{player.role.replace('_', ' ')}</span>
+                  <span>Candidate Pool:</span>
+                  <span className="font-semibold text-amber-400 capitalize">{player.role.replace('_', ' ')} (80 Roster)</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Side: Admin Decision Panel OR Team Owner Command Hub */}
+            {/* Right Side: Admin Decision Panel (Admin Only) + Franchise Status & Analytics Hub (Owner + Admin) */}
             <div className="lg:col-span-7 space-y-6">
-              {isAdmin ? (
-                /* ADMIN DECISION CONSOLE */
-                <div className="space-y-5 bg-card/80 border rounded-2xl p-5 shadow-sm">
+              {/* ADMIN DECISION CONSOLE (Only Visible to Admin) */}
+              {isAdmin && (
+                <div className="space-y-4 bg-card/90 border border-amber-500/30 rounded-2xl p-5 shadow-lg">
                   <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                      <Gavel className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-black flex items-center gap-2 text-foreground">
+                      <Gavel className="w-5 h-5 text-amber-400" />
                       Auctioneer Decision Console
+                      <Badge className="bg-amber-500/20 text-amber-400 text-[10px] font-black">
+                        Admin Only
+                      </Badge>
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Select winning franchise, specify sold price, and finalize player auction status.
+                      Award the player to the winning franchise or pass as unsold. Real-time syncs to all devices.
                     </p>
                   </div>
 
-                  {/* Step 1: Select Team */}
+                  {/* Step 1: Select Winning Team */}
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                       <span>1. Select Winning Team</span>
                       {selectedTeam && (
-                        <span className="text-primary font-bold">
-                          Purse Left: {formatMoney(selectedTeam.remainingPurse ?? 10000)}
+                        <span className="text-amber-400 font-bold font-mono">
+                          Purse: {formatMoney(selectedTeam.remainingPurse ?? 10000)} • Squad: {selectedTeam.players?.length || 0}/10
                         </span>
                       )}
                     </Label>
@@ -321,9 +344,9 @@ export function SinglePlayerAuctionStage({
                               setSelectedTeamId(t.id);
                               setActiveOwnerTeamId(t.id);
                             }}
-                            className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all ${
+                            className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${
                               isSelected
-                                ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-amber-300 font-bold shadow-md shadow-amber-500/15'
+                                ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400 text-amber-300 font-bold shadow-sm'
                                 : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-foreground'
                             }`}
                           >
@@ -352,7 +375,7 @@ export function SinglePlayerAuctionStage({
                           type="number"
                           value={soldAmount}
                           onChange={(e) => setSoldAmount(Number(e.target.value) || 0)}
-                          className="pl-8 text-lg font-black tracking-tight h-12 bg-white/[0.03] border-white/10 rounded-xl"
+                          className="pl-8 text-lg font-black tracking-tight h-11 bg-white/[0.03] border-white/10 rounded-xl"
                           min={player.basePrice}
                           step={50}
                         />
@@ -360,13 +383,13 @@ export function SinglePlayerAuctionStage({
 
                       {/* Quick Increments */}
                       <div className="flex gap-1">
-                        {[50, 100, 250, 500].map((inc) => (
+                        {[50, 100, 250, 500, 1000].map((inc) => (
                           <Button
                             key={inc}
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-12 px-2.5 font-bold text-xs rounded-xl"
+                            className="h-11 px-2.5 font-bold text-xs rounded-xl"
                             onClick={() => setSoldAmount((prev) => prev + inc)}
                           >
                             +{inc}
@@ -376,34 +399,33 @@ export function SinglePlayerAuctionStage({
                     </div>
                   </div>
 
-                  {/* Step 3: Decision Action Buttons */}
+                  {/* Step 3: Hammer Actions */}
                   <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Button
                       type="button"
                       size="lg"
-                      variant="glow"
-                      className="h-14 font-black text-base gap-2 rounded-2xl"
+                      className="h-12 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm gap-2 rounded-xl shadow-lg"
                       onClick={handleConfirmSale}
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      SOLD TO TEAM ({formatMoney(soldAmount)})
+                      Hammer SOLD to {selectedTeam?.name} ({formatMoney(soldAmount)})
                     </Button>
 
                     <Button
                       type="button"
                       size="lg"
                       variant="destructive"
-                      className="h-14 font-black text-base gap-2 rounded-2xl"
+                      className="h-12 font-black text-sm gap-2 rounded-xl"
                       onClick={() => onDecideUnsold(player.id)}
                     >
                       <XCircle className="w-5 h-5" />
-                      MARK UNSOLD
+                      Mark UNSOLD
                     </Button>
                   </div>
 
-                  {/* Revert / Reset Option if already auctioned */}
+                  {/* Revert Option */}
                   {(isSold || isUnsold) && (
-                    <div className="pt-2 border-t flex justify-end">
+                    <div className="pt-2 border-t border-white/10 flex justify-end">
                       <Button
                         type="button"
                         variant="ghost"
@@ -417,12 +439,12 @@ export function SinglePlayerAuctionStage({
                     </div>
                   )}
                 </div>
-              ) : null}
+              )}
 
-              {/* TEAM OWNER COMMAND & LIVE WALLET HUB */}
-              <div className="space-y-4 bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 rounded-2xl p-5 shadow-md">
-                {/* Hub Header & Team Selector */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b">
+              {/* OWNER FRANCHISE COMMAND & LIVE ANALYTICS HUB (Display & Analytics Only - NO BIDDING) */}
+              <div className="space-y-4 bg-gradient-to-br from-card via-card/95 to-amber-950/10 border border-white/10 rounded-2xl p-5 shadow-md">
+                {/* Hub Header & Franchise Selector */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
                   <div className="flex items-center gap-3">
                     <TeamBadge team={inspectedTeam} size="md" showName={false} />
                     <div>
@@ -431,11 +453,11 @@ export function SinglePlayerAuctionStage({
                           {inspectedTeam.name}
                         </h4>
                         {isViewerTheOwner ? (
-                          <Badge className="bg-amber-500 text-black font-black text-[10px] gap-1 shadow-xs">
+                          <Badge className="bg-amber-500 text-slate-950 font-black text-[10px] gap-1 shadow-xs">
                             <Crown className="w-3 h-3" /> YOUR FRANCHISE
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] font-semibold">
+                          <Badge variant="outline" className="text-[10px] font-semibold border-white/20">
                             Group {inspectedTeam.group}
                           </Badge>
                         )}
@@ -447,17 +469,17 @@ export function SinglePlayerAuctionStage({
                     </div>
                   </div>
 
-                  {/* Switch Team to inspect (for non-owners or admin testing) */}
-                  {!userOwnedTeam && teams.length > 1 && (
+                  {/* Switch Team to inspect */}
+                  {teams.length > 1 && (
                     <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                      <span className="text-[11px] text-muted-foreground">Franchise:</span>
+                      <span className="text-[11px] text-muted-foreground">Inspect:</span>
                       <select
                         value={activeOwnerTeamId}
                         onChange={(e) => setActiveOwnerTeamId(e.target.value)}
-                        className="bg-muted text-xs font-bold rounded-lg px-2.5 py-1.5 border border-border"
+                        className="bg-white/[0.04] text-xs font-bold rounded-lg px-2.5 py-1.5 border border-white/10 text-foreground"
                       >
                         {teams.map((t) => (
-                          <option key={t.id} value={t.id}>
+                          <option key={t.id} value={t.id} className="bg-slate-900 text-foreground">
                             {t.name}
                           </option>
                         ))}
@@ -466,15 +488,15 @@ export function SinglePlayerAuctionStage({
                   )}
                 </div>
 
-                {/* Live Wallet & Financial Statistics */}
+                {/* 1. Live Wallet & Money Statistics */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Remaining Purse */}
-                  <div className="p-3.5 rounded-xl bg-muted/60 border border-border/80 text-left space-y-1">
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
-                      <Wallet className="w-3.5 h-3.5 text-primary" />
+                      <Wallet className="w-3.5 h-3.5 text-amber-400" />
                       Wallet Purse Left
                     </span>
-                    <p className="font-mono font-black text-xl text-primary">
+                    <p className="font-mono font-black text-xl text-amber-400">
                       {formatMoney(remainingPurse)}
                     </p>
                     <span className="text-[10px] text-muted-foreground block">
@@ -482,8 +504,8 @@ export function SinglePlayerAuctionStage({
                     </span>
                   </div>
 
-                  {/* Purse Spent & Budget Progress */}
-                  <div className="p-3.5 rounded-xl bg-muted/60 border border-border/80 text-left space-y-1.5">
+                  {/* Purse Spent */}
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-1.5">
                     <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
                       <span>Purse Spent</span>
                       <span>{spentPercent}%</span>
@@ -494,187 +516,174 @@ export function SinglePlayerAuctionStage({
                     <Progress value={spentPercent} className="h-1.5" />
                   </div>
 
-                  {/* Max Allowable Bid */}
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left space-y-1">
-                    <span className="text-[10px] text-amber-700 dark:text-amber-400 uppercase font-bold flex items-center gap-1">
-                      <Flame className="w-3.5 h-3.5 text-amber-500" />
-                      Max Safe Bid
+                  {/* Squad Count */}
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-1">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-emerald-400" />
+                      Squad Quota
                     </span>
-                    <p className="font-mono font-black text-xl text-amber-600 dark:text-amber-400">
-                      {formatMoney(maxSafeBid)}
+                    <p className="font-mono font-black text-xl text-foreground">
+                      {currentSquadCount} / {maxSquadSize}
                     </p>
-                    <span className="text-[10px] text-muted-foreground block">
-                      Reserves ₹100/unfilled slot
+                    <span className="text-[10px] text-emerald-400 font-semibold block">
+                      {openSlots} Slots Open
                     </span>
                   </div>
                 </div>
 
-                {/* Squad Composition Breakdown */}
-                <div className="p-3.5 rounded-xl bg-muted/40 border text-xs space-y-2">
+                {/* 2. Team Analytics & Squad Composition Breakdown */}
+                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-primary" />
-                      Squad Quota: {currentSquadCount} / {maxSquadSize} Players
+                    <span className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                      📊 Team Composition Analytics
                     </span>
-                    <Badge variant="outline" className="text-[10px] font-mono">
-                      {openSlots} Slots Open
-                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      Target: Balance across Batters, Bowlers & All-rounders
+                    </span>
                   </div>
 
                   {/* Role composition chips */}
                   <div className="grid grid-cols-4 gap-2 pt-1 text-center">
-                    <div className="p-1.5 rounded-lg bg-card border text-[11px]">
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/5 text-[11px]">
                       <span className="text-muted-foreground block text-[10px]">🏏 Batters</span>
-                      <span className="font-bold text-foreground">{battersCount}</span>
+                      <span className="font-black text-sm text-foreground">{battersCount}</span>
                     </div>
-                    <div className="p-1.5 rounded-lg bg-card border text-[11px]">
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/5 text-[11px]">
                       <span className="text-muted-foreground block text-[10px]">⚡ Bowlers</span>
-                      <span className="font-bold text-foreground">{bowlersCount}</span>
+                      <span className="font-black text-sm text-foreground">{bowlersCount}</span>
                     </div>
-                    <div className="p-1.5 rounded-lg bg-card border text-[11px]">
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/5 text-[11px]">
                       <span className="text-muted-foreground block text-[10px]">👑 All-Round</span>
-                      <span className="font-bold text-foreground">{allRoundersCount}</span>
+                      <span className="font-black text-sm text-foreground">{allRoundersCount}</span>
                     </div>
-                    <div className="p-1.5 rounded-lg bg-card border text-[11px]">
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/5 text-[11px]">
                       <span className="text-muted-foreground block text-[10px]">🧤 Keepers</span>
-                      <span className="font-bold text-foreground">{keepersCount}</span>
+                      <span className="font-black text-sm text-foreground">{keepersCount}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Spotlight Player Fit Analysis & Owner Bidding Controls */}
-                <div className="p-4 rounded-xl bg-card border border-primary/20 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      <span className="font-bold text-foreground">
-                        Spotlight Player Fit for {inspectedTeam.name}
-                      </span>
-                    </div>
-                    {canAffordBase ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                        ✅ Within Purse
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="text-[10px] font-bold">
-                        ⚠️ Exceeds Wallet Purse
-                      </Badge>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {canAffordBase ? (
-                      <>
-                        {inspectedTeam.name} can bid up to <strong className="text-foreground">{formatMoney(maxSafeBid)}</strong> safely for <strong className="text-foreground">{player.name}</strong> while keeping guaranteed reserve funds for remaining squad slots.
-                      </>
-                    ) : (
-                      <>
-                        Current player base price ({formatMoney(player.basePrice)}) exceeds {inspectedTeam.name}'s remaining wallet purse ({formatMoney(remainingPurse)}).
-                      </>
-                    )}
-                  </p>
-
-                  {/* Owner Quick Bidding Buttons */}
-                  <div className="pt-1 space-y-1.5">
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
-                      Quick Bidding Action ({inspectedTeam.name})
-                    </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-10 text-xs font-bold gap-1 border-primary/30 hover:bg-primary/10"
-                        disabled={!canAffordBase}
-                        onClick={() => handleOwnerExpressBid(player.basePrice)}
-                      >
-                        <Gavel className="w-3.5 h-3.5 text-primary" />
-                        Base ({formatMoney(player.basePrice)})
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-10 text-xs font-bold gap-1 border-primary/30 hover:bg-primary/10"
-                        disabled={remainingPurse < player.basePrice + 50}
-                        onClick={() => handleOwnerExpressBid(player.basePrice + 50)}
-                      >
-                        +₹50 ({formatMoney(player.basePrice + 50)})
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-10 text-xs font-bold gap-1 border-primary/30 hover:bg-primary/10"
-                        disabled={remainingPurse < player.basePrice + 100}
-                        onClick={() => handleOwnerExpressBid(player.basePrice + 100)}
-                      >
-                        +₹100 ({formatMoney(player.basePrice + 100)})
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-10 text-xs font-bold gap-1"
-                        disabled={remainingPurse < player.basePrice + 250}
-                        onClick={() => handleOwnerExpressBid(player.basePrice + 250)}
-                      >
-                        +₹250 ({formatMoney(player.basePrice + 250)})
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Team's Recent Purchases in this Auction */}
-                {squadPlayers.length > 0 && (
-                  <div className="pt-2 border-t text-xs space-y-2">
-                    <span className="text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
-                      <span>Players Acquired by {inspectedTeam.name} ({squadPlayers.length}):</span>
-                    </span>
+                {/* 3. Players Acquired by this Franchise */}
+                <div className="pt-2 border-t border-white/10 text-xs space-y-2">
+                  <span className="text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
+                    <span>Acquired Players ({squadPlayers.length}):</span>
+                    <span className="text-[10px] text-muted-foreground">Signed from auction</span>
+                  </span>
+                  {squadPlayers.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground italic text-center py-2 bg-white/[0.01] rounded-lg border border-dashed border-white/10">
+                      No players drafted yet.
+                    </p>
+                  ) : (
                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                       {squadPlayers.map((p: any, idx: number) => (
                         <span
                           key={p.id || idx}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted text-[11px] font-medium border"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] text-[11px] font-medium border border-white/10"
                         >
                           <span className="font-bold text-foreground">{p.name}</span>
                           {p.soldPrice && (
-                            <span className="text-[10px] text-primary font-mono">{formatMoney(p.soldPrice)}</span>
+                            <span className="text-[10px] text-amber-400 font-mono font-bold">{formatMoney(p.soldPrice)}</span>
                           )}
                         </span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* ALL FRANCHISES LIVE WALLET & SQUAD COMPARISON DECK */}
+      {/* 3. UPCOMING CANDIDATES QUEUE (WHO ARE COMING NEXT) */}
+      {upcomingCandidates.length > 0 && (
+        <Card className="border border-white/10 bg-card/85 backdrop-blur-md p-4 rounded-3xl shadow-lg space-y-3">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-black text-foreground uppercase tracking-wider">
+                On Deck • Next Up in Auction
+              </h3>
+              <Badge variant="outline" className="text-[10px] font-mono border-amber-500/30 text-amber-400">
+                Next {upcomingCandidates.length} Pending
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Upcoming candidates queued for the live hammer
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {upcomingCandidates.map((c, idx) => (
+              <div
+                key={c.id}
+                className="p-3 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] transition-all flex flex-col justify-between space-y-2 relative"
+              >
+                <Badge
+                  variant="outline"
+                  className="absolute top-2 right-2 text-[9px] font-mono text-muted-foreground border-white/15 px-1.5 py-0"
+                >
+                  +{idx + 1}
+                </Badge>
+
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-9 h-9 border border-white/10">
+                    <AvatarImage src={c.photoUrl || undefined} alt={c.name} />
+                    <AvatarFallback className="bg-amber-500/10 text-amber-400 text-xs font-bold">
+                      {c.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs text-foreground block truncate">{c.name}</span>
+                    <span className="text-[10px] text-muted-foreground capitalize block truncate">
+                      {c.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
+                  <span className="text-muted-foreground text-[10px]">Base:</span>
+                  <span className="font-mono font-black text-amber-400 text-xs">{formatMoney(c.basePrice)}</span>
+                </div>
+
+                {isAdmin && onSpotlightPlayer && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onSpotlightPlayer(c)}
+                    className="h-7 text-[10px] font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 p-0 w-full mt-1"
+                  >
+                    Spotlight Now
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 4. ALL FRANCHISE PURSES, QUOTAS & ACQUIRED PLAYERS (WHAT OTHER TEAMS HAVE & WHO WAS SOLD TO WHO) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-primary" />
-            All Franchise Purses & Squad Status
+            <Wallet className="w-4 h-4 text-amber-400" />
+            All Franchise Purses, Quotas & Acquired Rosters
           </h3>
           <span className="text-xs text-muted-foreground">
             Click any team to inspect their wallet & squad breakdown
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {teams.map((t) => {
             const isCurrentInspected = t.id === inspectedTeam.id;
-            const isUserOwner = t.ownerEmail && cleanUserEmail && t.ownerEmail.toLowerCase().trim() === cleanUserEmail;
-            const tRemaining = t.remainingPurse !== undefined && t.remainingPurse !== null ? t.remainingPurse : 10000;
+            const isUserOwner = Boolean(t.ownerEmail && cleanUserEmail && t.ownerEmail.toLowerCase().trim() === cleanUserEmail);
             const tSquadCount = t.players?.length || 0;
+            const tRemaining = t.remainingPurse !== undefined && t.remainingPurse !== null
+              ? (tSquadCount === 0 ? 10000 : t.remainingPurse)
+              : 10000;
             const tMaxSquad = t.maxSquadSize || 10;
-            const tCanAfford = tRemaining >= player.basePrice;
+            const teamSquadList = t.players || [];
 
             return (
               <button
@@ -684,7 +693,7 @@ export function SinglePlayerAuctionStage({
                   setActiveOwnerTeamId(t.id);
                   if (isAdmin) setSelectedTeamId(t.id);
                 }}
-                className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all duration-200 ${
+                className={`relative flex flex-col p-3.5 rounded-2xl border text-left transition-all duration-200 ${
                   isCurrentInspected
                     ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/15'
                     : 'border-white/[0.08] bg-card/85 backdrop-blur-md hover:bg-white/[0.06] hover:border-white/20'
@@ -697,36 +706,93 @@ export function SinglePlayerAuctionStage({
                   </Badge>
                 )}
 
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2.5 mb-2">
                   <TeamBadge team={t} size="sm" showName={false} />
                   <div className="min-w-0 flex-1">
                     <h5 className="font-bold text-xs truncate text-foreground">{t.name}</h5>
                     <span className="text-[10px] text-muted-foreground block truncate">
-                      {t.ownerName || 'No Owner'}
+                      {t.ownerName ? `Owner: ${t.ownerName}` : 'No Owner'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-baseline justify-between pt-1 border-t border-border/50 text-xs">
-                  <span className="font-mono font-black text-sm text-primary">
-                    {formatMoney(tRemaining)}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {tSquadCount}/{tMaxSquad}
-                  </span>
+                <div className="flex items-baseline justify-between pt-1 border-t border-white/5 text-xs">
+                  <div>
+                    <span className="text-[9px] text-muted-foreground uppercase block font-semibold">Purse Left</span>
+                    <span className="font-mono font-black text-sm text-amber-400">
+                      {formatMoney(tRemaining)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] text-muted-foreground uppercase block font-semibold">Squad</span>
+                    <span className="text-xs text-foreground font-black">
+                      {tSquadCount} / {tMaxSquad}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="mt-1 flex items-center justify-between text-[10px]">
-                  <span className={`font-semibold ${tCanAfford ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                    {tCanAfford ? 'Can Bid' : 'Low Funds'}
+                {/* Acquired Players Summary */}
+                <div className="mt-2 pt-2 border-t border-white/5 text-[10px]">
+                  <span className="text-muted-foreground block mb-1">
+                    Players Signed ({teamSquadList.length}):
                   </span>
-                  <span className="text-muted-foreground">Grp {t.group}</span>
+                  {teamSquadList.length === 0 ? (
+                    <span className="text-muted-foreground italic text-[10px]">None signed yet</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 max-h-12 overflow-hidden">
+                      {teamSquadList.slice(0, 3).map((p: any, idx: number) => (
+                        <span key={p.id || idx} className="bg-white/[0.04] px-1.5 py-0.5 rounded text-[10px] font-medium border border-white/5 truncate max-w-[120px]">
+                          {p.name} ({formatMoney(p.soldPrice || 100)})
+                        </span>
+                      ))}
+                      {teamSquadList.length > 3 && (
+                        <span className="text-muted-foreground font-mono">+{teamSquadList.length - 3} more</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* 5. REAL-TIME LIVE AUCTION SALES LEDGER */}
+      {salesHistory.length > 0 && (
+        <Card className="border border-white/10 bg-card/85 backdrop-blur-md p-4 rounded-3xl shadow-md">
+          <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              Live Auction Ledger • Completed Sales
+            </span>
+            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              ● Live Realtime Sync
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {salesHistory.slice(0, 6).map((log) => (
+              <div
+                key={log.id}
+                className="p-2.5 rounded-xl border border-white/5 bg-background/50 flex items-center justify-between text-xs"
+              >
+                <div>
+                  <span className="font-bold text-foreground block text-xs">{log.playerName}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">
+                    {log.playerRole.replace('_', ' ')} • {log.status === 'sold' ? <strong className="text-foreground">{log.teamName}</strong> : 'Unsold'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="font-mono font-black text-xs text-emerald-400 block">{formatMoney(log.amount)}</span>
+                  <span className="text-[9px] text-muted-foreground">
+                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

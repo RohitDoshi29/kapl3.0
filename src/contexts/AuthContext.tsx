@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
-export type UserRole = 'admin' | 'co_admin' | 'scorer' | 'primary_scorer' | 'secondary_scorer' | 'owner' | 'captain' | 'player' | 'user' | null;
+export type UserRole = 'admin' | 'co_admin' | 'owner' | 'captain' | 'player' | 'user' | null;
 
 export interface UserProfile {
   name: string;
@@ -154,9 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roles = data?.map(r => r.role) || [];
       if (roles.includes('admin')) return 'admin';
       if (roles.includes('co_admin')) return 'co_admin';
-      if (roles.includes('scorer')) return 'scorer';
-      if (roles.includes('primary_scorer')) return 'scorer';
-      if (roles.includes('secondary_scorer')) return 'scorer';
       if (roles.includes('owner')) return 'owner';
       if (roles.includes('captain')) return 'captain';
       if (roles.includes('player')) return 'player';
@@ -544,7 +541,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = isMainAdmin || (effectiveUserRole === 'admin' && effectiveUserRole !== 'co_admin');
   const isAdmin = isMainAdmin || hasGroundOverride || effectiveUserRole === 'admin' || effectiveUserRole === 'co_admin';
   const isCoAdmin = !isMainAdmin && !hasGroundOverride && effectiveUserRole === 'co_admin';
-  const isScorer = isAdmin || effectiveUserRole === 'scorer' || effectiveUserRole === 'primary_scorer' || effectiveUserRole === 'secondary_scorer';
+  const isScorer = isAdmin;
   const isOwner = effectiveUserRole === 'owner';
   const isCaptain = isAdmin || effectiveUserRole === 'captain';
   const isPlayer = !isAdmin && (effectiveUserRole === 'player' || !effectiveUserRole || effectiveUserRole === 'user');

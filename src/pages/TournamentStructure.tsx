@@ -7,9 +7,12 @@ import { MultiMatchLiveBar } from '@/components/cricket/MultiMatchLiveBar';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Medal } from 'lucide-react';
+import { Trophy, Medal, Sparkles } from 'lucide-react';
+import { TournamentCeremonyModal } from '@/components/cricket/TournamentCeremonyModal';
+import { useTournamentHonors } from '@/hooks/useTournamentHonors';
 
 interface TournamentState {
   qualified_a1: string | null;
@@ -26,6 +29,8 @@ export default function TournamentStructure() {
   const { activeTournamentId, currentTournament } = useTournament();
   const stats = getTeamStats(activeTournamentId);
   const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
+  const [ceremonyOpen, setCeremonyOpen] = useState(false);
+  const honors = useTournamentHonors(activeTournamentId);
 
   const tournamentTeams = teams.filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
 
@@ -394,12 +399,36 @@ export default function TournamentStructure() {
                   </div>
 
                   {champion && (
-                    <div className="text-center mt-5 pt-4 border-t border-amber-500/30">
+                    <div className="text-center mt-5 pt-4 border-t border-amber-500/30 space-y-3">
                       <p className="text-xl font-black text-gradient-gold flex items-center justify-center gap-2 font-display">
                         <Trophy className="h-6 w-6 text-amber-400 animate-bounce" />
                         KAPL CHAMPIONS: {champion.name}
                         <Trophy className="h-6 w-6 text-amber-400 animate-bounce" />
                       </p>
+
+                      <Button
+                        variant="glow"
+                        size="default"
+                        onClick={() => setCeremonyOpen(true)}
+                        className="font-bold text-xs md:text-sm gap-2 rounded-xl shadow-lg shadow-amber-500/25"
+                      >
+                        <Trophy className="w-4 h-4 text-slate-950" />
+                        🏆 View Championship Ceremony & Honors
+                      </Button>
+                    </div>
+                  )}
+
+                  {!champion && (sf1Winner || sf2Winner) && (
+                    <div className="text-center mt-4 pt-3 border-t border-white/10">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCeremonyOpen(true)}
+                        className="text-xs gap-1.5 border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-xl"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Preview Presentation Ceremony
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -408,6 +437,21 @@ export default function TournamentStructure() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Grand Champions Presentation Ceremony Modal */}
+      {(champion || sf1Winner || sf2Winner || tournamentTeams[0]) && (
+        <TournamentCeremonyModal
+          isOpen={ceremonyOpen}
+          onClose={() => setCeremonyOpen(false)}
+          tournamentName={currentTournament?.name || "KAPL 3.0 Championship"}
+          championTeam={champion || sf1Winner || sf2Winner || tournamentTeams[0]}
+          runnerUpTeam={champion?.id === sf1Winner?.id ? sf2Winner : sf1Winner}
+          orangeCapWinner={honors.orangeCap}
+          purpleCapWinner={honors.purpleCap}
+          maxSixesWinner={honors.maxSixes}
+          mvpWinner={honors.mvp}
+        />
+      )}
     </div>
   );
 }
