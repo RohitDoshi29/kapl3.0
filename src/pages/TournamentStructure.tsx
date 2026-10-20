@@ -84,11 +84,23 @@ export default function TournamentStructure() {
   const getGroupRankings = (group: 'A' | 'B') => {
     const groupTeams = tournamentTeams.filter(t => t.group === group);
     return groupTeams
-      .map(team => ({
-        team,
-        totalRuns: stats.find(s => s.teamId === team.id)?.totalRuns || 0,
-      }))
-      .sort((a, b) => b.totalRuns - a.totalRuns);
+      .map(team => {
+        const teamStats = (stats || []).find(s => s.teamId === team.id);
+        const points = teamStats?.points ?? (teamStats?.wins ? teamStats.wins * 2 : 0);
+        return {
+          team,
+          points,
+          wins: teamStats?.wins || 0,
+          nrr: teamStats?.nrr || 0,
+          totalRuns: teamStats?.totalRuns || 0,
+        };
+      })
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.nrr !== a.nrr) return b.nrr - a.nrr;
+        return b.totalRuns - a.totalRuns;
+      });
   };
 
   const groupARankings = getGroupRankings('A');
@@ -97,7 +109,7 @@ export default function TournamentStructure() {
   // Get teams from tournament state (admin selected) or fallback to rankings
   const getTeamById = (id: string | null) => {
     if (!id) return null;
-    return teams.find(t => t.id === id) || null;
+    return (teams || []).find(t => t.id === id) || null;
   };
 
   const a1 = getTeamById(tournamentState?.qualified_a1) || groupARankings[0]?.team;

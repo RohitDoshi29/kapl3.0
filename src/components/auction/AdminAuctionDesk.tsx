@@ -35,6 +35,7 @@ import {
   AlertTriangle,
   Radio,
   Zap,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -47,18 +48,32 @@ interface AdminAuctionDeskProps {
   onDecideUnsold: (playerId: string) => Promise<void> | void;
   onRevertStatus: (playerId: string) => Promise<void> | void;
   onResetAuction: () => Promise<any> | void;
+  onAutoCompleteAuction?: () => Promise<any> | void;
+  onStartAcceleratedRound?: () => Promise<void> | void;
+  onRemovePlayer?: (playerId: string) => Promise<void> | void;
+  autoAdvanceCountdown?: number | null;
+  onCancelAutoAdvance?: () => void;
+  isAutoAdvanceEnabled?: boolean;
+  onToggleAutoAdvance?: (val: boolean) => void;
   salesHistory: AuctionSaleLog[];
 }
 
 export function AdminAuctionDesk({
-  playerPool,
-  teams,
+  playerPool = [],
+  teams = [],
   currentPlayer,
   onSpotlightPlayer,
   onDecideSold,
   onDecideUnsold,
   onRevertStatus,
   onResetAuction,
+  onAutoCompleteAuction,
+  onStartAcceleratedRound,
+  onRemovePlayer,
+  autoAdvanceCountdown,
+  onCancelAutoAdvance,
+  isAutoAdvanceEnabled = true,
+  onToggleAutoAdvance,
   salesHistory,
 }: AdminAuctionDeskProps) {
   // Bidding & Hammer Controls
@@ -85,7 +100,7 @@ export function AdminAuctionDesk({
 
   const formatMoney = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 
-  const selectedTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
+  const selectedTeam = (teams || []).find((t) => t.id === selectedTeamId) || teams?.[0];
   const isCurrentSold = currentPlayer?.auctionStatus === 'sold';
   const isCurrentUnsold = currentPlayer?.auctionStatus === 'unsold';
 
@@ -127,10 +142,30 @@ export function AdminAuctionDesk({
       toast.error('No player currently selected for auction');
       return;
     }
+    if (isCurrentSold) {
+      toast.warning('⚠️ This candidate is already marked SOLD! Click "Revert Status" below first if you wish to re-auction.');
+      return;
+    }
     if (!selectedTeamId) {
       toast.error('Please select the winning franchise team');
       return;
     }
+
+    const currentSquadCount = selectedTeam?.players?.length || 0;
+    const maxSquad = selectedTeam?.maxSquadSize || 10;
+    if (currentSquadCount >= maxSquad) {
+      toast.error(`⛔ ${selectedTeam?.name} has already reached the maximum squad limit of ${maxSquad} players!`);
+      return;
+    }
+
+    const availablePurse = selectedTeam?.remainingPurse !== undefined && selectedTeam?.remainingPurse !== null
+      ? (currentSquadCount === 0 ? (selectedTeam.initialPurse || 10000) : selectedTeam.remainingPurse)
+      : 10000;
+    if (soldPrice > availablePurse) {
+      toast.error(`⛔ Insufficient purse! ${selectedTeam?.name} only has ${formatMoney(availablePurse)} available.`);
+      return;
+    }
+
     if (soldPrice < currentPlayer.basePrice) {
       toast.error(`Sold price cannot be lower than base price (${formatMoney(currentPlayer.basePrice)})`);
       return;
@@ -167,7 +202,7 @@ export function AdminAuctionDesk({
         <Card className="border border-white/10 bg-card/80 p-3.5 rounded-2xl shadow-sm">
           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Pool</p>
           <p className="text-xl md:text-2xl font-black text-foreground mt-0.5">{stats.total} Players</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">80 Test Candidates</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{stats.total} Candidates</p>
         </Card>
         <Card className="border border-emerald-500/20 bg-emerald-500/5 p-3.5 rounded-2xl shadow-sm">
           <p className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Drafted / Sold</p>
@@ -179,37 +214,74 @@ export function AdminAuctionDesk({
           <p className="text-xl md:text-2xl font-black text-amber-400 mt-0.5">{stats.pending} Left</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">Waiting for auction</p>
         </Card>
-        <Card className="border border-destructive/20 bg-destructive/5 p-3.5 rounded-2xl shadow-sm">
-          <p className="text-[10px] uppercase font-bold text-destructive tracking-wider">Passed / Unsold</p>
-          <p className="text-xl md:text-2xl font-black text-destructive mt-0.5">{stats.unsold}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Eligible for re-auction</p>
+        <Card className="border border-destructive/20 bg-destructive/5 p-3.5 rounded-2xl shadow-sm flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] uppercase font-bold text-destructive tracking-wider">Passed / Unsold</p>
+            <p className="text-xl md:text-2xl font-black text-destructive mt-0.5">{stats.unsold}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Eligible for re-auction</p>
+          </div>
+          {stats.unsold > 0 && onStartAcceleratedRound && (
+            <Button
+              size="sm"
+              onClick={onStartAcceleratedRound}
+              className="mt-2 h-7 text-[10px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 gap-1 w-full shadow-sm"
+            >
+              <Zap className="w-3 h-3 text-slate-950" /> Re-Auction ({stats.unsold})
+            </Button>
+          )}
         </Card>
         <Card className="border border-primary/20 bg-primary/5 p-3.5 rounded-2xl shadow-sm flex flex-col justify-between col-span-2 sm:col-span-1">
           <div>
             <p className="text-[10px] uppercase font-bold text-primary tracking-wider">Franchise Purse</p>
             <p className="text-xs text-muted-foreground mt-0.5">₹10,000 / team initial</p>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1 mt-2">
-                <RotateCcw className="w-3 h-3" /> Reset Season
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reset Auction & Squads?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will empty all team rosters to ₹10,000 purse, clear all bids, and reset all 80 players back to pending status.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onResetAuction} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
-                  Confirm Reset
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center gap-1.5 mt-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1 flex-1">
+                  <RotateCcw className="w-3 h-3" /> Reset Season
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset Auction & Squads?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will empty all team rosters to ₹10,000 purse, clear all bids, and reset all 80 players back to pending status.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onResetAuction} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold">
+                    Confirm Reset
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {onAutoCompleteAuction && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" className="h-7 text-[10px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 gap-1 flex-1 shadow-sm">
+                    <Sparkles className="w-3 h-3" /> Auto-Fill (Test)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Auto-Complete Auction for 80 Players?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This is a testing shortcut that immediately allocates all 80 auction players into 10-player franchise squads across all 8 teams with realistic bid amounts within their ₹10,000 purse limit.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onAutoCompleteAuction} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold">
+                      Confirm & Complete Auction
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </Card>
       </div>
 
@@ -303,6 +375,8 @@ export function AdminAuctionDesk({
                     {teams.map((t) => {
                       const isSelected = t.id === selectedTeamId;
                       const squadCount = t.players?.length || 0;
+                      const maxSquad = t.maxSquadSize || 10;
+                      const isFull = squadCount >= maxSquad;
                       const teamPurse = t.remainingPurse !== undefined && t.remainingPurse !== null
                         ? (squadCount === 0 ? (t.initialPurse || 10000) : t.remainingPurse)
                         : (t.initialPurse || 10000);
@@ -315,6 +389,8 @@ export function AdminAuctionDesk({
                           className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
                             isSelected
                               ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400 shadow-md'
+                              : isFull
+                              ? 'border-white/10 bg-card opacity-60'
                               : 'border-white/10 bg-card hover:bg-muted/50'
                           }`}
                         >
@@ -329,7 +405,9 @@ export function AdminAuctionDesk({
                             <span className={canAfford ? 'text-emerald-400 font-bold' : 'text-destructive font-bold'}>
                               {formatMoney(teamPurse)}
                             </span>
-                            <span>{squadCount}/10 squad</span>
+                            <span className={isFull ? 'text-destructive font-black' : ''}>
+                              {isFull ? 'FULL (10/10)' : `${squadCount}/${maxSquad} squad`}
+                            </span>
                           </div>
                         </button>
                       );
@@ -386,23 +464,68 @@ export function AdminAuctionDesk({
                     ))}
                   </div>
 
+                  {/* Warning if team squad full */}
+                  {selectedTeam && (selectedTeam.players?.length || 0) >= (selectedTeam.maxSquadSize || 10) && (
+                    <div className="flex items-center gap-1.5 text-xs text-destructive mt-2 bg-destructive/10 border border-destructive/20 p-2.5 rounded-xl font-bold">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
+                      <span>
+                        ⛔ Squad Full: {selectedTeam.name} already has {selectedTeam.players?.length || 0}/10 players. Cannot allocate more.
+                      </span>
+                    </div>
+                  )}
+
                   {/* Warning if team can't afford */}
                   {selectedTeam && (selectedTeam.remainingPurse !== undefined && (selectedTeam.players?.length || 0) === 0 ? (selectedTeam.initialPurse || 10000) : (selectedTeam.remainingPurse ?? 10000)) < soldPrice && (
-                    <div className="flex items-center gap-1.5 text-xs text-amber-400 mt-2 bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-xs text-amber-400 mt-2 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl font-bold">
                       <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
                       <span>
                         Notice: {selectedTeam.name} has only {formatMoney((selectedTeam.players?.length || 0) === 0 ? (selectedTeam.initialPurse || 10000) : (selectedTeam.remainingPurse ?? 10000))} remaining in purse.
                       </span>
                     </div>
                   )}
+
+                  {/* Notice if candidate already sold */}
+                  {isCurrentSold && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-2 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl font-bold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>
+                        Candidate is already marked SOLD. Click "Revert Status" below to refund and re-auction.
+                      </span>
+                    </div>
+                  )}
                 </div>
+
+                {/* Auto-Advance Countdown Bar */}
+                {autoAdvanceCountdown !== null && (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-black animate-pulse shadow-md">
+                    <span className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      Auto-advancing to next candidate in {autoAdvanceCountdown}s...
+                    </span>
+                    {onCancelAutoAdvance && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onCancelAutoAdvance}
+                        className="h-7 text-[11px] font-bold border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                      >
+                        Stay on this candidate
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {/* 3. Action Buttons */}
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-white/10">
                   <Button
                     onClick={handleConfirmSold}
-                    disabled={isSubmitting}
-                    className="flex-1 min-w-[200px] h-11 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm gap-2 shadow-lg shadow-emerald-950/20"
+                    disabled={
+                      isSubmitting ||
+                      isCurrentSold ||
+                      (selectedTeam?.players?.length || 0) >= (selectedTeam?.maxSquadSize || 10) ||
+                      (selectedTeam?.remainingPurse ?? 10000) < soldPrice
+                    }
+                    className="flex-1 min-w-[200px] h-11 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-sm gap-2 shadow-lg shadow-emerald-950/20"
                   >
                     <Gavel className="w-4 h-4" />
                     Hammer SOLD to {selectedTeam?.name || 'Selected Team'} for {formatMoney(soldPrice)}!
@@ -411,8 +534,8 @@ export function AdminAuctionDesk({
                   <Button
                     variant="destructive"
                     onClick={handleMarkUnsold}
-                    disabled={isSubmitting}
-                    className="h-11 px-4 text-xs font-bold gap-1.5"
+                    disabled={isSubmitting || isCurrentSold}
+                    className="h-11 px-4 text-xs font-bold gap-1.5 disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" />
                     Pass (UNSOLD)
@@ -452,7 +575,7 @@ export function AdminAuctionDesk({
                 Player-by-Player Auction Queue ({filteredQueue.length} shown of {playerPool.length})
               </CardTitle>
               <CardDescription className="text-xs">
-                Browse all 80 candidates. Click "Bring to Spotlight" to set any player onto the live hammer stage across all devices.
+                Browse all candidates. Click "Bring to Spotlight" to set any player onto the live hammer stage across all devices.
               </CardDescription>
             </div>
 
@@ -467,7 +590,7 @@ export function AdminAuctionDesk({
                     : 'bg-muted/60 text-muted-foreground hover:text-foreground'
                 }`}
               >
-                All (80)
+                All ({playerPool.length})
               </button>
               {AUCTION_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
                 const count = playerPool.filter((p) => p.role === cat.id).length;
@@ -544,7 +667,7 @@ export function AdminAuctionDesk({
                 ) : (
                   filteredQueue.map((p) => {
                     const isSpotlight = currentPlayer?.id === p.id;
-                    const assignedTeam = teams.find((t) => t.id === p.teamId);
+                    const assignedTeam = (teams || []).find((t) => t.id === p.teamId);
                     const isSold = p.auctionStatus === 'sold';
                     const isUnsold = p.auctionStatus === 'unsold';
 
@@ -650,6 +773,22 @@ export function AdminAuctionDesk({
                               title="Reset player to Pending"
                             >
                               Revert
+                            </Button>
+                          )}
+
+                          {onRemovePlayer && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                if (window.confirm(`Permanently remove candidate "${p.name}" from auction?`)) {
+                                  onRemovePlayer(p.id);
+                                }
+                              }}
+                              className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                              title="Remove candidate from auction"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
                         </td>

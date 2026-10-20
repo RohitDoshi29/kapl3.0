@@ -4,6 +4,16 @@ import { Match, Team, Innings, Ball } from '@/lib/cricketTypes';
 export function exportMatchToExcel(match: Match, team1: Team, team2: Team) {
   const workbook = XLSX.utils.book_new();
 
+  const inn1BattingTeam = match.innings1?.battingTeamId === team2.id ? team2 : team1;
+  const inn1BowlingTeam = inn1BattingTeam.id === team1.id ? team2 : team1;
+
+  const inn2BattingTeam = match.innings2?.battingTeamId === team1.id
+    ? team1
+    : match.innings2?.battingTeamId === team2.id
+    ? team2
+    : inn1BowlingTeam;
+  const inn2BowlingTeam = inn2BattingTeam.id === team1.id ? team2 : team1;
+
   // Match Summary Sheet
   const summaryData = [
     ['MATCH SCORECARD'],
@@ -14,8 +24,8 @@ export function exportMatchToExcel(match: Match, team1: Team, team2: Team) {
     ['Winner', match.winner === team1.id ? team1.name : match.winner === team2.id ? team2.name : 'Tie'],
     [''],
     ['Score Summary'],
-    ['1st Innings', team1.name, `${match.innings1?.runs || 0}/${match.innings1?.wickets || 0}`, `(${match.innings1?.currentOver || 0}.${match.innings1?.currentBall || 0} overs)`],
-    ['2nd Innings', team2.name, `${match.innings2?.runs || 0}/${match.innings2?.wickets || 0}`, `(${match.innings2?.currentOver || 0}.${match.innings2?.currentBall || 0} overs)`],
+    ['1st Innings', inn1BattingTeam.name, `${match.innings1?.runs || 0}/${match.innings1?.wickets || 0}`, `(${match.innings1?.currentOver || 0}.${match.innings1?.currentBall || 0} overs)`],
+    ['2nd Innings', inn2BattingTeam.name, `${match.innings2?.runs || 0}/${match.innings2?.wickets || 0}`, `(${match.innings2?.currentOver || 0}.${match.innings2?.currentBall || 0} overs)`],
   ];
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   summarySheet['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
@@ -23,21 +33,21 @@ export function exportMatchToExcel(match: Match, team1: Team, team2: Team) {
 
   // 1st Innings Batting & Bowling
   if (match.innings1) {
-    createBattingSheet(workbook, match.innings1, team1, '1st Inn Batting');
-    createBowlingSheet(workbook, match.innings1, team2, '1st Inn Bowling');
+    createBattingSheet(workbook, match.innings1, inn1BattingTeam, '1st Inn Batting');
+    createBowlingSheet(workbook, match.innings1, inn1BowlingTeam, '1st Inn Bowling');
   }
 
   // 2nd Innings Batting & Bowling
   if (match.innings2) {
-    createBattingSheet(workbook, match.innings2, team2, '2nd Inn Batting');
-    createBowlingSheet(workbook, match.innings2, team1, '2nd Inn Bowling');
+    createBattingSheet(workbook, match.innings2, inn2BattingTeam, '2nd Inn Batting');
+    createBowlingSheet(workbook, match.innings2, inn2BowlingTeam, '2nd Inn Bowling');
   }
 
   // Detailed Over by Over with ball-by-ball
-  createDetailedOverSheet(workbook, match, team1, team2);
+  createDetailedOverSheet(workbook, match, inn1BattingTeam, inn1BowlingTeam, inn2BattingTeam, inn2BowlingTeam);
 
   // Player Performance Summary
-  createPlayerSummarySheet(workbook, match, team1, team2);
+  createPlayerSummarySheet(workbook, match, team1, team2, inn1BattingTeam);
 
   // Download
   const fileName = `${team1.name}_vs_${team2.name}_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -57,7 +67,7 @@ function createBattingSheet(workbook: XLSX.WorkBook, innings: Innings, battingTe
   let totalSixes = 0;
 
   innings.battingOrder.forEach((playerId) => {
-    const player = battingTeam.players.find(p => p.id === playerId);
+    const player = (battingTeam?.players || []).find(p => p.id === playerId);
     const stats = innings.batterStats[playerId];
     if (player && stats) {
       const sr = stats.ballsFaced > 0 ? ((stats.runs / stats.ballsFaced) * 100).toFixed(1) : '0.0';
@@ -81,7 +91,6 @@ function createBattingSheet(workbook: XLSX.WorkBook, innings: Innings, battingTe
   data.push(['TOTAL', totalRuns, totalBalls, totalFours, totalSixes, '', `${innings.wickets} wickets`]);
   data.push(['']);
   data.push(['Total Score', `${innings.runs}/${innings.wickets} (${innings.currentOver}.${innings.currentBall} ov)`]);
-  data.push(['Total Score', `${innings.runs}/${innings.wickets} (${innings.currentOver}.${innings.currentBall} ov)`]);
 
   const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet['!cols'] = [{ wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 6 }, { wch: 12 }, { wch: 12 }];
@@ -96,7 +105,7 @@ function createBowlingSheet(workbook: XLSX.WorkBook, innings: Innings, bowlingTe
   data.push(['Bowler', 'Overs', 'Runs', 'Wickets', 'Wides', 'No Balls', 'Economy', 'Avg']);
 
   Object.entries(innings.bowlerStats).forEach(([playerId, stats]) => {
-    const player = bowlingTeam.players.find(p => p.id === playerId);
+    const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
     if (player) {
       const totalOvers = stats.overs + (stats.balls / 6);
       const economy = totalOvers > 0 ? (stats.runs / totalOvers).toFixed(2) : '0.00';
@@ -119,7 +128,14 @@ function createBowlingSheet(workbook: XLSX.WorkBook, innings: Innings, bowlingTe
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
 }
 
-function createDetailedOverSheet(workbook: XLSX.WorkBook, match: Match, team1: Team, team2: Team) {
+function createDetailedOverSheet(
+  workbook: XLSX.WorkBook,
+  match: Match,
+  inn1BattingTeam: Team,
+  inn1BowlingTeam: Team,
+  inn2BattingTeam: Team,
+  inn2BowlingTeam: Team
+) {
   const data: (string | number)[][] = [];
 
   const getBallLabel = (ball: Ball): string => {
@@ -140,10 +156,10 @@ function createDetailedOverSheet(workbook: XLSX.WorkBook, match: Match, team1: T
     let runningWickets = 0;
 
     innings.overs.forEach((over) => {
-      const bowler = over.bowlerId ? bowlingTeam.players.find(p => p.id === over.bowlerId) : null;
+      const bowler = over.bowlerId ? (bowlingTeam?.players || []).find(p => p.id === over.bowlerId) : null;
 
       over.balls.forEach((ball, ballIdx) => {
-        const batsman = ball.batsmanId ? battingTeam.players.find(p => p.id === ball.batsmanId) : null;
+        const batsman = ball.batsmanId ? (battingTeam?.players || []).find(p => p.id === ball.batsmanId) : null;
         
         runningScore += ball.runs;
         if (ball.isWicket) runningWickets++;
@@ -186,15 +202,15 @@ function createDetailedOverSheet(workbook: XLSX.WorkBook, match: Match, team1: T
     data.push(['']);
   };
 
-  processInnings(match.innings1, team1, team2, 1);
-  processInnings(match.innings2, team2, team1, 2);
+  processInnings(match.innings1, inn1BattingTeam, inn1BowlingTeam, 1);
+  processInnings(match.innings2, inn2BattingTeam, inn2BowlingTeam, 2);
 
   const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet['!cols'] = [{ wch: 6 }, { wch: 15 }, { wch: 8 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 25 }];
   XLSX.utils.book_append_sheet(workbook, sheet, 'Ball by Ball');
 }
 
-function createPlayerSummarySheet(workbook: XLSX.WorkBook, match: Match, team1: Team, team2: Team) {
+function createPlayerSummarySheet(workbook: XLSX.WorkBook, match: Match, team1: Team, team2: Team, inn1BattingTeam: Team) {
   const data: (string | number)[][] = [];
 
   data.push(['PLAYER PERFORMANCE SUMMARY']);
@@ -245,8 +261,14 @@ function createPlayerSummarySheet(workbook: XLSX.WorkBook, match: Match, team1: 
     data.push(['']);
   };
 
-  processTeam(team1, match.innings1, match.innings2);
-  processTeam(team2, match.innings2, match.innings1);
+  const team1BatInnings = inn1BattingTeam.id === team1.id ? match.innings1 : match.innings2;
+  const team1BowlInnings = inn1BattingTeam.id === team1.id ? match.innings2 : match.innings1;
+
+  const team2BatInnings = inn1BattingTeam.id === team2.id ? match.innings1 : match.innings2;
+  const team2BowlInnings = inn1BattingTeam.id === team2.id ? match.innings2 : match.innings1;
+
+  processTeam(team1, team1BatInnings, team1BowlInnings);
+  processTeam(team2, team2BatInnings, team2BowlInnings);
 
   const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 5 }, { wch: 5 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];

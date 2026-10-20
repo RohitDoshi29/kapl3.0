@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, X, Check, ChevronDown, User, Users, Crown, ShieldCheck, Sparkles } from 'lucide-react';
+import { Upload, X, Check, ChevronDown, User, Users, Crown, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { PRESET_COLORS, Team, Player, PLAYER_COUNT_OPTIONS } from '@/lib/cricketTypes';
 import { cn } from '@/lib/utils';
@@ -25,12 +25,14 @@ function PlayerCard({
   player, 
   index,
   teamColor,
-  onUpdate 
+  onUpdate,
+  onRemove,
 }: { 
   player: Player; 
   index: number;
   teamColor: string;
   onUpdate: (updates: Partial<Player>) => void;
+  onRemove?: () => void;
 }) {
   const [name, setName] = useState(player.name);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -139,8 +141,25 @@ function PlayerCard({
             variant="ghost"
             className="h-9 w-9 p-0 text-destructive"
             onClick={() => onUpdate({ photo: null })}
+            title="Remove photo"
           >
             <X className="w-4 h-4" />
+          </Button>
+        )}
+        {onRemove && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              if (window.confirm(`Remove ${player.name} from ${name}'s squad? The player will be returned to the auction pool.`)) {
+                onRemove();
+                toast.success(`${player.name} removed from squad`);
+              }
+            }}
+            title="Remove player from squad"
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
@@ -148,7 +167,15 @@ function PlayerCard({
   );
 }
 
-function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<Team>) => void }) {
+function TeamCard({
+  team,
+  onUpdate,
+  onRemovePlayer,
+}: {
+  team: Team;
+  onUpdate: (updates: Partial<Team>) => void;
+  onRemovePlayer: (playerId: string) => void;
+}) {
   const [name, setName] = useState(team.name);
   const [selectedColor, setSelectedColor] = useState(team.primaryColor);
   const [playerCount, setPlayerCount] = useState(team.playerCount || 10);
@@ -243,13 +270,25 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
     const newCount = parseInt(count);
     setPlayerCount(newCount);
     
-    // Create new players array with the correct count
     const currentPlayers = team.players || [];
-    let newPlayers: Player[];
-    
-    if (newCount > currentPlayers.length) {
-      // Add new players
-      newPlayers = [
+    // If roster is empty (awaiting auction), do not inject dummy players
+    if (currentPlayers.length === 0) {
+      onUpdate({ playerCount: newCount, maxSquadSize: newCount });
+      toast.success(`Target squad size set to ${newCount} players`);
+      return;
+    }
+
+    // If target count is less than existing players, preserve all drafted players
+    if (newCount < currentPlayers.length) {
+      toast.warning(`Target squad size set to ${newCount}. Current ${currentPlayers.length} squad players preserved.`);
+      onUpdate({ playerCount: newCount, maxSquadSize: newCount });
+      return;
+    }
+
+    // Only add manual placeholders if the existing roster is using manual placeholder IDs
+    const isManualRoster = currentPlayers.some(p => p.id.startsWith(`${team.id}-p`));
+    if (isManualRoster) {
+      const newPlayers = [
         ...currentPlayers,
         ...Array.from({ length: newCount - currentPlayers.length }, (_, i) => ({
           id: `${team.id}-p${currentPlayers.length + i + 1}`,
@@ -257,13 +296,11 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
           photo: null,
         }))
       ];
+      onUpdate({ playerCount: newCount, maxSquadSize: newCount, players: newPlayers });
     } else {
-      // Remove players
-      newPlayers = currentPlayers.slice(0, newCount);
+      onUpdate({ playerCount: newCount, maxSquadSize: newCount });
     }
-    
-    onUpdate({ playerCount: newCount, players: newPlayers });
-    toast.success(`Team size set to ${newCount} players`);
+    toast.success(`Target squad size set to ${newCount} players`);
   };
 
   const handlePlayerUpdate = (playerIndex: number, updates: Partial<Player>) => {
@@ -319,7 +356,7 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
       });
       toast.success(`Designated Owner (${currentOwner}) as Team Captain!`);
     } else {
-      const selectedPlayer = players.find(p => p.id === val);
+      const selectedPlayer = (players || []).find(p => p.id === val);
       if (selectedPlayer) {
         onUpdate({
           captainName: selectedPlayer.name,
@@ -558,6 +595,7 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
                   index={index}
                   teamColor={team.primaryColor}
                   onUpdate={(updates) => handlePlayerUpdate(index, updates)}
+                  onRemove={() => onRemovePlayer(player.id)}
                 />
               ))
             )}
@@ -598,7 +636,7 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
 }
 
 export default function AdminTeamsTab() {
-  const { teams, updateTeam, getTeamsByGroup } = useCricketStore();
+  const { teams, updateTeam, removePlayerFromTeam, getTeamsByGroup } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
 
   const groupATeams = getTeamsByGroup('A', activeTournamentId);
@@ -626,6 +664,7 @@ export default function AdminTeamsTab() {
                 key={team.id}
                 team={team}
                 onUpdate={(updates) => updateTeam(team.id, updates)}
+                onRemovePlayer={(playerId) => removePlayerFromTeam(team.id, playerId)}
               />
             ))}
           </div>
@@ -638,6 +677,7 @@ export default function AdminTeamsTab() {
                 key={team.id}
                 team={team}
                 onUpdate={(updates) => updateTeam(team.id, updates)}
+                onRemovePlayer={(playerId) => removePlayerFromTeam(team.id, playerId)}
               />
             ))}
           </div>

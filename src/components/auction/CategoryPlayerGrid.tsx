@@ -18,8 +18,8 @@ interface CategoryPlayerGridProps {
 }
 
 export function CategoryPlayerGrid({
-  players,
-  teams,
+  players = [],
+  teams = [],
   selectedCategory,
   selectedPlayerId,
   onSelectCategory,
@@ -32,7 +32,7 @@ export function CategoryPlayerGrid({
 
   // Filter players by selected category, status, and search query
   const filteredPlayers = useMemo(() => {
-    return players.filter((p) => {
+    return (players || []).filter((p) => {
       // Category filter
       if (selectedCategory !== 'all' && p.role !== selectedCategory) {
         return false;
@@ -47,7 +47,7 @@ export function CategoryPlayerGrid({
         const matchesName = p.name.toLowerCase().includes(query);
         const matchesJersey = p.jerseyNumber?.toString().includes(query);
         const matchesRole = p.role.toLowerCase().includes(query);
-        const assignedTeam = teams.find((t) => t.id === p.teamId);
+        const assignedTeam = (teams || []).find((t) => t.id === p.teamId);
         const matchesTeam = assignedTeam?.name.toLowerCase().includes(query);
         if (!matchesName && !matchesJersey && !matchesRole && !matchesTeam) {
           return false;
@@ -57,14 +57,14 @@ export function CategoryPlayerGrid({
     });
   }, [players, selectedCategory, statusFilter, searchQuery, teams]);
 
-  const activeCategoryInfo = AUCTION_CATEGORIES.find((c) => c.id === selectedCategory) || AUCTION_CATEGORIES[0];
+  const activeCategoryInfo = (AUCTION_CATEGORIES || []).find((c) => c.id === selectedCategory) || AUCTION_CATEGORIES[0];
 
   return (
     <div className="space-y-4">
       {/* Category Selection Cards (All 80, Batters 25, Bowlers 25, All-Rounders 20, Keepers 10) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         {AUCTION_CATEGORIES.map((cat) => {
-          const catPlayers = cat.id === 'all' ? players : players.filter((p) => p.role === cat.id);
+          const catPlayers = cat.id === 'all' ? (players || []) : (players || []).filter((p) => p.role === cat.id);
           const soldCount = catPlayers.filter((p) => p.auctionStatus === 'sold').length;
           const isSelected = selectedCategory === cat.id;
 
@@ -166,7 +166,7 @@ export function CategoryPlayerGrid({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredPlayers.map((player) => {
                 const isSelected = player.id === selectedPlayerId;
-                const assignedTeam = teams.find((t) => t.id === player.teamId);
+                const assignedTeam = (teams || []).find((t) => t.id === player.teamId);
                 const isSold = player.auctionStatus === 'sold';
                 const isUnsold = player.auctionStatus === 'unsold';
 

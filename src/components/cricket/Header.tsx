@@ -193,11 +193,21 @@ export function Header({ className }: { className?: string }) {
               </Button>
             </div>
           ) : (
-            <Link to="/auth">
-              <Button size="sm" variant="default" className="h-8.5 rounded-xl text-xs font-bold shadow-md shadow-amber-500/20">
-                Sign In
-              </Button>
-            </Link>
+            <div className="flex items-center gap-1.5">
+              <Link to="/auth" state={{ tab: 'signin' }}>
+                <Button size="sm" variant="ghost" className="h-8.5 rounded-xl text-xs font-bold hover:bg-white/[0.08] px-2.5">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/auth" state={{ tab: 'signup' }}>
+                <Button
+                  size="sm"
+                  className="h-8.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/20 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black hover:opacity-95 px-3"
+                >
+                  Create Account
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>

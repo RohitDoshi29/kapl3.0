@@ -22,21 +22,24 @@ export default function PointsTable() {
   const { teams, getTeamStats, getTeam, matchHistory } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
 
-  const tournamentTeams = teams.filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
+  const tournamentTeams = (teams || []).filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
   const stats = getTeamStats(activeTournamentId);
 
   const groupATeams = tournamentTeams.filter(t => t.group === 'A');
   const groupBTeams = tournamentTeams.filter(t => t.group === 'B');
 
   const getTeamStatsSorted = (groupTeams: typeof teams) => {
-    return groupTeams
+    return (groupTeams || [])
       .map(team => {
-        const teamStats = stats.find(s => s.teamId === team.id);
+        const teamStats = (stats || []).find(s => s.teamId === team.id);
+        const points = teamStats?.points ?? (teamStats?.wins ? teamStats.wins * 2 : 0);
         return {
           team,
           matchesPlayed: teamStats?.matchesPlayed || 0,
           wins: teamStats?.wins || 0,
           losses: teamStats?.losses || 0,
+          ties: teamStats?.ties || 0,
+          points,
           totalRuns: teamStats?.totalRuns || 0,
           totalFours: teamStats?.totalFours || 0,
           totalSixes: teamStats?.totalSixes || 0,
@@ -44,8 +47,9 @@ export default function PointsTable() {
           nrr: teamStats?.nrr || 0,
         };
       })
-      // Sort by wins first, then NRR for tiebreaker
+      // Sort by points first, then wins, then NRR for tiebreaker
       .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
         if (b.wins !== a.wins) return b.wins - a.wins;
         return b.nrr - a.nrr;
       });
@@ -80,6 +84,7 @@ export default function PointsTable() {
                   <TableHead className="text-center text-xs md:text-sm font-bold">M</TableHead>
                   <TableHead className="text-center text-xs md:text-sm font-bold text-emerald-400">W</TableHead>
                   <TableHead className="text-center text-xs md:text-sm font-bold text-red-400">L</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm font-bold text-blue-400">T</TableHead>
                   <TableHead className="text-center text-xs md:text-sm font-bold text-amber-400">4s</TableHead>
                   <TableHead className="text-center text-xs md:text-sm font-bold text-purple-400">6s</TableHead>
                   <TableHead className="text-center text-xs md:text-sm font-bold text-red-400">Wkts</TableHead>
@@ -121,6 +126,7 @@ export default function PointsTable() {
                       <TableCell className="text-center text-xs md:text-sm font-medium">{item.matchesPlayed}</TableCell>
                       <TableCell className="text-center text-emerald-400 font-bold text-xs md:text-sm">{item.wins}</TableCell>
                       <TableCell className="text-center text-red-400 font-semibold text-xs md:text-sm">{item.losses}</TableCell>
+                      <TableCell className="text-center text-blue-400 font-semibold text-xs md:text-sm">{item.ties}</TableCell>
                       <TableCell className="text-center text-xs md:text-sm text-amber-400 font-medium">{item.totalFours}</TableCell>
                       <TableCell className="text-center text-xs md:text-sm text-purple-400 font-medium">{item.totalSixes}</TableCell>
                       <TableCell className="text-center text-xs md:text-sm text-red-400 font-medium">{item.totalWickets}</TableCell>
@@ -133,7 +139,7 @@ export default function PointsTable() {
                         {item.nrr > 0 ? '+' : ''}{item.nrr.toFixed(3)}
                       </TableCell>
                       <TableCell className="text-right font-black text-sm md:text-base text-amber-400 pr-4 font-display">
-                        {item.wins * 2}
+                        {item.points}
                       </TableCell>
                     </TableRow>
                   );

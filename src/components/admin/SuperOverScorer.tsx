@@ -62,8 +62,8 @@ export default function SuperOverScorer({ onEndMatch }: SuperOverScorerProps) {
   
   const getFilteredPlayers = (team: typeof battingTeam, playerIds: string[]) => {
     if (!team) return [];
-    if (playerIds.length === 0) return team.players;
-    return team.players.filter(p => playerIds.includes(p.id));
+    if (playerIds.length === 0) return team.players || [];
+    return (team.players || []).filter(p => playerIds.includes(p.id));
   };
   
   const target = superOver.currentInnings === 2 && superOver.innings1 ? superOver.innings1.runs + 1 : null;
@@ -74,9 +74,9 @@ export default function SuperOverScorer({ onEndMatch }: SuperOverScorerProps) {
     currentInnings.wickets >= MATCH_CONSTANTS.SUPER_OVER_WICKETS
   );
   
-  const currentBatsman = battingTeam?.players.find(p => p.id === currentInnings?.currentBatsmanId);
-  const nonStriker = battingTeam?.players.find(p => p.id === currentInnings?.nonStrikerBatsmanId);
-  const currentBowler = bowlingTeam?.players.find(p => p.id === currentInnings?.currentBowlerId);
+  const currentBatsman = (battingTeam?.players || []).find(p => p.id === currentInnings?.currentBatsmanId);
+  const nonStriker = (battingTeam?.players || []).find(p => p.id === currentInnings?.nonStrikerBatsmanId);
+  const currentBowler = (bowlingTeam?.players || []).find(p => p.id === currentInnings?.currentBowlerId);
   
   const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false) => {
     if (!currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId) {

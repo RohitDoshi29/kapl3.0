@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,29 +14,79 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { RefreshCcw, Trash2, Database, History, Gavel, Sparkles } from 'lucide-react';
-import { resetTeamsAndSeed80Players } from '@/lib/mockPlayersData';
+import { RefreshCcw, Trash2, Database, History, Gavel, Sparkles, CheckCircle2 } from 'lucide-react';
+import { resetTeamsAndSeed80Players, autoCompleteAuctionForAll80Players } from '@/lib/mockPlayersData';
+import { useTournament } from '@/contexts/TournamentContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminSettingsTab() {
   const { matchHistory, resetSeason, resetEverything, teams } = useCricketStore();
+  const { activeTournamentId, currentTournament } = useTournament();
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleSeed80Players = async () => {
-    const res = await resetTeamsAndSeed80Players();
+    const res = await resetTeamsAndSeed80Players(supabase, activeTournamentId);
     if (res.success) {
-      toast.success('🎉 Successfully populated 80 auction players and emptied all team squads!');
+      toast.success(`🎉 Successfully populated 80 auction players for ${currentTournament?.name || 'tournament'} and emptied all team squads!`);
+      try {
+        const channel = supabase.channel(`auction-room-${activeTournamentId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'auction_sync',
+          payload: {
+            event: 'auction_reset',
+            tournamentId: activeTournamentId,
+          }
+        });
+      } catch (e) {}
     } else {
       toast.error('Failed to seed auction players: ' + res.error);
     }
   };
 
-  const handleResetSeason = () => {
-    resetSeason();
-    toast.success('Season reset! Match history cleared.');
+  const handleAutoCompleteAuction = async () => {
+    const res = await autoCompleteAuctionForAll80Players(supabase, activeTournamentId);
+    if (res.success) {
+      toast.success(res.message);
+      try {
+        const channel = supabase.channel(`auction-room-${activeTournamentId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'auction_sync',
+          payload: {
+            event: 'auction_auto_completed',
+            teams: res.teams,
+            players: res.players,
+            salesHistory: res.salesHistory,
+            tournamentId: activeTournamentId,
+            auctionState: { status: 'completed', tournamentId: activeTournamentId }
+          }
+        });
+      } catch (e) {}
+    } else {
+      toast.error('Failed to auto-complete auction: ' + res.message);
+    }
   };
 
-  const handleResetEverything = () => {
-    resetEverything();
-    toast.success('All data reset to defaults!');
+  const handleResetSeason = async () => {
+    try {
+      await resetSeason();
+      toast.success('Season reset! Match history cleared.');
+    } catch (e: any) {
+      toast.error('Failed to reset season: ' + (e?.message || e));
+    }
+  };
+
+  const handleResetEverything = async () => {
+    setIsResetting(true);
+    try {
+      await resetEverything();
+      toast.success('All data permanently deleted! Players, match records, and squads have been reset to zero.');
+    } catch (err: any) {
+      toast.error('Failed to reset all data: ' + (err?.message || err));
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   // Calculate storage usage
@@ -137,6 +188,50 @@ export default function AdminSettingsTab() {
             </AlertDialog>
           </div>
 
+          {/* Auto-Complete Auction (80 Players) for Testing */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 gap-3">
+            <div>
+              <h4 className="font-bold flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Auto-Complete Auction (All 80 Players Drafted for Testing)
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Drafts all 80 auction players into balanced 10-player franchise squads across all 8 teams with realistic bid amounts within their ₹10,000 purse limit.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs shrink-0 gap-1.5 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Auto-Complete 80 Players
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Auto-Complete 80 Players Auction?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This testing action will:
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                      <li>Draft all 80 players across all 8 franchise squads (10 players per team)</li>
+                      <li>Evenly balance batters, bowlers, all-rounders, and wicket-keepers</li>
+                      <li>Simulate realistic bidding prices within each team's ₹10,000 purse</li>
+                      <li>Compute remaining purses and mark the live auction as completed</li>
+                    </ul>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleAutoCompleteAuction}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold"
+                  >
+                    Confirm & Complete Auction
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
           {/* Reset Season */}
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div>
@@ -203,9 +298,10 @@ export default function AdminSettingsTab() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction 
                     onClick={handleResetEverything}
+                    disabled={isResetting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Delete Everything
+                    {isResetting ? 'Deleting Everything...' : 'Delete Everything'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

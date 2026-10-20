@@ -41,7 +41,7 @@ export function LiveCommentaryFeed({
   // Helper to resolve player names
   const getPlayerName = (team: Team, playerId?: string) => {
     if (!playerId) return 'Player';
-    const player = team.players?.find((p) => p.id === playerId);
+    const player = (team?.players || []).find((p) => p.id === playerId);
     return player ? player.name : 'Player';
   };
 

@@ -24,6 +24,7 @@ import { Innings, PlayerStats, BowlerStats } from '@/lib/cricketTypes';
 import { Users, TrendingUp, Target } from 'lucide-react';
 import { TournamentHonors } from '@/components/cricket/TournamentHonors';
 import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
+import { useTournament } from '@/contexts/TournamentContext';
 
 
 interface AggregatedPlayerStats {
@@ -52,27 +53,39 @@ interface AggregatedPlayerStats {
 
 export default function TeamStats() {
   const { teams, matchHistory, getTeam } = useCricketStore();
+  const { activeTournamentId } = useTournament();
   const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
 
-  // Aggregate player stats from all matches
+  const tournamentTeams = teams.filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
+
+  // Aggregate player stats from matches for active tournament
   const aggregatedStats: Map<string, AggregatedPlayerStats> = new Map();
 
   matchHistory
-    .filter(m => m.status === 'completed')
+    .filter(m => m.status === 'completed' && (m.tournamentId || 'kapl-3-mens') === activeTournamentId)
     .forEach(match => {
       const team1 = getTeam(match.team1Id);
       const team2 = getTeam(match.team2Id);
       const innings1 = match.innings1 as Innings | null;
       const innings2 = match.innings2 as Innings | null;
 
-      // Process innings1 (team1 batting)
-      if (innings1 && team1) {
-        // Batting stats
+      const inn1BatTeam = innings1?.battingTeamId === team2?.id ? team2 : team1;
+      const inn1BowlTeam = inn1BatTeam?.id === team1?.id ? team2 : team1;
+
+      const inn2BatTeam = innings2?.battingTeamId === team1?.id
+        ? team1
+        : innings2?.battingTeamId === team2?.id
+        ? team2
+        : inn1BowlTeam;
+      const inn2BowlTeam = inn2BatTeam?.id === team1?.id ? team2 : team1;
+
+      // Process innings1 batting
+      if (innings1 && inn1BatTeam) {
         Object.entries(innings1.batterStats || {}).forEach(([playerId, stats]) => {
-          const player = team1.players.find(p => p.id === playerId);
+          const player = (inn1BatTeam.players || []).find(p => p.id === playerId);
           if (!player) return;
 
-          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, team1.id, team1.name);
+          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, inn1BatTeam.id, inn1BatTeam.name);
           existing.runs += stats.runs;
           existing.ballsFaced += stats.ballsFaced;
           existing.fours += stats.fours;
@@ -84,13 +97,13 @@ export default function TeamStats() {
         });
       }
 
-      // Process innings2 (team2 batting)
-      if (innings2 && team2) {
+      // Process innings2 batting
+      if (innings2 && inn2BatTeam) {
         Object.entries(innings2.batterStats || {}).forEach(([playerId, stats]) => {
-          const player = team2.players.find(p => p.id === playerId);
+          const player = (inn2BatTeam.players || []).find(p => p.id === playerId);
           if (!player) return;
 
-          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, team2.id, team2.name);
+          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, inn2BatTeam.id, inn2BatTeam.name);
           existing.runs += stats.runs;
           existing.ballsFaced += stats.ballsFaced;
           existing.fours += stats.fours;
@@ -102,13 +115,13 @@ export default function TeamStats() {
         });
       }
 
-      // Process bowling from innings1 (team2 bowled)
-      if (innings1 && team2) {
+      // Process innings1 bowling
+      if (innings1 && inn1BowlTeam) {
         Object.entries(innings1.bowlerStats || {}).forEach(([playerId, stats]) => {
-          const player = team2.players.find(p => p.id === playerId);
+          const player = (inn1BowlTeam.players || []).find(p => p.id === playerId);
           if (!player) return;
 
-          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, team2.id, team2.name);
+          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, inn1BowlTeam.id, inn1BowlTeam.name);
           existing.overs += stats.overs;
           existing.balls += stats.balls;
           existing.runsConceded += stats.runs;
@@ -123,13 +136,13 @@ export default function TeamStats() {
         });
       }
 
-      // Process bowling from innings2 (team1 bowled)
-      if (innings2 && team1) {
+      // Process innings2 bowling
+      if (innings2 && inn2BowlTeam) {
         Object.entries(innings2.bowlerStats || {}).forEach(([playerId, stats]) => {
-          const player = team1.players.find(p => p.id === playerId);
+          const player = (inn2BowlTeam.players || []).find(p => p.id === playerId);
           if (!player) return;
 
-          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, team1.id, team1.name);
+          const existing = aggregatedStats.get(playerId) || createEmptyStats(playerId, player.name, player.photo, inn2BowlTeam.id, inn2BowlTeam.name);
           existing.overs += stats.overs;
           existing.balls += stats.balls;
           existing.runsConceded += stats.runs;
@@ -203,7 +216,7 @@ export default function TeamStats() {
 
       <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
         {/* Tournament Honors: Orange Cap, Purple Cap & Maximum Sixes */}
-        <TournamentHonors />
+        <TournamentHonors tournamentId={activeTournamentId} />
 
         {/* Team Filter */}
         <Card className="border-white/[0.08] bg-card/85 backdrop-blur-xl shadow-xl">
@@ -221,7 +234,7 @@ export default function TeamStats() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Teams</SelectItem>
-                {teams.map(team => (
+                {tournamentTeams.map(team => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
                   </SelectItem>

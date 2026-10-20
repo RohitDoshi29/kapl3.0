@@ -14,13 +14,13 @@ interface PlayerPoolListProps {
   onBringToHammer: (player: PlayerRecord) => void;
 }
 
-export function PlayerPoolList({ players, teams, isAdmin, onBringToHammer }: PlayerPoolListProps) {
+export function PlayerPoolList({ players = [], teams = [], isAdmin, onBringToHammer }: PlayerPoolListProps) {
   const [filter, setFilter] = useState<'all' | 'pending' | 'sold' | 'unsold'>('all');
   const [search, setSearch] = useState('');
 
   const formatMoney = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 
-  const filteredPlayers = players.filter((player) => {
+  const filteredPlayers = (players || []).filter((player) => {
     const matchesSearch = player.name.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
 
@@ -105,7 +105,7 @@ export function PlayerPoolList({ players, teams, isAdmin, onBringToHammer }: Pla
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredPlayers.map((player) => {
-              const team = teams.find((t) => t.id === player.teamId);
+              const team = (teams || []).find((t) => t.id === player.teamId);
 
               return (
                 <div

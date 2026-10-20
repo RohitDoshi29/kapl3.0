@@ -31,7 +31,7 @@ export function AdminTournamentTab() {
   const [ceremonyOpen, setCeremonyOpen] = useState(false);
   const honors = useTournamentHonors(activeTournamentId);
 
-  const tournamentTeams = teams.filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
+  const tournamentTeams = (teams || []).filter(t => (t.tournamentId || 'kapl-3-mens') === activeTournamentId);
   const groupATeams = tournamentTeams.filter(t => t.group === 'A');
   const groupBTeams = tournamentTeams.filter(t => t.group === 'B');
 
@@ -116,7 +116,7 @@ export function AdminTournamentTab() {
 
   const getTeamName = (teamId: string | null) => {
     if (!teamId) return 'Not Selected';
-    const team = teams.find(t => t.id === teamId);
+    const team = (teams || []).find(t => t.id === teamId);
     return team?.name || 'Unknown';
   };
 
@@ -358,17 +358,17 @@ export function AdminTournamentTab() {
       </Button>
 
       {/* Grand Champions Presentation Ceremony Modal */}
-      {tournamentState?.final_winner && teams.find(t => t.id === tournamentState.final_winner) && (
+      {tournamentState?.final_winner && (teams || []).find(t => t.id === tournamentState.final_winner) && (
         <TournamentCeremonyModal
           isOpen={ceremonyOpen}
           onClose={() => setCeremonyOpen(false)}
           tournamentName={currentTournament?.name || "KAPL 3.0 Championship"}
-          championTeam={teams.find(t => t.id === tournamentState.final_winner)!}
+          championTeam={(teams || []).find(t => t.id === tournamentState.final_winner)!}
           runnerUpTeam={
             tournamentState?.sf1_winner && tournamentState?.sf2_winner
               ? tournamentState.final_winner === tournamentState.sf1_winner
-                ? teams.find(t => t.id === tournamentState.sf2_winner)
-                : teams.find(t => t.id === tournamentState.sf1_winner)
+                ? (teams || []).find(t => t.id === tournamentState.sf2_winner)
+                : (teams || []).find(t => t.id === tournamentState.sf1_winner)
               : null
           }
           orangeCapWinner={honors.orangeCap}

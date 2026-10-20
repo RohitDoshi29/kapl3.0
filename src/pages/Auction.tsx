@@ -43,8 +43,15 @@ export default function Auction() {
     adminDecideSold,
     adminDecideUnsold,
     revertPlayerStatus,
+    removePlayerFromAuction,
+    startAcceleratedUnsoldRound,
+    autoAdvanceCountdown,
+    cancelAutoAdvance,
+    isAutoAdvanceEnabled,
+    setIsAutoAdvanceEnabled,
     salesHistory,
     initializeAuctionData,
+    autoCompleteAuction,
   } = useAuction(activeTournamentId);
 
   const handleResetAuctionData = async () => {
@@ -62,6 +69,24 @@ export default function Auction() {
       setIsResetting(false);
     }
   };
+
+  const handleAutoCompleteAuction = async () => {
+    setIsResetting(true);
+    try {
+      const res = await autoCompleteAuction();
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (e: any) {
+      toast.error('Failed to auto-complete auction: ' + e.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const isAllSold = playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
 
   return (
     <div className="relative min-h-screen bg-background pb-20 md:pb-8">
@@ -96,50 +121,70 @@ export default function Auction() {
 
           <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
             {isAdmin && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isResetting}
-                    className="h-8 text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-                    Reset & Seed 80 Players
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset Auction & Seed 80 Players?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will:
-                      <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
-                        <li>Purge existing players and insert 80 structured players (Player 1 to 80)</li>
-                        <li>Distribute roles (25 Batters, 25 Bowlers, 20 All-rounders, 10 Keepers)</li>
-                        <li>Clear all team rosters (0 players allocated)</li>
-                        <li>Restore each team's purse to full ₹10,000</li>
-                        <li>Set auction spotlight to Player 1 ready for live bidding</li>
-                      </ul>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleResetAuctionData}
-                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isResetting}
+                  onClick={handleAutoCompleteAuction}
+                  className="h-8 text-xs font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1.5"
+                >
+                  <Zap className={`w-3.5 h-3.5 text-emerald-400 ${isResetting ? 'animate-spin' : ''}`} />
+                  Auto-Complete 80 (Test)
+                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isResetting}
+                      className="h-8 text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5"
                     >
-                      Confirm Reset & Seed
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+                      Reset & Seed
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset Auction & Seed 80 Players?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will:
+                        <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                          <li>Purge existing players and insert 80 structured players (Player 1 to 80)</li>
+                          <li>Distribute roles (25 Batters, 25 Bowlers, 20 All-rounders, 10 Keepers)</li>
+                          <li>Clear all team rosters (0 players allocated)</li>
+                          <li>Restore each team's purse to full ₹10,000</li>
+                          <li>Set auction spotlight to Player 1 ready for live bidding</li>
+                        </ul>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleResetAuctionData}
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                      >
+                        Confirm Reset & Seed
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
 
-            {/* Live Indicator */}
-            <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
-              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
-              LIVE AUCTION
-            </span>
+            {/* Live or Completed Indicator */}
+            {isAllSold ? (
+              <span className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                80/80 SOLD
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
+                <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+                LIVE AUCTION
+              </span>
+            )}
 
             {/* Division Switcher */}
             <div className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-xl text-xs font-semibold backdrop-blur-sm">
@@ -207,6 +252,8 @@ export default function Auction() {
               onDecideUnsold={adminDecideUnsold}
               onRevert={revertPlayerStatus}
               salesHistory={salesHistory}
+              autoAdvanceCountdown={autoAdvanceCountdown}
+              onCancelAutoAdvance={cancelAutoAdvance}
             />
 
             {/* Category Players Bar Below Spotlight for Quick Navigation */}
@@ -256,8 +303,15 @@ export default function Auction() {
                 onDecideSold={adminDecideSold}
                 onDecideUnsold={adminDecideUnsold}
                 onRevertStatus={revertPlayerStatus}
+                onRemovePlayer={removePlayerFromAuction}
                 onResetAuction={handleResetAuctionData}
+                onAutoCompleteAuction={handleAutoCompleteAuction}
                 salesHistory={salesHistory}
+                onStartAcceleratedRound={startAcceleratedUnsoldRound}
+                autoAdvanceCountdown={autoAdvanceCountdown}
+                onCancelAutoAdvance={cancelAutoAdvance}
+                isAutoAdvanceEnabled={isAutoAdvanceEnabled}
+                onToggleAutoAdvance={setIsAutoAdvanceEnabled}
               />
             </TabsContent>
           )}

@@ -263,6 +263,8 @@ export interface TeamStats {
   matchesPlayed: number;
   wins: number;
   losses: number;
+  ties: number;
+  points: number;
   totalRuns: number;
   totalFours: number;
   totalSixes: number;

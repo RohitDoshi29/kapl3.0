@@ -71,8 +71,8 @@ export default function SecondaryScorerTab() {
   // Filter players to only show playing 7
   const getFilteredPlayers = (team: typeof battingTeam, playerIds: string[]) => {
     if (!team) return [];
-    if (playerIds.length === 0) return team.players; // Fallback to all players
-    return team.players.filter(p => playerIds.includes(p.id));
+    if (playerIds.length === 0) return team.players || []; // Fallback to all players
+    return (team.players || []).filter(p => playerIds.includes(p.id));
   };
 
   const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false, noStrikeChange = false) => {
@@ -259,14 +259,22 @@ export default function SecondaryScorerTab() {
                   {getFilteredPlayers(bowlingTeam, bowlingPlayingPlayers).map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
                     const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
+                    const lastBowlerId = (match as any)?.lastOverBowlerId || (currentInnings.overs.length > 1 ? currentInnings.overs[currentInnings.overs.length - 2]?.bowlerId : null);
+                    const isConsecutiveBowler = Boolean(
+                      lastBowlerId && 
+                      player.id === lastBowlerId && 
+                      (currentInnings.currentBall === 0 || player.id !== currentInnings.currentBowlerId)
+                    );
+                    const isBowlerDisabled = Boolean(hasCompletedMaxOvers || isConsecutiveBowler);
+
                     return (
                       <SelectItem 
                         key={player.id} 
                         value={player.id}
-                        disabled={hasCompletedMaxOvers}
+                        disabled={isBowlerDisabled}
                       >
                         {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''} 
-                        {hasCompletedMaxOvers && '(Max Overs)'}
+                        {hasCompletedMaxOvers ? ' (Max 2 Overs)' : isConsecutiveBowler ? ' (Bowled Last Over)' : ''}
                       </SelectItem>
                     );
                   })}
@@ -300,7 +308,7 @@ export default function SecondaryScorerTab() {
               </TableHeader>
               <TableBody>
                 {currentInnings.battingOrder.map((playerId) => {
-                  const player = battingTeam.players.find(p => p.id === playerId);
+                  const player = (battingTeam?.players || []).find(p => p.id === playerId);
                   const stats = currentInnings.batterStats[playerId];
                   if (!player || !stats) return null;
                   
@@ -360,7 +368,7 @@ export default function SecondaryScorerTab() {
               </TableHeader>
               <TableBody>
                 {Object.entries(currentInnings.bowlerStats).map(([playerId, stats]) => {
-                  const player = bowlingTeam.players.find(p => p.id === playerId);
+                  const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
                   if (!player) return null;
                   
                   const totalOvers = stats.overs + (stats.balls / 6);

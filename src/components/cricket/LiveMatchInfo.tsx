@@ -30,9 +30,9 @@ export function LiveMatchInfo({ match, battingTeam, bowlingTeam, currentInnings,
   const wicketsRemaining = MATCH_CONSTANTS.MAX_WICKETS - currentInnings.wickets;
 
   // Get current batsmen
-  const currentBatsman = battingTeam.players.find(p => p.id === currentInnings.currentBatsmanId);
-  const nonStriker = battingTeam.players.find(p => p.id === currentInnings.nonStrikerBatsmanId);
-  const currentBowler = bowlingTeam.players.find(p => p.id === currentInnings.currentBowlerId);
+  const currentBatsman = (battingTeam?.players || []).find(p => p.id === currentInnings.currentBatsmanId);
+  const nonStriker = (battingTeam?.players || []).find(p => p.id === currentInnings.nonStrikerBatsmanId);
+  const currentBowler = (bowlingTeam?.players || []).find(p => p.id === currentInnings.currentBowlerId);
 
   // Get batsmen stats
   const strikerStats = currentInnings.batterStats[currentInnings.currentBatsmanId || ''];
@@ -237,7 +237,7 @@ export function LiveMatchInfo({ match, battingTeam, bowlingTeam, currentInnings,
               </TableHeader>
               <TableBody>
                 {currentInnings.battingOrder.map((playerId) => {
-                  const player = battingTeam.players.find(p => p.id === playerId);
+                  const player = (battingTeam?.players || []).find(p => p.id === playerId);
                   const stats = currentInnings.batterStats[playerId];
                   if (!player || !stats) return null;
                   
@@ -298,7 +298,7 @@ export function LiveMatchInfo({ match, battingTeam, bowlingTeam, currentInnings,
               </TableHeader>
               <TableBody>
                 {Object.entries(currentInnings.bowlerStats).map(([playerId, stats]) => {
-                  const player = bowlingTeam.players.find(p => p.id === playerId);
+                  const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
                   if (!player) return null;
                   
                   const totalOvers = stats.overs + (stats.balls / 6);

@@ -24,6 +24,13 @@ import {
   Clock,
   ArrowRight,
   Eye,
+  AlertTriangle,
+  Tv,
+  Maximize2,
+  Minimize2,
+  Zap,
+  ShieldAlert,
+  Trophy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuctionSaleLog } from '@/hooks/useAuction';
@@ -40,12 +47,14 @@ interface SinglePlayerAuctionStageProps {
   onDecideUnsold: (playerId: string) => void;
   onRevert: (playerId: string) => void;
   salesHistory?: AuctionSaleLog[];
+  autoAdvanceCountdown?: number | null;
+  onCancelAutoAdvance?: () => void;
 }
 
 export function SinglePlayerAuctionStage({
   player,
   playerPool = [],
-  teams,
+  teams = [],
   isAdmin,
   onNext,
   onPrev,
@@ -54,30 +63,35 @@ export function SinglePlayerAuctionStage({
   onDecideUnsold,
   onRevert,
   salesHistory = [],
+  autoAdvanceCountdown = null,
+  onCancelAutoAdvance,
 }: SinglePlayerAuctionStageProps) {
   const { user } = useAuth();
   const cleanUserEmail = user?.email?.toLowerCase().trim();
 
+  // Projector / Stadium TV Mode Toggle
+  const [isProjectorMode, setIsProjectorMode] = useState(false);
+
   // Find user-owned franchise if logged in user is a Team Owner
   const userOwnedTeam = useMemo(() => {
     if (!cleanUserEmail) return null;
-    return teams.find((t) => t.ownerEmail && t.ownerEmail.toLowerCase().trim() === cleanUserEmail) || null;
+    return (teams || []).find((t) => t.ownerEmail && t.ownerEmail.toLowerCase().trim() === cleanUserEmail) || null;
   }, [teams, cleanUserEmail]);
 
   // Selected team for Admin hammer decision
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(teams[0]?.id || '');
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(teams?.[0]?.id || '');
   const [soldAmount, setSoldAmount] = useState<number>(100);
 
   // Selected team for Owner / Franchise Hub inspection
   const [activeOwnerTeamId, setActiveOwnerTeamId] = useState<string>(() => {
-    return userOwnedTeam ? userOwnedTeam.id : teams[0]?.id || '';
+    return userOwnedTeam ? userOwnedTeam.id : teams?.[0]?.id || '';
   });
 
   // Keep activeOwnerTeamId synced if user owns a team
   useEffect(() => {
     if (userOwnedTeam) {
       setActiveOwnerTeamId(userOwnedTeam.id);
-    } else if (teams.length > 0 && !activeOwnerTeamId) {
+    } else if ((teams || []).length > 0 && !activeOwnerTeamId) {
       setActiveOwnerTeamId(teams[0].id);
     }
   }, [userOwnedTeam, teams]);
@@ -88,7 +102,7 @@ export function SinglePlayerAuctionStage({
       setSoldAmount(player.soldPrice || player.basePrice);
       if (player.teamId) {
         setSelectedTeamId(player.teamId);
-      } else if (teams.length > 0 && !selectedTeamId) {
+      } else if ((teams || []).length > 0 && !selectedTeamId) {
         setSelectedTeamId(teams[0].id);
       }
     }
@@ -107,9 +121,9 @@ export function SinglePlayerAuctionStage({
     maxSquadSize: 10,
   };
 
-  const selectedTeam = teams.find((t) => t.id === selectedTeamId) || teams[0] || fallbackTeam;
-  const inspectedTeam = teams.find((t) => t.id === activeOwnerTeamId) || userOwnedTeam || selectedTeam || teams[0] || fallbackTeam;
-  const assignedTeam = teams.find((t) => t.id === player?.teamId);
+  const selectedTeam = (teams || []).find((t) => t.id === selectedTeamId) || teams?.[0] || fallbackTeam;
+  const inspectedTeam = (teams || []).find((t) => t.id === activeOwnerTeamId) || userOwnedTeam || selectedTeam || teams?.[0] || fallbackTeam;
+  const assignedTeam = (teams || []).find((t) => t.id === player?.teamId);
   const isSold = player?.auctionStatus === 'sold';
   const isUnsold = player?.auctionStatus === 'unsold';
 
@@ -142,6 +156,11 @@ export function SinglePlayerAuctionStage({
   const currentSquadCount = squadPlayers.length;
   const openSlots = Math.max(0, maxSquadSize - currentSquadCount);
 
+  // KAPL Rules: Minimum base bid is ₹100.
+  // Max permissible safe bid reserves ₹100 for each remaining open slot to ensure team can complete full 10-player squad.
+  const minBasePrice = 100;
+  const maxSafeBid = Math.max(0, remainingPurse - Math.max(0, openSlots - 1) * minBasePrice);
+
   const battersCount = squadPlayers.filter((p: any) => p.role === 'batter').length;
   const bowlersCount = squadPlayers.filter((p: any) => p.role === 'bowler').length;
   const allRoundersCount = squadPlayers.filter((p: any) => p.role === 'all_rounder').length;
@@ -161,10 +180,33 @@ export function SinglePlayerAuctionStage({
 
   const handleConfirmSale = () => {
     if (!player) return;
+    if (isSold) {
+      toast.error('This candidate is already marked SOLD. Click Revert to refund first.');
+      return;
+    }
     if (!selectedTeamId) {
       toast.error('Please select a winning franchise for this candidate');
       return;
     }
+    const targetTeam = (teams || []).find((t) => t.id === selectedTeamId);
+    if (!targetTeam) return;
+
+    const targetSquad = targetTeam.players?.length || 0;
+    const targetMaxSquad = targetTeam.maxSquadSize || 10;
+    if (targetSquad >= targetMaxSquad) {
+      toast.error(`Squad Full: ${targetTeam.name} already has ${targetSquad}/${targetMaxSquad} players.`);
+      return;
+    }
+
+    const targetPurse = targetTeam.remainingPurse !== undefined && targetSquad === 0
+      ? (targetTeam.initialPurse || 10000)
+      : (targetTeam.remainingPurse ?? 10000);
+
+    if (soldAmount > targetPurse) {
+      toast.error(`Purse Deficit: ${targetTeam.name} has only ${formatMoney(targetPurse)} left, but sold price is ${formatMoney(soldAmount)}.`);
+      return;
+    }
+
     if (soldAmount < player.basePrice) {
       toast.error(`Sold amount cannot be less than base price (${formatMoney(player.basePrice)})`);
       return;
@@ -186,8 +228,51 @@ export function SinglePlayerAuctionStage({
     );
   }
 
+  // Check if auction is 100% complete
+  const isAllSold = useMemo(() => {
+    return playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
+  }, [playerPool]);
+
   return (
     <div className="space-y-6">
+      {/* AUCTION COMPLETED BANNER */}
+      {isAllSold && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-emerald-500/20 border-2 border-amber-500/40 rounded-3xl p-4 md:p-5 shadow-2xl backdrop-blur-xl">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/25 shrink-0">
+                <Trophy className="w-6 h-6 text-slate-950" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base md:text-lg font-black text-foreground tracking-tight">
+                    KAPL 3.0 Mega Auction Completed!
+                  </h2>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black">
+                    {playerPool.filter(p => p.auctionStatus === 'sold').length}/{playerPool.length} SOLD
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  All 8 franchise squads are 100% full (10/10 players each). Bidding is officially finalized.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs font-mono self-end sm:self-auto">
+              <div className="text-right">
+                <div className="text-[10px] text-muted-foreground uppercase font-sans">Total Purse Spent</div>
+                <div className="font-bold text-emerald-400 font-mono">₹64,950 / ₹80,000</div>
+              </div>
+              <div className="h-8 w-px bg-white/10" />
+              <div className="text-right">
+                <div className="text-[10px] text-muted-foreground uppercase font-sans">Squads Filled</div>
+                <div className="font-bold text-amber-400">8 of 8 (100%)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. TOP STAGE BAR */}
       <div className="flex items-center justify-between bg-card/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 px-4 shadow-sm">
         <Button variant="ghost" size="sm" onClick={onPrev} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
@@ -206,10 +291,69 @@ export function SinglePlayerAuctionStage({
           )}
         </div>
 
-        <Button variant="ghost" size="sm" onClick={onNext} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-          Next Candidate <ChevronRight className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsProjectorMode(true)}
+            className="h-8 text-xs font-bold gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+          >
+            <Tv className="w-3.5 h-3.5 text-amber-400" />
+            Big Screen TV
+          </Button>
+
+          <Button variant="ghost" size="sm" onClick={onNext} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+            Next Candidate <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* RECENT SALES TICKER */}
+      {salesHistory && salesHistory.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto py-2 px-3 bg-white/[0.02] border border-white/5 rounded-2xl text-xs scrollbar-none">
+          <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider shrink-0 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-amber-400" /> Recent Drafts:
+          </span>
+          {salesHistory.slice(0, 6).map((s) => (
+            <Badge
+              key={s.id}
+              variant="outline"
+              className="shrink-0 text-[11px] font-medium border-white/10 bg-card/60 gap-1.5 py-1 px-2.5"
+            >
+              <span className="font-bold text-foreground">{s.playerName}</span>
+              <span className="text-muted-foreground">→</span>
+              {s.status === 'sold' ? (
+                <>
+                  <span className="text-amber-300 font-semibold">{s.teamName}</span>
+                  <span className="font-mono text-emerald-400 font-bold">{formatMoney(s.amount)}</span>
+                </>
+              ) : (
+                <span className="text-destructive font-semibold">Unsold</span>
+              )}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* AUTO ADVANCE COUNTDOWN BANNER */}
+      {autoAdvanceCountdown !== null && (
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-black animate-pulse shadow-md">
+          <span className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            Auto-advancing to next candidate in {autoAdvanceCountdown}s...
+          </span>
+          {onCancelAutoAdvance && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onCancelAutoAdvance}
+              className="h-7 text-[11px] font-bold border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+            >
+              Stay on this candidate
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* 2. MAIN SINGLE PLAYER SPOTLIGHT CARD */}
       <Card className="relative overflow-hidden border-2 border-amber-500/30 rounded-3xl shadow-2xl bg-gradient-to-b from-card via-card to-amber-950/10">
@@ -336,6 +480,14 @@ export function SinglePlayerAuctionStage({
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {teams.map((t) => {
                         const isSelected = t.id === selectedTeamId;
+                        const tSquadCount = t.players?.length || 0;
+                        const tMaxSquad = t.maxSquadSize || 10;
+                        const isFull = tSquadCount >= tMaxSquad;
+                        const tPurse = t.remainingPurse !== undefined && tSquadCount === 0
+                          ? (t.initialPurse || 10000)
+                          : (t.remainingPurse ?? 10000);
+                        const canAfford = tPurse >= soldAmount;
+
                         return (
                           <button
                             key={t.id}
@@ -347,12 +499,17 @@ export function SinglePlayerAuctionStage({
                             className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${
                               isSelected
                                 ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400 text-amber-300 font-bold shadow-sm'
+                                : isFull
+                                ? 'border-white/10 bg-white/[0.01] opacity-60 text-muted-foreground'
                                 : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-foreground'
                             }`}
                           >
                             <span className="text-xs font-bold truncate max-w-full">{t.name}</span>
-                            <span className="text-[10px] opacity-75 font-mono">
-                              {formatMoney(t.remainingPurse ?? 10000)}
+                            <span className={`text-[10px] font-mono ${canAfford ? 'opacity-75' : 'text-destructive font-bold'}`}>
+                              {formatMoney(tPurse)}
+                            </span>
+                            <span className={`text-[9px] ${isFull ? 'text-destructive font-black' : 'text-muted-foreground'}`}>
+                              {isFull ? 'FULL (10/10)' : `${tSquadCount}/${tMaxSquad}`}
                             </span>
                           </button>
                         );
@@ -400,28 +557,63 @@ export function SinglePlayerAuctionStage({
                   </div>
 
                   {/* Step 3: Hammer Actions */}
-                  <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="h-12 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm gap-2 rounded-xl shadow-lg"
-                      onClick={handleConfirmSale}
-                    >
-                      <CheckCircle2 className="w-5 h-5" />
-                      Hammer SOLD to {selectedTeam?.name} ({formatMoney(soldAmount)})
-                    </Button>
+                  {(() => {
+                    const selSquadCount = selectedTeam?.players?.length || 0;
+                    const selMaxSquad = selectedTeam?.maxSquadSize || 10;
+                    const isSelFull = selSquadCount >= selMaxSquad;
+                    const selPurse = selectedTeam?.remainingPurse !== undefined && selSquadCount === 0
+                      ? (selectedTeam.initialPurse || 10000)
+                      : (selectedTeam.remainingPurse ?? 10000);
+                    const canSelAfford = selPurse >= soldAmount;
+                    const isHammerBlocked = isSold || isSelFull || !canSelAfford;
 
-                    <Button
-                      type="button"
-                      size="lg"
-                      variant="destructive"
-                      className="h-12 font-black text-sm gap-2 rounded-xl"
-                      onClick={() => onDecideUnsold(player.id)}
-                    >
-                      <XCircle className="w-5 h-5" />
-                      Mark UNSOLD
-                    </Button>
-                  </div>
+                    return (
+                      <div className="space-y-2 pt-2">
+                        {isSelFull && (
+                          <div className="flex items-center gap-1.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-xl font-bold">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>⛔ Squad Full: {selectedTeam?.name} has reached max roster limit ({selSquadCount}/{selMaxSquad}).</span>
+                          </div>
+                        )}
+                        {!canSelAfford && (
+                          <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl font-bold">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>⚠️ Purse Deficit: {selectedTeam?.name} has only {formatMoney(selPurse)} left (requires {formatMoney(soldAmount)}).</span>
+                          </div>
+                        )}
+                        {isSold && (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl font-bold">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            <span>Candidate is already marked SOLD. Click "Revert to Pending" below to refund and re-auction.</span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Button
+                            type="button"
+                            size="lg"
+                            disabled={isHammerBlocked}
+                            className="h-12 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm gap-2 rounded-xl shadow-lg disabled:opacity-50"
+                            onClick={handleConfirmSale}
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                            Hammer SOLD to {selectedTeam?.name} ({formatMoney(soldAmount)})
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="lg"
+                            variant="destructive"
+                            className="h-12 font-black text-sm gap-2 rounded-xl"
+                            onClick={() => onDecideUnsold(player.id)}
+                          >
+                            <XCircle className="w-5 h-5" />
+                            Mark UNSOLD
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Revert Option */}
                   {(isSold || isUnsold) && (
@@ -489,7 +681,7 @@ export function SinglePlayerAuctionStage({
                 </div>
 
                 {/* 1. Live Wallet & Money Statistics */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* Remaining Purse */}
                   <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
@@ -501,6 +693,20 @@ export function SinglePlayerAuctionStage({
                     </p>
                     <span className="text-[10px] text-muted-foreground block">
                       Initial: {formatMoney(initialPurse)}
+                    </span>
+                  </div>
+
+                  {/* Max Permissible Bid */}
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-left space-y-1">
+                    <span className="text-[10px] text-amber-300 uppercase font-black flex items-center gap-1">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                      Max Safe Bid
+                    </span>
+                    <p className="font-mono font-black text-xl text-amber-300">
+                      {formatMoney(maxSafeBid)}
+                    </p>
+                    <span className="text-[10px] text-amber-400/80 block">
+                      Reserves ₹100/slot ({openSlots} open)
                     </span>
                   </div>
 
@@ -530,6 +736,16 @@ export function SinglePlayerAuctionStage({
                     </span>
                   </div>
                 </div>
+
+                {/* Role Balance & Keeper Alert */}
+                {currentSquadCount > 0 && keepersCount === 0 && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-200 text-xs font-semibold">
+                    <AlertTriangle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>
+                      <strong>Role Alert:</strong> {inspectedTeam.name} has drafted {currentSquadCount} player(s) but has 0 specialist Wicket-Keepers. Ensure at least 1 keeper is acquired before the auction concludes!
+                    </span>
+                  </div>
+                )}
 
                 {/* 2. Team Analytics & Squad Composition Breakdown */}
                 <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs space-y-2">
@@ -792,6 +1008,115 @@ export function SinglePlayerAuctionStage({
             ))}
           </div>
         </Card>
+      )}
+
+      {/* 6. PROJECTOR / BIG SCREEN TV MODE (FOR STADIUM & HALL SCREENS) */}
+      {isProjectorMode && (
+        <div className="fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4 md:p-8 overflow-y-auto">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
+                <Tv className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
+                  KAPL 3.0 AUCTION <span className="text-amber-400">• STADIUM STAGE</span>
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  High-contrast live display for LED screens and hall projectors
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsProjectorMode(false)}
+              className="font-bold border-white/20 text-foreground hover:bg-white/10 gap-1.5"
+            >
+              <Minimize2 className="w-4 h-4" /> Exit TV Mode
+            </Button>
+          </div>
+
+          {/* Huge Main Stage Display */}
+          <div className="flex-1 flex flex-col items-center justify-center my-6 max-w-5xl mx-auto w-full text-center space-y-6">
+            {/* Status Pill */}
+            {isSold && assignedTeam ? (
+              <div className="w-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 text-white p-4 rounded-3xl font-black text-2xl md:text-4xl shadow-2xl flex items-center justify-center gap-3 animate-bounce">
+                <Sparkles className="w-8 h-8 text-yellow-300" />
+                SOLD TO {assignedTeam.name.toUpperCase()} FOR {formatMoney(player.soldPrice || player.basePrice)}!
+                <Sparkles className="w-8 h-8 text-yellow-300" />
+              </div>
+            ) : isUnsold ? (
+              <div className="w-full bg-destructive text-destructive-foreground p-3 rounded-2xl font-black text-xl md:text-2xl shadow-lg">
+                ❌ CANDIDATE MARKED UNSOLD
+              </div>
+            ) : (
+              <Badge className="bg-amber-500 text-slate-950 font-black text-base px-6 py-1.5 rounded-full shadow-lg">
+                ● LIVE STAGE SPOTLIGHT
+              </Badge>
+            )}
+
+            {/* Giant Avatar & Identity */}
+            <div className="relative">
+              <Avatar className="w-48 h-48 md:w-60 md:h-60 border-4 border-amber-400 shadow-2xl rounded-full">
+                <AvatarImage src={player.photoUrl || undefined} alt={player.name} className="object-cover" />
+                <AvatarFallback className="bg-amber-500/20 text-amber-400 text-6xl font-black">
+                  {player.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {player.jerseyNumber && (
+                <Badge className="absolute bottom-2 right-4 bg-slate-950 border-2 border-amber-400 text-amber-300 font-mono text-base font-black px-3 py-1 rounded-full">
+                  #{player.jerseyNumber}
+                </Badge>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2">{getRoleBadge(player.role)}</div>
+              <h1 className="text-4xl md:text-6xl font-black text-foreground tracking-tight">
+                {player.name}
+              </h1>
+              <div className="flex items-center justify-center gap-4 text-sm md:text-base text-muted-foreground mt-2">
+                {player.battingStyle && <span>🏏 {player.battingStyle}</span>}
+                {player.bowlingStyle && <span>⚡ {player.bowlingStyle}</span>}
+              </div>
+            </div>
+
+            {/* Giant Base Price Box */}
+            <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-3xl p-6 px-12 shadow-2xl">
+              <span className="text-xs md:text-sm text-amber-400 uppercase font-black tracking-widest block mb-1">
+                Official Base Value
+              </span>
+              <span className="text-4xl md:text-6xl font-black text-amber-400 font-mono">
+                {formatMoney(player.basePrice)}
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Live Team Purses Ribbon */}
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-[11px] text-muted-foreground uppercase font-black tracking-wider mb-2.5 text-center">
+              Franchise Wallet Balances & Squad Quotas
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              {teams.map((t) => {
+                const squadCount = t.players?.length || 0;
+                const purse = t.remainingPurse !== undefined && squadCount === 0
+                  ? (t.initialPurse || 10000)
+                  : (t.remainingPurse ?? 10000);
+                return (
+                  <div key={t.id} className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-center">
+                    <p className="text-xs font-bold truncate text-foreground">{t.name}</p>
+                    <p className="text-sm font-mono font-black text-amber-400 mt-0.5">{formatMoney(purse)}</p>
+                    <p className="text-[10px] text-muted-foreground">{squadCount}/10 Squad</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

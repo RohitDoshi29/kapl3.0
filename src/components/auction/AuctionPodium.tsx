@@ -33,7 +33,7 @@ interface AuctionPodiumProps {
 export function AuctionPodium({
   auctionState,
   currentPlayer,
-  teams,
+  teams = [],
   userTeam,
   timeLeft,
   isAdmin,
@@ -43,9 +43,9 @@ export function AuctionPodium({
   onHammerUnsold,
   onReset,
 }: AuctionPodiumProps) {
-  const [selectedBidTeamId, setSelectedBidTeamId] = useState<string>(userTeam?.id || teams[0]?.id || '');
+  const [selectedBidTeamId, setSelectedBidTeamId] = useState<string>(userTeam?.id || teams?.[0]?.id || '');
 
-  const highestBidderTeam = teams.find((t) => t.id === auctionState?.highestBidderTeamId);
+  const highestBidderTeam = (teams || []).find((t) => t.id === auctionState?.highestBidderTeamId);
   const isSold = auctionState?.status === 'sold';
   const isUnsold = auctionState?.status === 'unsold';
   const isWarning = auctionState?.status === 'fair_warning';

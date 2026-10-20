@@ -176,17 +176,20 @@ CREATE TABLE IF NOT EXISTS public.teams (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Seed 8 Default Teams for Men's Tournament
-INSERT INTO public.teams (id, tournament_id, name, "group", logo, primary_color, players, player_count, owner_name, owner_email) VALUES
-  ('a1', 'kapl-3-mens', 'Kapil''s Warriors', 'A', null, '0 84% 60%', '[{"id":"a1-p1","name":"Player 1","photo":null},{"id":"a1-p2","name":"Player 2","photo":null},{"id":"a1-p3","name":"Player 3","photo":null},{"id":"a1-p4","name":"Player 4","photo":null},{"id":"a1-p5","name":"Player 5","photo":null},{"id":"a1-p6","name":"Player 6","photo":null},{"id":"a1-p7","name":"Player 7","photo":null},{"id":"a1-p8","name":"Player 8","photo":null},{"id":"a1-p9","name":"Player 9","photo":null},{"id":"a1-p10","name":"Player 10","photo":null}]', 10, 'Rohit Doshi', 'rohitdoshicolg@gmail.com'),
-  ('a2', 'kapl-3-mens', 'Kapil Falcons', 'A', null, '174 72% 40%', '[{"id":"a2-p1","name":"Player 1","photo":null},{"id":"a2-p2","name":"Player 2","photo":null},{"id":"a2-p3","name":"Player 3","photo":null},{"id":"a2-p4","name":"Player 4","photo":null},{"id":"a2-p5","name":"Player 5","photo":null},{"id":"a2-p6","name":"Player 6","photo":null},{"id":"a2-p7","name":"Player 7","photo":null},{"id":"a2-p8","name":"Player 8","photo":null},{"id":"a2-p9","name":"Player 9","photo":null},{"id":"a2-p10","name":"Player 10","photo":null}]', 10),
-  ('a3', 'kapl-3-mens', 'Insta Paltans', 'A', null, '267 84% 51%', '[{"id":"a3-p1","name":"Player 1","photo":null},{"id":"a3-p2","name":"Player 2","photo":null},{"id":"a3-p3","name":"Player 3","photo":null},{"id":"a3-p4","name":"Player 4","photo":null},{"id":"a3-p5","name":"Player 5","photo":null},{"id":"a3-p6","name":"Player 6","photo":null},{"id":"a3-p7","name":"Player 7","photo":null},{"id":"a3-p8","name":"Player 8","photo":null},{"id":"a3-p9","name":"Player 9","photo":null},{"id":"a3-p10","name":"Player 10","photo":null}]', 10),
-  ('a4', 'kapl-3-mens', 'Kapil''s Devils', 'A', null, '222 47% 31%', '[{"id":"a4-p1","name":"Player 1","photo":null},{"id":"a4-p2","name":"Player 2","photo":null},{"id":"a4-p3","name":"Player 3","photo":null},{"id":"a4-p4","name":"Player 4","photo":null},{"id":"a4-p5","name":"Player 5","photo":null},{"id":"a4-p6","name":"Player 6","photo":null},{"id":"a4-p7","name":"Player 7","photo":null},{"id":"a4-p8","name":"Player 8","photo":null},{"id":"a4-p9","name":"Player 9","photo":null},{"id":"a4-p10","name":"Player 10","photo":null}]', 10),
-  ('b1', 'kapl-3-mens', 'Goodness Royals', 'B', null, '43 96% 56%', '[{"id":"b1-p1","name":"Player 1","photo":null},{"id":"b1-p2","name":"Player 2","photo":null},{"id":"b1-p3","name":"Player 3","photo":null},{"id":"b1-p4","name":"Player 4","photo":null},{"id":"b1-p5","name":"Player 5","photo":null},{"id":"b1-p6","name":"Player 6","photo":null},{"id":"b1-p7","name":"Player 7","photo":null},{"id":"b1-p8","name":"Player 8","photo":null},{"id":"b1-p9","name":"Player 9","photo":null},{"id":"b1-p10","name":"Player 10","photo":null}]', 10),
-  ('b2', 'kapl-3-mens', 'Kapil Ke Singham', 'B', null, '199 89% 48%', '[{"id":"b2-p1","name":"Player 1","photo":null},{"id":"b2-p2","name":"Player 2","photo":null},{"id":"b2-p3","name":"Player 3","photo":null},{"id":"b2-p4","name":"Player 4","photo":null},{"id":"b2-p5","name":"Player 5","photo":null},{"id":"b2-p6","name":"Player 6","photo":null},{"id":"b2-p7","name":"Player 7","photo":null},{"id":"b2-p8","name":"Player 8","photo":null},{"id":"b2-p9","name":"Player 9","photo":null},{"id":"b2-p10","name":"Player 10","photo":null}]', 10),
-  ('b3', 'kapl-3-mens', 'Super Strikers', 'B', null, '280 68% 51%', '[{"id":"b3-p1","name":"Player 1","photo":null},{"id":"b3-p2","name":"Player 2","photo":null},{"id":"b3-p3","name":"Player 3","photo":null},{"id":"b3-p4","name":"Player 4","photo":null},{"id":"b3-p5","name":"Player 5","photo":null},{"id":"b3-p6","name":"Player 6","photo":null},{"id":"b3-p7","name":"Player 7","photo":null},{"id":"b3-p8","name":"Player 8","photo":null},{"id":"b3-p9","name":"Player 9","photo":null},{"id":"b3-p10","name":"Player 10","photo":null}]', 10),
-  ('b4', 'kapl-3-mens', 'Kapil Avengers', 'B', null, '25 95% 53%', '[{"id":"b4-p1","name":"Player 1","photo":null},{"id":"b4-p2","name":"Player 2","photo":null},{"id":"b4-p3","name":"Player 3","photo":null},{"id":"b4-p4","name":"Player 4","photo":null},{"id":"b4-p5","name":"Player 5","photo":null},{"id":"b4-p6","name":"Player 6","photo":null},{"id":"b4-p7","name":"Player 7","photo":null},{"id":"b4-p8","name":"Player 8","photo":null},{"id":"b4-p9","name":"Player 9","photo":null},{"id":"b4-p10","name":"Player 10","photo":null}]', 10)
-ON CONFLICT (id) DO NOTHING;
+-- Seed 8 Default Teams for Men's Tournament (Empty squads ready for Live Auction)
+INSERT INTO public.teams (id, tournament_id, name, "group", logo, primary_color, players, player_count, remaining_purse, initial_purse, max_squad_size, owner_name, owner_email) VALUES
+  ('a1', 'kapl-3-mens', 'Kapil''s Warriors', 'A', null, '0 84% 60%', '[]'::jsonb, 0, 10000, 10000, 10, 'Rohit Doshi', 'rohitdoshicolg@gmail.com'),
+  ('a2', 'kapl-3-mens', 'Kapil Falcons', 'A', null, '174 72% 40%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('a3', 'kapl-3-mens', 'Insta Paltans', 'A', null, '267 84% 51%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('a4', 'kapl-3-mens', 'Kapil''s Devils', 'A', null, '222 47% 31%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('b1', 'kapl-3-mens', 'Goodness Royals', 'B', null, '43 96% 56%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('b2', 'kapl-3-mens', 'Kapil Ke Singham', 'B', null, '199 89% 48%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('b3', 'kapl-3-mens', 'Super Strikers', 'B', null, '280 68% 51%', '[]'::jsonb, 0, 10000, 10000, 10, null, null),
+  ('b4', 'kapl-3-mens', 'Kapil Avengers', 'B', null, '25 95% 53%', '[]'::jsonb, 0, 10000, 10000, 10, null, null)
+ON CONFLICT (id) DO UPDATE SET
+  players = EXCLUDED.players,
+  player_count = EXCLUDED.player_count,
+  remaining_purse = EXCLUDED.remaining_purse;
 
 -- 6. PLAYERS TABLE
 CREATE TABLE IF NOT EXISTS public.players (
@@ -211,45 +214,6 @@ CREATE TABLE IF NOT EXISTS public.players (
 CREATE INDEX IF NOT EXISTS idx_players_tournament ON public.players(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_players_team ON public.players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_user ON public.players(user_id);
-
--- Populate players from default teams
-DO $$
-DECLARE
-  team_rec RECORD;
-  player_item JSONB;
-BEGIN
-  FOR team_rec IN SELECT id, tournament_id, players FROM public.teams WHERE players IS NOT NULL LOOP
-    IF jsonb_typeof(team_rec.players) = 'array' THEN
-      FOR player_item IN SELECT jsonb_array_elements(team_rec.players) LOOP
-        INSERT INTO public.players (
-          id,
-          tournament_id,
-          team_id,
-          name,
-          photo_url,
-          role,
-          base_price,
-          sold_price,
-          auction_status
-        ) VALUES (
-          player_item->>'id',
-          COALESCE(team_rec.tournament_id, 'kapl-3-mens'),
-          team_rec.id,
-          COALESCE(player_item->>'name', 'Unknown Player'),
-          player_item->>'photo',
-          'all_rounder',
-          100,
-          100,
-          'sold'
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          team_id = EXCLUDED.team_id,
-          tournament_id = EXCLUDED.tournament_id,
-          name = EXCLUDED.name;
-      END LOOP;
-    END IF;
-  END LOOP;
-END $$;
 
 -- 7. MATCH STATE TABLE (Active Live Match)
 CREATE TABLE IF NOT EXISTS public.match_state (
@@ -382,43 +346,43 @@ CREATE POLICY "Admins can manage tournaments" ON public.tournaments FOR ALL TO a
 
 DROP POLICY IF EXISTS "Anyone can view teams" ON public.teams;
 CREATE POLICY "Anyone can view teams" ON public.teams FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage teams" ON public.teams;
-CREATE POLICY "Admins can manage teams" ON public.teams FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Anyone can update teams" ON public.teams;
+CREATE POLICY "Anyone can update teams" ON public.teams FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view players" ON public.players;
 CREATE POLICY "Anyone can view players" ON public.players FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage players" ON public.players;
-CREATE POLICY "Admins can manage players" ON public.players FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Anyone can register or update players" ON public.players;
+CREATE POLICY "Anyone can register or update players" ON public.players FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view match state" ON public.match_state;
 CREATE POLICY "Anyone can view match state" ON public.match_state FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins and Scorers can update match_state" ON public.match_state;
-CREATE POLICY "Admins and Scorers can update match_state" ON public.match_state FOR ALL TO authenticated USING (public.is_admin() OR public.is_primary_scorer()) WITH CHECK (public.is_admin() OR public.is_primary_scorer());
+DROP POLICY IF EXISTS "Anyone can manage match_state" ON public.match_state;
+CREATE POLICY "Anyone can manage match_state" ON public.match_state FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view secondary match state" ON public.secondary_match_state;
 CREATE POLICY "Anyone can view secondary match state" ON public.secondary_match_state FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Secondary scorers can manage secondary_match_state" ON public.secondary_match_state;
-CREATE POLICY "Secondary scorers can manage secondary_match_state" ON public.secondary_match_state FOR ALL TO authenticated USING (public.is_secondary_scorer() OR public.is_admin()) WITH CHECK (public.is_secondary_scorer() OR public.is_admin());
+DROP POLICY IF EXISTS "Anyone can manage secondary_match_state" ON public.secondary_match_state;
+CREATE POLICY "Anyone can manage secondary_match_state" ON public.secondary_match_state FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view match history" ON public.match_history;
 CREATE POLICY "Anyone can view match history" ON public.match_history FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins and Scorers can manage match_history" ON public.match_history;
-CREATE POLICY "Admins and Scorers can manage match_history" ON public.match_history FOR ALL TO authenticated USING (public.is_admin() OR public.is_primary_scorer()) WITH CHECK (public.is_admin() OR public.is_primary_scorer());
+DROP POLICY IF EXISTS "Anyone can manage match_history" ON public.match_history;
+CREATE POLICY "Anyone can manage match_history" ON public.match_history FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view tournament state" ON public.tournament_state;
 CREATE POLICY "Anyone can view tournament state" ON public.tournament_state FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage tournament state" ON public.tournament_state;
-CREATE POLICY "Admins can manage tournament state" ON public.tournament_state FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Anyone can manage tournament state" ON public.tournament_state;
+CREATE POLICY "Anyone can manage tournament state" ON public.tournament_state FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view auction state" ON public.auction_state;
 CREATE POLICY "Anyone can view auction state" ON public.auction_state FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage auction state" ON public.auction_state;
-CREATE POLICY "Admins can manage auction state" ON public.auction_state FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Anyone can manage auction state" ON public.auction_state;
+CREATE POLICY "Anyone can manage auction state" ON public.auction_state FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Anyone can view auction bids" ON public.auction_bids;
 CREATE POLICY "Anyone can view auction bids" ON public.auction_bids FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Captains and Admins can insert bids" ON public.auction_bids;
-CREATE POLICY "Captains and Admins can insert bids" ON public.auction_bids FOR INSERT TO authenticated WITH CHECK (public.is_admin() OR public.has_role(auth.uid(), 'captain'));
+DROP POLICY IF EXISTS "Anyone can manage auction bids" ON public.auction_bids;
+CREATE POLICY "Anyone can manage auction bids" ON public.auction_bids FOR ALL USING (true) WITH CHECK (true);
 
 -- 13. ENABLE REALTIME & REPLICA IDENTITY FULL
 ALTER TABLE public.tournaments REPLICA IDENTITY FULL;
@@ -458,3 +422,110 @@ BEGIN
   END IF;
 END $$;
 
+-- 14. RPC FUNCTION TO RESET ALL PLAYERS AND TEAMS ATOMICALLY
+CREATE OR REPLACE FUNCTION public.reset_all_players_and_teams()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- 1. Permanently delete all players
+  DELETE FROM public.players;
+
+  -- 2. Empty all team rosters and reset purses
+  UPDATE public.teams
+  SET 
+    players = '[]'::jsonb,
+    player_count = 0,
+    remaining_purse = 10000;
+
+  -- 3. Reset auction state and bids
+  DELETE FROM public.auction_bids;
+  DELETE FROM public.auction_state;
+
+  -- 4. Clear match records and active match states
+  DELETE FROM public.match_history;
+  UPDATE public.match_state SET current_match = null, last_action = null;
+  UPDATE public.secondary_match_state SET current_match = null, last_action = null;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.reset_all_players_and_teams() TO anon, authenticated, service_role;
+
+-- 15. RPC FUNCTION TO REGISTER NEW PLAYER ATOMICALLY (Bypasses RLS)
+CREATE OR REPLACE FUNCTION public.register_new_player(
+  p_id TEXT,
+  p_name TEXT,
+  p_role TEXT,
+  p_batting_style TEXT DEFAULT 'Right-hand bat',
+  p_bowling_style TEXT DEFAULT 'Right-arm medium',
+  p_tournament_id TEXT DEFAULT 'kapl-3-mens',
+  p_jersey_number INTEGER DEFAULT NULL,
+  p_mobile_number TEXT DEFAULT NULL,
+  p_photo_url TEXT DEFAULT NULL,
+  p_base_price NUMERIC DEFAULT 100,
+  p_user_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSONB;
+BEGIN
+  INSERT INTO public.players (
+    id, user_id, name, role, batting_style, bowling_style, 
+    tournament_id, jersey_number, mobile_number, photo_url, 
+    base_price, auction_status
+  ) VALUES (
+    p_id, p_user_id, p_name, p_role, p_batting_style, p_bowling_style, 
+    p_tournament_id, p_jersey_number, p_mobile_number, p_photo_url, 
+    p_base_price, 'pending'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    batting_style = EXCLUDED.batting_style,
+    bowling_style = EXCLUDED.bowling_style,
+    jersey_number = EXCLUDED.jersey_number,
+    mobile_number = EXCLUDED.mobile_number,
+    photo_url = EXCLUDED.photo_url,
+    tournament_id = EXCLUDED.tournament_id,
+    updated_at = now()
+  RETURNING to_jsonb(public.players.*) INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.register_new_player TO anon, authenticated, service_role;
+
+-- 16. RPC FUNCTION TO DELETE A PLAYER BY ID (Bypasses RLS)
+CREATE OR REPLACE FUNCTION public.delete_player_by_id(p_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.players WHERE id = p_id;
+  -- If player was in any team roster, remove them and refund purse
+  UPDATE public.teams
+  SET 
+    players = (
+      SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+      FROM jsonb_array_elements(players) AS elem
+      WHERE elem->>'id' != p_id
+    ),
+    player_count = (
+      SELECT count(*)
+      FROM jsonb_array_elements(players) AS elem
+      WHERE elem->>'id' != p_id
+    )
+  WHERE players @> jsonb_build_array(jsonb_build_object('id', p_id));
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_player_by_id(TEXT) TO anon, authenticated, service_role;

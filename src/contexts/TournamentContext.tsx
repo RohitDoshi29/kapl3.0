@@ -5,7 +5,8 @@ import { Tournament, DEFAULT_TOURNAMENTS } from '@/lib/cricketTypes';
 interface TournamentContextType {
   tournaments: Tournament[];
   activeTournamentId: string;
-  activeTournament: Tournament;
+  activeTournament: Tournament & { gender?: 'men' | 'women' };
+  currentTournament: Tournament & { gender: 'men' | 'women' };
   setActiveTournamentId: (id: string) => void;
   toggleTournament: () => void;
   isMens: boolean;
@@ -84,9 +85,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     setActiveTournamentId(activeTournamentId === 'kapl-3-mens' ? 'kapl-3-womens' : 'kapl-3-mens');
   }, [activeTournamentId, setActiveTournamentId]);
 
-  const activeTournament = tournaments.find(t => t.id === activeTournamentId) || tournaments[0] || DEFAULT_TOURNAMENTS[0];
-  const isMens = activeTournament.category === 'mens';
-  const isWomens = activeTournament.category === 'womens';
+  const rawActiveTournament = tournaments.find(t => t.id === activeTournamentId) || tournaments[0] || DEFAULT_TOURNAMENTS[0];
+  const activeTournament: Tournament & { gender: 'men' | 'women' } = {
+    ...rawActiveTournament,
+    gender: rawActiveTournament.category === 'womens' ? 'women' : 'men',
+  };
+  const isMens = rawActiveTournament.category === 'mens';
+  const isWomens = rawActiveTournament.category === 'womens';
 
   return (
     <TournamentContext.Provider
@@ -94,6 +99,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         tournaments,
         activeTournamentId,
         activeTournament,
+        currentTournament: activeTournament,
         setActiveTournamentId,
         toggleTournament,
         isMens,

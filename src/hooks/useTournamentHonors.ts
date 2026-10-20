@@ -48,8 +48,8 @@ export function useTournamentHonors(tournamentId?: string): TournamentLeaders {
     const getOrCreate = (playerId: string, teamId: string): PlayerAcc => {
       let acc = map.get(playerId);
       if (!acc) {
-        const team = getTeam(teamId) || teams.find((t) => t.id === teamId);
-        const playerObj = team?.players?.find((p) => p.id === playerId);
+        const team = getTeam(teamId) || (teams || []).find((t) => t.id === teamId);
+        const playerObj = (team?.players || []).find((p) => p.id === playerId);
 
         acc = {
           playerId,

@@ -52,6 +52,10 @@ import {
   Star,
   Check,
   Gavel,
+  LogIn,
+  UserPlus,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -69,7 +73,7 @@ const PRESET_AVATARS = [
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { user, userRole, isAuthenticated, isLoading: authLoading, profile, updateProfile, signOut } = useAuth();
+  const { user, userRole, isAuthenticated, isLoading: authLoading, profile, updateProfile, signOut, changePassword } = useAuth();
   const { teams } = useCricketStore();
   const { currentTournament } = useTournament();
   const { isSunlightMode, toggleSunlightMode } = useSunlightMode();
@@ -90,6 +94,12 @@ export default function Profile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [soundOn, setSoundOn] = useState<boolean>(true);
+
+  // Change Password States
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Sync state when profile is loaded
   useEffect(() => {
@@ -130,7 +140,7 @@ export default function Profile() {
     const cleanName = (profile?.name || name || '').trim().toLowerCase();
 
     // Check by captain / owner or in players list
-    for (const team of teams) {
+    for (const team of (teams || [])) {
       const isOwner = team.ownerEmail && cleanEmail && team.ownerEmail.toLowerCase().trim() === cleanEmail;
       const isCaptain = (team.captainUserId && team.captainUserId === user.id) ||
                         (cleanName && team.captainName?.toLowerCase() === cleanName) ||
@@ -145,7 +155,7 @@ export default function Profile() {
       if (isCaptain) {
         return { team, relationship: 'Captain' };
       }
-      const playerInTeam = team.players?.find(
+      const playerInTeam = (team.players || []).find(
         (p) =>
           (cleanName && p.name.toLowerCase() === cleanName) ||
           (profile?.playerId && p.id === profile.playerId)
@@ -249,6 +259,33 @@ export default function Profile() {
     toast.info('Form reset to last saved state');
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const { error } = await changePassword(newPassword);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Password updated successfully! Keep your new password safe.');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch (err: any) {
+      toast.error('Failed to update password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleSoundToggle = () => {
     const next = !soundOn;
     setSoundOn(next);
@@ -322,16 +359,25 @@ export default function Profile() {
               <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
                 <User className="w-8 h-8" />
               </div>
-              <CardTitle className="text-2xl font-black">Player Profile</CardTitle>
+              <CardTitle className="text-2xl font-black">Tournament Profile & Settings</CardTitle>
               <CardDescription>
-                Sign in to view, customize, and manage your player profile, preferred playing styles, and tournament team status.
+                Sign in or create an account with your complete player details to manage playing styles, team assignments, and match preferences.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <Button asChild className="w-full h-11 text-sm font-bold gap-2">
-                <Link to="/auth">
-                  <User className="w-4 h-4" />
-                  Sign In or Register as Player
+                <Link to="/auth" state={{ tab: 'signin' }}>
+                  <LogIn className="w-4 h-4" />
+                  Sign In to Existing Account
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="w-full h-11 text-sm font-black gap-2 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black hover:opacity-95 shadow-md shadow-amber-500/20"
+              >
+                <Link to="/auth" state={{ tab: 'signup' }}>
+                  <UserPlus className="w-4 h-4" />
+                  Create New Account with All Details
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full h-11 text-sm font-semibold">
@@ -1071,12 +1117,71 @@ export default function Profile() {
                   </Button>
                 </div>
 
-                {/* Account Security Information */}
-                <div className="pt-2 border-t border-border/60">
-                  <h4 className="text-xs font-bold text-foreground mb-1">Account Credentials</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Signed in as: <code className="bg-muted px-1.5 py-0.5 rounded text-[11px] text-foreground font-mono">{user?.email}</code>
-                  </p>
+                {/* Account Security Information & Password Change */}
+                <div className="pt-3 border-t border-border/60 space-y-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">Account Credentials</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Signed in as: <code className="bg-muted px-1.5 py-0.5 rounded text-[11px] text-foreground font-mono">{user?.email}</code>
+                    </p>
+                  </div>
+
+                  {/* Change Password Form */}
+                  <div className="p-3.5 rounded-xl bg-card border border-border/70 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-bold text-foreground">Update Password</span>
+                    </div>
+
+                    <form onSubmit={handlePasswordChange} className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="profile-new-pass" className="text-xs font-medium">New Password (min 8 chars)</Label>
+                          <div className="relative">
+                            <Input
+                              id="profile-new-pass"
+                              type={showNewPassword ? 'text' : 'password'}
+                              placeholder="••••••••"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              className="text-xs h-9 pr-10"
+                              disabled={isChangingPassword}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="profile-confirm-pass" className="text-xs font-medium">Confirm New Password</Label>
+                          <Input
+                            id="profile-confirm-pass"
+                            type={showNewPassword ? 'text' : 'password'}
+                            placeholder="••••••••"
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            className="text-xs h-9"
+                            disabled={isChangingPassword}
+                          />
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={isChangingPassword || !newPassword}
+                        className="h-8.5 text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:opacity-95"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {isChangingPassword ? 'Updating Password...' : 'Update Password'}
+                      </Button>
+                    </form>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="pt-2 pb-5 border-t border-border/60 flex items-center justify-between">

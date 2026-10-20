@@ -32,20 +32,28 @@ export function WhatsAppMatchCardModal({
   const inn1 = match.innings1 as Innings | null;
   const inn2 = match.innings2 as Innings | null;
 
+  // Resolve player name from either team roster
+  const allPlayers = [...(team1?.players || []), ...(team2?.players || [])];
+  const getPlayerName = (pId: string) => allPlayers.find(p => p.id === pId)?.name || 'Player';
+
+  // Determine actual batting teams for each innings
+  const inn1BattingTeam = inn1 ? (inn1.battingTeamId === team2.id ? team2 : team1) : team1;
+  const inn2BattingTeam = inn2 ? (inn2.battingTeamId === team1.id ? team1 : team2) : (inn1BattingTeam.id === team1.id ? team2 : team1);
+
   // Determine top scorer in match
   let topScorer = { name: '-', runs: 0, balls: 0 };
   let topBowler = { name: '-', wickets: 0, runsConceded: 0, overs: 0 };
 
   [inn1, inn2].forEach(inn => {
     if (!inn) return;
-    Object.values(inn.batterStats || {}).forEach(b => {
-      if (b.runs > topScorer.runs) {
-        topScorer = { name: b.name, runs: b.runs, balls: b.balls };
+    Object.entries(inn.batterStats || {}).forEach(([pId, b]) => {
+      if (b && b.runs > topScorer.runs) {
+        topScorer = { name: getPlayerName(pId), runs: b.runs, balls: b.ballsFaced || 0 };
       }
     });
-    Object.values(inn.bowlerStats || {}).forEach(bw => {
-      if (bw.wickets > topBowler.wickets || (bw.wickets === topBowler.wickets && bw.runsConceded < topBowler.runsConceded)) {
-        topBowler = { name: bw.name, wickets: bw.wickets, runsConceded: bw.runsConceded, overs: bw.overs };
+    Object.entries(inn.bowlerStats || {}).forEach(([pId, bw]) => {
+      if (bw && (bw.wickets > topBowler.wickets || (bw.wickets === topBowler.wickets && bw.runsConceded < topBowler.runsConceded))) {
+        topBowler = { name: getPlayerName(pId), wickets: bw.wickets, runsConceded: bw.runsConceded, overs: bw.overs };
       }
     });
   });
@@ -63,15 +71,15 @@ export function WhatsAppMatchCardModal({
 ${winnerTeam ? `🎉 *RESULT:* ${winnerTeam.name} won the match!` : `⚡ *STATUS:* Match In Progress`}
 
 📊 *SCORECARD:*
-• *${team1.name}:* ${inn1 ? `${inn1.runs}/${inn1.wickets} (${inn1.currentOver}.${inn1.currentBall} ov)` : 'Yet to bat'}
-• *${team2.name}:* ${inn2 ? `${inn2.runs}/${inn2.wickets} (${inn2.currentOver}.${inn2.currentBall} ov)` : 'Yet to bat'}
+• *${inn1BattingTeam.name} (1st Inn):* ${inn1 ? `${inn1.runs}/${inn1.wickets} (${inn1.currentOver}.${inn1.currentBall} ov)` : 'Yet to bat'}
+• *${inn2BattingTeam.name} (2nd Inn):* ${inn2 ? `${inn2.runs}/${inn2.wickets} (${inn2.currentOver}.${inn2.currentBall} ov)` : 'Yet to bat'}
 
 ⭐ *KEY HIGHLIGHTS:*
 ${topScorer.runs > 0 ? `• 🔥 Top Scorer: *${topScorer.name}* ${topScorer.runs} (${topScorer.balls}b)` : ''}
 ${topBowler.wickets > 0 ? `• ⚡ Top Bowler: *${topBowler.name}* ${topBowler.wickets}/${topBowler.runsConceded}` : ''}
 
 📲 View full live ball-by-ball scorecard & bracket:
-${window.location.origin}/
+${typeof window !== 'undefined' ? window.location.origin : ''}/
 ━━━━━━━━━━━━━━━━━━━━━`;
 
   const handleCopy = () => {

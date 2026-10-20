@@ -10,7 +10,7 @@ const desktopNavItems: { path: string; label: string; icon: any; requiresAuth?: 
   { path: '/points', label: 'Points', icon: Trophy },
   { path: '/stats', label: 'Stats', icon: BarChart3 },
   { path: '/bracket', label: 'Bracket', icon: GitBranch },
-  { path: '/profile', label: 'Profile', icon: User, requiresAuth: true },
+  { path: '/profile', label: 'Profile', icon: User },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];
 
@@ -19,7 +19,7 @@ const mobileNavItems: { path: string; label: string; icon: any; alternatePaths?:
   { path: '/auction', label: 'Auction', icon: Gavel },
   { path: '/players', label: 'Players', icon: Users },
   { path: '/points', label: 'Standings', icon: Trophy, alternatePaths: ['/points', '/bracket', '/stats'] },
-  { path: '/profile', label: 'Profile', icon: User, requiresAuth: true },
+  { path: '/profile', label: 'Profile', icon: User },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];
 

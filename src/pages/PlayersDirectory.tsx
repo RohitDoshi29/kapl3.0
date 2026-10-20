@@ -6,12 +6,14 @@ import { MultiMatchLiveBar } from '@/components/cricket/MultiMatchLiveBar';
 import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { useTournament } from '@/contexts/TournamentContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePlayersDirectory, PlayerDirectoryItem } from '@/hooks/usePlayerStats';
 import { PlayerRole } from '@/lib/cricketTypes';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -32,6 +34,7 @@ import {
   RotateCcw,
   Shield,
   Zap,
+  Trash2,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<PlayerRole, { label: string; icon: string; badgeClass: string }> = {
@@ -61,6 +64,7 @@ type SortOption = 'name' | 'runs' | 'strikeRate' | 'wickets' | 'economy' | 'pric
 
 export default function PlayersDirectory() {
   const { activeTournamentId } = useTournament();
+  const { isAdmin } = useAuth();
   const [selectedTournament, setSelectedTournament] = useState<string>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
@@ -77,7 +81,7 @@ export default function PlayersDirectory() {
       ? 'all'
       : selectedTournament;
 
-  const { players, isLoading } = usePlayersDirectory(filterTournamentId);
+  const { players, isLoading, deletePlayer } = usePlayersDirectory(filterTournamentId);
 
   // Extract unique teams for dropdown filter
   const uniqueTeams = useMemo(() => {
@@ -547,23 +551,44 @@ export default function PlayersDirectory() {
                           </span>
                         </div>
 
-                        {/* Auction Price / Status Pill */}
-                        <div className="text-right">
-                          {isSold ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-2 py-0.5">
-                              Sold ₹{player.soldPrice ? player.soldPrice.toLocaleString() : player.basePrice}
-                            </Badge>
-                          ) : isUnsold ? (
-                            <Badge variant="outline" className="text-muted-foreground text-[10px] px-2 py-0.5">
-                              Unsold
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] text-muted-foreground px-2 py-0.5">
-                              Base ₹{player.basePrice}
-                            </Badge>
-                          )}
+                        {/* Auction Price / Status Pill & Admin Delete */}
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1.5">
+                            {isSold ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-2 py-0.5">
+                                Sold ₹{player.soldPrice ? player.soldPrice.toLocaleString() : player.basePrice}
+                              </Badge>
+                            ) : isUnsold ? (
+                              <Badge variant="outline" className="text-muted-foreground text-[10px] px-2 py-0.5">
+                                Unsold
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] text-muted-foreground px-2 py-0.5">
+                                Base ₹{player.basePrice}
+                              </Badge>
+                            )}
 
-                          <div className="mt-1">
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (window.confirm(`Permanently delete player "${player.name}" from tournament and auction?`)) {
+                                    deletePlayer(player.id);
+                                    toast.success(`Player ${player.name} permanently deleted.`);
+                                  }
+                                }}
+                                title="Delete Player"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <div>
                             <span className="text-[10px] text-muted-foreground block">
                               {player.tournamentId === 'kapl-3-womens' ? '👑 Women’s' : '🏏 Men’s'}
                             </span>
@@ -769,12 +794,30 @@ export default function PlayersDirectory() {
                           {player.overs > 0 ? player.economy.toFixed(2) : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right">
-                          <Link
-                            to={`/players/${player.id}`}
-                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
-                          >
-                            Profile <ArrowRight className="w-3 h-3" />
-                          </Link>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              to={`/players/${player.id}`}
+                              className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                            >
+                              Profile <ArrowRight className="w-3 h-3" />
+                            </Link>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  if (window.confirm(`Permanently delete player "${player.name}" from tournament and auction?`)) {
+                                    deletePlayer(player.id);
+                                    toast.success(`Player ${player.name} permanently deleted.`);
+                                  }
+                                }}
+                                title="Delete Player"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

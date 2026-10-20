@@ -114,14 +114,14 @@ export function AdminRolesGovernanceTab() {
   }, [coAdmins]);
 
   // Filter teams by currently selected tournament
-  const tournamentTeams = teams.filter(
+  const tournamentTeams = (teams || []).filter(
     (t) => (t.tournamentId || 'kapl-3-mens') === selectedTournament
   );
 
   // When selected team changes, auto-populate the form
   useEffect(() => {
     if (selectedTeamId) {
-      const team = teams.find((t) => t.id === selectedTeamId);
+      const team = (teams || []).find((t) => t.id === selectedTeamId);
       if (team) {
         setOwnerName(team.ownerName || '');
         setOwnerEmail(team.ownerEmail || '');
@@ -204,7 +204,7 @@ export function AdminRolesGovernanceTab() {
       return;
     }
 
-    const team = teams.find((t) => t.id === selectedTeamId);
+    const team = (teams || []).find((t) => t.id === selectedTeamId);
     if (!team) return;
 
     setIsSubmittingOwner(true);
@@ -254,7 +254,7 @@ export function AdminRolesGovernanceTab() {
 
   // Handle unassigning owner
   const handleUnassignOwner = async (teamId: string) => {
-    const team = teams.find((t) => t.id === teamId);
+    const team = (teams || []).find((t) => t.id === teamId);
     if (!team) return;
 
     if (team.ownerEmail) {
@@ -291,7 +291,7 @@ export function AdminRolesGovernanceTab() {
 
     setIsSubmittingDirect(true);
     try {
-      const targetTeam = teams.find((t) => t.id === directTeamId);
+      const targetTeam = (teams || []).find((t) => t.id === directTeamId);
       await assignRoleByEmail(cleanEmail, directRole, {
         title: directTitle.trim() || undefined,
         teamName: targetTeam?.name,

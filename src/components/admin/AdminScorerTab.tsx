@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw, Wifi, WifiOff, Zap, ShieldAlert, Trash2 } from 'lucide-react';
+import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw, Wifi, WifiOff, Zap, ShieldAlert, Trash2, Trophy } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Match, Ball, DismissalType, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
@@ -187,7 +187,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     triggerWicket();
 
     if (payload.nextBatsmanId) {
-      const nextPlayer = battingTeam?.players.find(p => p.id === payload.nextBatsmanId);
+      const nextPlayer = (battingTeam?.players || []).find(p => p.id === payload.nextBatsmanId);
       if (nextPlayer) {
         toast.success(`${nextPlayer.name} is now batting`);
       }
@@ -202,7 +202,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
   const handleNextBowlerSelect = (bowlerId: string) => {
     selectBowler(bowlerId);
-    const b = bowlingTeam?.players.find(p => p.id === bowlerId);
+    const b = (bowlingTeam?.players || []).find(p => p.id === bowlerId);
     toast.success(`${b?.name || 'Bowler'} selected for new over`);
   };
 
@@ -232,15 +232,18 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     let winnerName = 'Match';
     
     if (innings1 && innings2) {
+      const inn1Team = getTeam(innings1.battingTeamId);
+      const inn2Team = getTeam(innings2.battingTeamId);
       if (innings1.runs > innings2.runs) {
-        winnerName = team1?.name || 'Team 1';
+        winnerName = inn1Team?.name || team1?.name || 'Team 1';
       } else if (innings2.runs > innings1.runs) {
-        winnerName = team2?.name || 'Team 2';
+        winnerName = inn2Team?.name || team2?.name || 'Team 2';
       } else {
         winnerName = 'It\'s a Tie!';
       }
     } else if (innings1 && match?.currentInnings === 1) {
-      winnerName = team1?.name || 'Team 1';
+      const inn1Team = getTeam(innings1.battingTeamId);
+      winnerName = inn1Team?.name || team1?.name || 'Team 1';
     }
     
     endMatch();
@@ -249,16 +252,25 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
   const canUndo = !!matchState.lastAction;
 
+  // Innings status and target tracking
+  const isSecondInnings = match?.currentInnings === 2;
+  const targetRuns = isSecondInnings && match?.innings1 ? match.innings1.runs + 1 : null;
+  const isTargetReached = Boolean(isSecondInnings && targetRuns !== null && currentInnings && currentInnings.runs >= targetRuns);
+  const isAllOut = Boolean(currentInnings && currentInnings.wickets >= MATCH_CONSTANTS.MAX_WICKETS);
+  const isOversCompleted = Boolean(currentInnings && currentInnings.currentOver >= MATCH_CONSTANTS.MAX_OVERS);
+  const isInningsCompleted = isTargetReached || isAllOut || isOversCompleted;
+  const isScoringDisabled = !currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId || isInningsCompleted;
+
   // Get current batsman and bowler info
-  const currentBatsman = battingTeam?.players.find(p => p.id === currentInnings?.currentBatsmanId);
-  const nonStriker = battingTeam?.players.find(p => p.id === currentInnings?.nonStrikerBatsmanId);
-  const currentBowler = bowlingTeam?.players.find(p => p.id === currentInnings?.currentBowlerId);
+  const currentBatsman = (battingTeam?.players || []).find(p => p.id === currentInnings?.currentBatsmanId);
+  const nonStriker = (battingTeam?.players || []).find(p => p.id === currentInnings?.nonStrikerBatsmanId);
+  const currentBowler = (bowlingTeam?.players || []).find(p => p.id === currentInnings?.currentBowlerId);
 
   // Get available players for selection (not out batsmen)
-  const availableBatsmen = battingTeam?.players.filter(p => {
+  const availableBatsmen = (battingTeam?.players || []).filter(p => {
     const stats = currentInnings?.batterStats[p.id];
     return !stats?.isOut && p.id !== currentInnings?.currentBatsmanId && p.id !== currentInnings?.nonStrikerBatsmanId;
-  }) || [];
+  });
 
   const availableBowlers = bowlingTeam?.players || [];
 
@@ -584,14 +596,22 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   {getFilteredPlayers(bowlingTeam, bowlingPlayingPlayers).map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
                     const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
+                    const lastBowlerId = (match as any)?.lastOverBowlerId || (currentInnings.overs.length > 1 ? currentInnings.overs[currentInnings.overs.length - 2]?.bowlerId : null);
+                    const isConsecutiveBowler = Boolean(
+                      lastBowlerId && 
+                      player.id === lastBowlerId && 
+                      (currentInnings.currentBall === 0 || player.id !== currentInnings.currentBowlerId)
+                    );
+                    const isBowlerDisabled = Boolean(hasCompletedMaxOvers || isConsecutiveBowler);
+
                     return (
                       <SelectItem 
                         key={player.id} 
                         value={player.id}
-                        disabled={hasCompletedMaxOvers}
+                        disabled={isBowlerDisabled}
                       >
                         {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''} 
-                        {hasCompletedMaxOvers && '(Max Overs)'}
+                        {hasCompletedMaxOvers ? ' (Max 2 Overs)' : isConsecutiveBowler ? ' (Bowled Last Over)' : ''}
                       </SelectItem>
                     );
                   })}
@@ -625,7 +645,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               </TableHeader>
               <TableBody>
                 {currentInnings.battingOrder.map((playerId) => {
-                  const player = battingTeam.players.find(p => p.id === playerId);
+                  const player = (battingTeam?.players || []).find(p => p.id === playerId);
                   const stats = currentInnings.batterStats[playerId];
                   if (!player || !stats) return null;
                   
@@ -685,7 +705,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               </TableHeader>
               <TableBody>
                 {Object.entries(currentInnings.bowlerStats).map(([playerId, stats]) => {
-                  const player = bowlingTeam.players.find(p => p.id === playerId);
+                  const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
                   if (!player) return null;
                   
                   const totalOvers = stats.overs + (stats.balls / 6);
@@ -733,10 +753,100 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         </div>
       )}
 
+      {/* Target Reached Winner Celebration Banner */}
+      {isTargetReached && (
+        <Card className="border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 shadow-2xl shadow-emerald-500/20 animate-in fade-in zoom-in-95 duration-200">
+          <CardContent className="p-4 md:p-6 text-center space-y-3">
+            <div className="inline-flex items-center justify-center p-3 rounded-full bg-emerald-500/20 text-emerald-400 mb-1">
+              <Trophy className="w-8 h-8 animate-bounce" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-black text-emerald-300 tracking-wide uppercase">
+              Target Reached! {battingTeam?.name} Wins!
+            </h3>
+            <p className="text-xs md:text-sm text-emerald-200/90 font-medium max-w-md mx-auto">
+              {battingTeam?.name} has successfully scored {currentInnings.runs}/{currentInnings.wickets} to chase down the target of {targetRuns} runs.
+            </p>
+            <div className="pt-2">
+              <Button
+                size="lg"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-8 shadow-lg shadow-emerald-600/30"
+                onClick={handleEndMatch}
+              >
+                <Trophy className="w-5 h-5 mr-2" />
+                End Match & Finalize Result
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Innings 1 Completed Banner (All Out or Max Overs) */}
+      {!isSecondInnings && (isAllOut || isOversCompleted) && (
+        <Card className="border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 shadow-xl">
+          <CardContent className="p-4 md:p-6 text-center space-y-3">
+            <div className="inline-flex items-center justify-center p-2.5 rounded-full bg-amber-500/20 text-amber-400 mb-1">
+              <Flag className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg md:text-xl font-black text-amber-300 uppercase">
+              1st Innings Completed ({isAllOut ? 'All Out' : '7 Overs Complete'})
+            </h3>
+            <p className="text-xs md:text-sm text-amber-200/90 font-medium max-w-md mx-auto">
+              {battingTeam?.name} scored {currentInnings.runs}/{currentInnings.wickets}. Target for {bowlingTeam?.name} is {currentInnings.runs + 1} runs.
+            </p>
+            <div className="pt-2">
+              <Button
+                size="lg"
+                className="bg-amber-600 hover:bg-amber-500 text-white font-extrabold px-6 shadow-md"
+                onClick={handleSwitchInnings}
+              >
+                <ArrowLeftRight className="w-5 h-5 mr-2" />
+                Switch to 2nd Innings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Innings 2 Completed Banner without Target Reached (All Out or Max Overs - Defending Team Wins or Tie) */}
+      {isSecondInnings && !isTargetReached && (isAllOut || isOversCompleted) && !match?.isTied && (
+        <Card className="border-2 border-blue-500/50 bg-gradient-to-r from-blue-500/15 via-indigo-500/10 to-blue-500/15 shadow-xl">
+          <CardContent className="p-4 md:p-6 text-center space-y-3">
+            <div className="inline-flex items-center justify-center p-2.5 rounded-full bg-blue-500/20 text-blue-400 mb-1">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg md:text-xl font-black text-blue-300 uppercase">
+              2nd Innings Completed ({isAllOut ? 'All Out' : '7 Overs Complete'})
+            </h3>
+            <p className="text-xs md:text-sm text-blue-200/90 font-medium max-w-md mx-auto">
+              {currentInnings.runs === match?.innings1?.runs
+                ? 'Match is TIED! Click End Match to start Super Over or finalize tie.'
+                : `${currentInnings.runs < (match?.innings1?.runs || 0) ? bowlingTeam?.name : battingTeam?.name} wins! Click End Match to finalize results.`}
+            </p>
+            <div className="pt-2">
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-500 text-white font-extrabold px-6 shadow-md"
+                onClick={handleEndMatch}
+              >
+                <Trophy className="w-5 h-5 mr-2" />
+                End Match & Finalize Result
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Scoring Buttons */}
       <Card>
         <CardHeader className="pb-2 md:pb-4">
-          <CardTitle className="text-base md:text-lg">Scoring</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base md:text-lg">Scoring</CardTitle>
+            {isInningsCompleted && (
+              <Badge variant="destructive" className="text-xs font-bold uppercase">
+                {isTargetReached ? 'Target Reached (Keypad Locked)' : isAllOut ? 'All Out (Keypad Locked)' : 'Innings Over (Keypad Locked)'}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3 md:space-y-4">
           {/* Negative Runs */}
@@ -749,7 +859,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   variant="destructive"
                   className="h-11 md:h-14 text-lg md:text-xl font-black rounded-xl shadow-sm hover:shadow-rose-500/20 active:scale-95 transition-all"
                   onClick={() => handleAddBall(runs)}
-                  disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                  disabled={isScoringDisabled}
                 >
                   {runs}
                 </Button>
@@ -767,7 +877,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   variant="outline"
                   className="h-11 md:h-14 text-lg md:text-xl font-black rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.1] active:scale-95 transition-all"
                   onClick={() => handleAddBall(runs)}
-                  disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                  disabled={isScoringDisabled}
                 >
                   {runs}
                 </Button>
@@ -776,7 +886,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 variant="outline"
                 className="h-11 md:h-14 text-sm md:text-lg font-black rounded-xl border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-slate-950 active:scale-95 transition-all shadow-sm shadow-amber-500/10"
                 onClick={() => handleAddBall(1, false, false, false, true)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
                 title="1 Run Declared (No Strike Change)"
               >
                 1D
@@ -791,14 +901,14 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               <Button
                 className="h-12 md:h-16 text-xl md:text-2xl font-black rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 border-0 active:scale-95 transition-all"
                 onClick={() => handleAddBall(4)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 FOUR (4)
               </Button>
               <Button
                 className="h-12 md:h-16 text-xl md:text-2xl font-black rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-green-600 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/25 border-0 active:scale-95 transition-all"
                 onClick={() => handleAddBall(6)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 SIX (6)
               </Button>
@@ -812,14 +922,14 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               <Button
                 className="h-11 md:h-13 text-sm md:text-base font-bold rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 shadow-sm active:scale-95 transition-all"
                 onClick={() => handleAddBall(1, false, true, false)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 Wide (+1)
               </Button>
               <Button
                 className="h-11 md:h-13 text-sm md:text-base font-bold rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500 hover:text-slate-950 shadow-sm active:scale-95 transition-all"
                 onClick={() => setNoBallModalOpen(true)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 No Ball (Modal)
               </Button>
@@ -834,7 +944,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 variant="destructive"
                 className="h-13 md:h-16 text-base md:text-lg font-black rounded-2xl bg-gradient-to-r from-rose-600 via-red-600 to-pink-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xl shadow-rose-600/30 border-0 active:scale-95 transition-all"
                 onClick={() => setDismissalModalOpen(true)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 WICKET / OUT
               </Button>
@@ -842,7 +952,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 variant="destructive"
                 className="h-13 md:h-16 text-base md:text-lg font-black rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-xl shadow-orange-600/30 border-0 active:scale-95 transition-all"
                 onClick={() => setDismissalModalOpen(true)}
-                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                disabled={isScoringDisabled}
               >
                 RUN OUT
               </Button>
@@ -1133,6 +1243,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         bowler={currentBowler}
         bowlingTeamPlayers={bowlingTeam.players}
         availableNextBatsmen={availableBatsmen}
+        isFreeHit={Boolean(currentInnings?.isFreeHit)}
         onConfirm={handleDismissalConfirm}
       />
 
@@ -1154,8 +1265,8 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         overIndex={auditTarget?.overIndex ?? 0}
         ballIndex={auditTarget?.ballIndex ?? 0}
         ball={auditTarget?.ball ?? null}
-        batsmanName={auditTarget?.ball?.batsmanId ? battingTeam.players.find(p => p.id === auditTarget.ball?.batsmanId)?.name : 'Batsman'}
-        bowlerName={auditTarget?.ball?.bowlerId ? bowlingTeam.players.find(p => p.id === auditTarget.ball?.bowlerId)?.name : 'Bowler'}
+        batsmanName={auditTarget?.ball?.batsmanId ? (battingTeam?.players || []).find(p => p.id === auditTarget.ball?.batsmanId)?.name : 'Batsman'}
+        bowlerName={auditTarget?.ball?.bowlerId ? (bowlingTeam?.players || []).find(p => p.id === auditTarget.ball?.bowlerId)?.name : 'Bowler'}
         onEditBall={(oIdx, bIdx, updated) => editBall(oIdx, bIdx, updated)}
         onDeleteBall={(oIdx, bIdx) => deleteBall(oIdx, bIdx)}
         onUndoToBall={(oIdx, bIdx) => undoToBall(oIdx, bIdx)}

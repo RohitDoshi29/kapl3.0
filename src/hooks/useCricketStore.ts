@@ -33,24 +33,62 @@ const saveStoredTeamMeta = (teamId: string, meta: {
 // Helper to convert DB team to app Team
 const dbToTeam = (dbTeam: any): Team => {
   const meta = getStoredTeamMeta(dbTeam.id);
+  const tournamentId = dbTeam.tournament_id || 'kapl-3-mens';
+
+  let teamPlayers = (dbTeam.players as Player[]) || [];
+  const isReset = typeof window !== 'undefined' && (
+    localStorage.getItem(`kapl_auction_manually_reset_${tournamentId}`) === 'true' ||
+    localStorage.getItem(`kapl_everything_reset_${tournamentId}`) === 'true' ||
+    localStorage.getItem('kapl_all_players_cleared') === 'true'
+  );
+
+  if (isReset) {
+    teamPlayers = [];
+  } else {
+    // Filter out legacy template dummy players like a1-p1
+    teamPlayers = teamPlayers.filter((p: any) => p && !/^[ab][1-4]-/.test(p.id));
+
+    try {
+      const rawAuctionTeams = localStorage.getItem(`kapl_auction_teams_${tournamentId}`);
+      if (rawAuctionTeams) {
+        const parsed = JSON.parse(rawAuctionTeams);
+        const match = Array.isArray(parsed) ? parsed.find((t: any) => t.id === dbTeam.id) : null;
+        if (
+          match &&
+          Array.isArray(match.players) &&
+          !match.players.some((p: any) => /^[ab][1-4]-/.test(p.id))
+        ) {
+          teamPlayers = match.players;
+        }
+      }
+    } catch {}
+  }
+
+  const initialPurse = dbTeam.initial_purse ? Number(dbTeam.initial_purse) : 10000;
+  const totalSpent = (teamPlayers || []).reduce(
+    (sum: number, p: any) => sum + (Number(p.soldPrice) || 0),
+    0
+  );
+  const remainingPurse = Math.max(0, initialPurse - totalSpent);
+
   return {
     id: dbTeam.id,
     name: dbTeam.name,
     group: dbTeam.group as 'A' | 'B',
     logo: dbTeam.logo,
     primaryColor: dbTeam.primary_color,
-    players: dbTeam.players as Player[],
-    playerCount: dbTeam.player_count || 10,
-    tournamentId: dbTeam.tournament_id || 'kapl-3-mens',
-    initialPurse: dbTeam.initial_purse ? Number(dbTeam.initial_purse) : 10000,
-    remainingPurse: dbTeam.remaining_purse !== undefined && dbTeam.remaining_purse !== null ? Number(dbTeam.remaining_purse) : 10000,
+    players: teamPlayers,
+    playerCount: teamPlayers.length,
+    tournamentId: tournamentId,
+    initialPurse: initialPurse,
+    remainingPurse: remainingPurse,
     maxSquadSize: dbTeam.max_squad_size || 10,
     captainUserId: dbTeam.captain_user_id || meta.captainUserId || null,
-    ownerName: meta.ownerName || dbTeam.owner_name || undefined,
-    ownerEmail: meta.ownerEmail || dbTeam.owner_email || null,
+    ownerName: meta.ownerName || dbTeam.owner_name || (tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).find(d => d.id === dbTeam.id)?.ownerName || (dbTeam.id === 'a1' ? 'Rohit Doshi' : undefined),
+    ownerEmail: meta.ownerEmail || dbTeam.owner_email || (tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).find(d => d.id === dbTeam.id)?.ownerEmail || (dbTeam.id === 'a1' ? 'rohitdoshicolg@gmail.com' : null),
     ownerUserId: meta.ownerUserId || dbTeam.owner_user_id || null,
-    captainName: meta.captainName || dbTeam.captain_name || undefined,
-    captainPlayerId: meta.captainPlayerId || dbTeam.captain_player_id || null,
+    captainName: meta.captainName || dbTeam.captain_name || (tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).find(d => d.id === dbTeam.id)?.captainName || (dbTeam.id === 'a1' ? 'Rohit Doshi' : (teamPlayers[0]?.name || undefined)),
+    captainPlayerId: meta.captainPlayerId || dbTeam.captain_player_id || (tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).find(d => d.id === dbTeam.id)?.captainPlayerId || (dbTeam.id === 'a1' ? 'owner' : (teamPlayers[0]?.id || null)),
   };
 };
 
@@ -62,7 +100,7 @@ const teamToDb = (team: Team) => ({
   logo: team.logo,
   primary_color: team.primaryColor,
   players: JSON.parse(JSON.stringify(team.players)) as Json,
-  player_count: team.playerCount || 10,
+  player_count: team.playerCount ?? 0,
   tournament_id: team.tournamentId || 'kapl-3-mens',
   initial_purse: team.initialPurse || 10000,
   remaining_purse: team.remainingPurse ?? 10000,
@@ -269,6 +307,58 @@ if (typeof window !== 'undefined') {
     try {
       tabSyncChannel = new BroadcastChannel('kapl_live_match_sync');
       tabSyncChannel.onmessage = (event) => {
+        if (event.data?.type === 'system_reset_all_players') {
+          try {
+            localStorage.setItem('kapl_all_players_cleared', 'true');
+            localStorage.setItem('kapl_registered_players', JSON.stringify([]));
+            for (const tid of ['kapl-3-mens', 'kapl-3-womens']) {
+              localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+              localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
+              localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+              localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
+              localStorage.removeItem(`kapl_auction_active_player_${tid}`);
+              localStorage.removeItem(`kapl_local_match_state_${tid}`);
+            }
+            localStorage.removeItem('cricket_match_state');
+            localStorage.removeItem('kapl_local_match_state');
+          } catch (e) {}
+
+          const allResetTeams: Team[] = [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS].map((t) => ({
+            ...t,
+            players: [],
+            playerCount: 0,
+            remainingPurse: 10000,
+            initialPurse: 10000,
+          }));
+          globalTeamsListeners.forEach(l => l(allResetTeams));
+          notifyGlobalStateListeners({ currentMatch: null, lastAction: null });
+          notifyGlobalPlayersListeners({});
+          globalHistoryListeners.forEach(l => l([]));
+
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('kapl-teams-updated', { detail: allResetTeams }));
+            window.dispatchEvent(new CustomEvent('kapl-auction-local-update', {
+              detail: { event: 'auction_reset', players: [], teams: allResetTeams, currentPlayer: null },
+            }));
+            window.dispatchEvent(new CustomEvent('kapl_player_added', {
+              detail: { player: null, tournamentId: 'all' },
+            }));
+          }
+          return;
+        }
+
+        if (event.data?.type === 'team_player_removed' && event.data.teams) {
+          globalTeamsListeners.forEach(l => l(event.data.teams));
+          return;
+        }
+
+        if (event.data?.event === 'auction_player_removed' && event.data.playerId && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kapl_player_removed', {
+            detail: { playerId: event.data.playerId, tournamentId: event.data.tournamentId || 'all' },
+          }));
+          return;
+        }
+
         if (event.data && 'currentMatch' in event.data) {
           const tId = resolveTournamentId(event.data.currentMatch, event.data.tournamentId);
           notifyGlobalStateListeners({
@@ -446,6 +536,76 @@ function initSharedRealtimeChannel() {
       }
     )
     .on(
+      'broadcast',
+      { event: 'system_reset_all_players' },
+      () => {
+        try {
+          localStorage.setItem('kapl_all_players_cleared', 'true');
+          localStorage.setItem('kapl_registered_players', JSON.stringify([]));
+          for (const tid of ['kapl-3-mens', 'kapl-3-womens']) {
+            localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+            localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
+            localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+            localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
+            localStorage.removeItem(`kapl_auction_active_player_${tid}`);
+            localStorage.removeItem(`kapl_local_match_state_${tid}`);
+          }
+          localStorage.removeItem('cricket_match_state');
+          localStorage.removeItem('kapl_local_match_state');
+        } catch (e) {}
+
+        const allResetTeams: Team[] = [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS].map((t) => ({
+          ...t,
+          players: [],
+          playerCount: 0,
+          remainingPurse: 10000,
+          initialPurse: 10000,
+        }));
+        globalTeamsListeners.forEach(l => l(allResetTeams));
+        notifyGlobalStateListeners({ currentMatch: null, lastAction: null });
+        notifyGlobalPlayersListeners({});
+        globalHistoryListeners.forEach(l => l([]));
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kapl-teams-updated', { detail: allResetTeams }));
+          window.dispatchEvent(new CustomEvent('kapl-auction-local-update', {
+            detail: { event: 'auction_reset', players: [], teams: allResetTeams, currentPlayer: null },
+          }));
+          window.dispatchEvent(new CustomEvent('kapl_player_added', {
+            detail: { player: null, tournamentId: 'all' },
+          }));
+        }
+      }
+    )
+    .on(
+      'broadcast',
+      { event: 'auction_player_added' },
+      (envelope) => {
+        try {
+          localStorage.removeItem('kapl_all_players_cleared');
+          if (envelope?.payload?.tournamentId) {
+            localStorage.removeItem(`kapl_everything_reset_${envelope.payload.tournamentId}`);
+          }
+        } catch (e) {}
+        if (envelope?.payload?.player && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kapl_player_added', {
+            detail: { player: envelope.payload.player, tournamentId: envelope.payload.tournamentId || 'all' },
+          }));
+        }
+      }
+    )
+    .on(
+      'broadcast',
+      { event: 'auction_player_removed' },
+      (envelope) => {
+        if (envelope?.payload?.playerId && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kapl_player_removed', {
+            detail: { playerId: envelope.payload.playerId, tournamentId: envelope.payload.tournamentId || 'all' },
+          }));
+        }
+      }
+    )
+    .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'match_state' },
       (payload) => {
@@ -540,9 +700,72 @@ function initSharedRealtimeChannel() {
   return sharedRealtimeChannel;
 }
 
+const sharedAuctionSyncChannels: Record<string, any> = {};
+
+function initSharedAuctionSyncChannels() {
+  const tournaments = ['kapl-3-mens', 'kapl-3-womens'];
+  tournaments.forEach(tId => {
+    if (sharedAuctionSyncChannels[tId]) return;
+
+    sharedAuctionSyncChannels[tId] = supabase
+      .channel(`auction-room-${tId}`, {
+        config: { broadcast: { self: true } }
+      })
+      .on('broadcast', { event: 'auction_sync' }, (envelope) => {
+        const payload = envelope?.payload;
+        if (!payload) return;
+        const event = payload.event;
+
+        if (event === 'auction_auto_completed' && Array.isArray(payload.teams)) {
+          globalTeamsListeners.forEach(l => l(payload.teams));
+          try {
+            localStorage.setItem('kapl_teams', JSON.stringify(payload.teams));
+            localStorage.setItem(`kapl_auction_teams_${tId}`, JSON.stringify(payload.teams));
+            localStorage.removeItem(`kapl_auction_manually_reset_${tId}`);
+          } catch {}
+        } else if (event === 'auction_reset' && Array.isArray(payload.teams)) {
+          globalTeamsListeners.forEach(l => l(payload.teams));
+          try {
+            localStorage.setItem('kapl_teams', JSON.stringify(payload.teams));
+            localStorage.setItem(`kapl_auction_teams_${tId}`, JSON.stringify(payload.teams));
+          } catch {}
+        } else if (event === 'auction_sold' && payload.targetTeamId) {
+          const log = payload.log;
+          const raw = localStorage.getItem(`kapl_auction_teams_${tId}`) || localStorage.getItem('kapl_teams');
+          if (raw) {
+            try {
+              const currentTeams: Team[] = JSON.parse(raw);
+              const updated = currentTeams.map(t => {
+                if (t.id === payload.targetTeamId) {
+                  const currentSquad = t.players || [];
+                  const updatedSquad = [
+                    ...currentSquad.filter((p: any) => p.id !== payload.targetPlayerId),
+                    { id: payload.targetPlayerId, name: log?.playerName, role: log?.playerRole, soldPrice: payload.soldPrice }
+                  ];
+                  return {
+                    ...t,
+                    remainingPurse: payload.newRemainingPurse ?? Math.max(0, (t.remainingPurse ?? 10000) - (payload.soldPrice || 0)),
+                    players: updatedSquad,
+                    playerCount: updatedSquad.length,
+                  };
+                }
+                return t;
+              });
+              globalTeamsListeners.forEach(l => l(updated));
+              localStorage.setItem('kapl_teams', JSON.stringify(updated));
+              localStorage.setItem(`kapl_auction_teams_${tId}`, JSON.stringify(updated));
+            } catch {}
+          }
+        }
+      })
+      .subscribe();
+  });
+}
+
 // Eager initialization at module load time for instantaneous WebSocket connection
 if (typeof window !== 'undefined') {
   initSharedRealtimeChannel();
+  initSharedAuctionSyncChannels();
 }
 
 // ============================================================================
@@ -642,7 +865,37 @@ function stopGlobalHeartbeat() {
 }
 
 export function useCricketStore(targetTournamentId?: string) {
-  const [teams, setTeams] = useState<Team[]>(() => [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS]);
+  const [teams, setTeams] = useState<Team[]>(() => {
+    try {
+      const isReset = typeof window !== 'undefined' && (
+        localStorage.getItem('kapl_auction_manually_reset_kapl-3-mens') === 'true' ||
+        localStorage.getItem('kapl_everything_reset_kapl-3-mens') === 'true' ||
+        localStorage.getItem('kapl_all_players_cleared') === 'true'
+      );
+      if (isReset) {
+        return [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS].map((t) => ({
+          ...t,
+          players: [],
+          playerCount: 0,
+          remainingPurse: 10000,
+          initialPurse: 10000,
+        }));
+      }
+      const rawMens = localStorage.getItem('kapl_auction_teams_kapl-3-mens');
+      if (rawMens) {
+        const parsed = JSON.parse(rawMens);
+        if (parsed.length > 0) {
+          return [...parsed, ...DEFAULT_WOMENS_TEAMS];
+        }
+      }
+      const rawTeams = localStorage.getItem('kapl_teams');
+      if (rawTeams) {
+        const parsed = JSON.parse(rawTeams);
+        if (parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS];
+  });
   
   const effectiveTournamentId = targetTournamentId || (typeof window !== 'undefined' ? localStorage.getItem('kapl_active_tournament_id') || 'kapl-3-mens' : 'kapl-3-mens');
 
@@ -774,6 +1027,15 @@ export function useCricketStore(targetTournamentId?: string) {
           }
         } catch (err) {}
       }
+
+      if ((e.key === 'kapl_teams' || e.key === `kapl_auction_teams_${effectiveTournamentId}`) && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            handleTeamsUpdate(parsed);
+          }
+        } catch (err) {}
+      }
     };
     window.addEventListener('storage', handleStorage);
 
@@ -795,6 +1057,13 @@ export function useCricketStore(targetTournamentId?: string) {
     };
     window.addEventListener('kapl-local-match-update', handleLocalMatchUpdate);
 
+    const handleTeamsCustomEvent = (e: any) => {
+      if (Array.isArray(e.detail) && e.detail.length > 0) {
+        handleTeamsUpdate(e.detail);
+      }
+    };
+    window.addEventListener('kapl-teams-updated', handleTeamsCustomEvent);
+
     return () => {
       globalStateListeners.delete(handleStateUpdate);
       globalPlayersListeners.delete(handlePlayersUpdate);
@@ -802,6 +1071,7 @@ export function useCricketStore(targetTournamentId?: string) {
       globalHistoryListeners.delete(handleHistoryUpdate);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('kapl-local-match-update', handleLocalMatchUpdate);
+      window.removeEventListener('kapl-teams-updated', handleTeamsCustomEvent);
       sharedChannelRefCount--;
       stopGlobalHeartbeat();
     };
@@ -820,6 +1090,8 @@ export function useCricketStore(targetTournamentId?: string) {
         
         if (teamsError) throw teamsError;
         let loadedTeams: Team[] = [];
+        const isAllCleared = typeof window !== 'undefined' && localStorage.getItem('kapl_all_players_cleared') === 'true';
+
         if (teamsData && teamsData.length > 0) {
           loadedTeams = teamsData.map(dbToTeam);
           // If no women's teams exist in DB, append DEFAULT_WOMENS_TEAMS so both tournaments work seamlessly
@@ -830,6 +1102,17 @@ export function useCricketStore(targetTournamentId?: string) {
         } else {
           loadedTeams = [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS];
         }
+
+        if (isAllCleared) {
+          loadedTeams = loadedTeams.map(t => ({
+            ...t,
+            players: [],
+            playerCount: 0,
+            remainingPurse: 10000,
+            initialPurse: 10000,
+          }));
+        }
+
         if (isMounted) setTeams(loadedTeams);
 
         // Load all match states (Men's and Women's leagues)
@@ -928,7 +1211,7 @@ export function useCricketStore(targetTournamentId?: string) {
   }, [effectiveTournamentId]);
 
   const updateTeam = useCallback(async (teamId: string, updates: Partial<Team>) => {
-    const team = teams.find(t => t.id === teamId);
+    const team = (teams || []).find(t => t.id === teamId);
     if (!team) return;
 
     const updatedTeam = { ...team, ...updates };
@@ -950,7 +1233,7 @@ export function useCricketStore(targetTournamentId?: string) {
     }
 
     // Optimistic update
-    setTeams(prev => prev.map(t => t.id === teamId ? updatedTeam : t));
+    setTeams(prev => (prev || []).map(t => t.id === teamId ? updatedTeam : t));
 
     // Save to database
     const { error } = await supabase
@@ -961,22 +1244,161 @@ export function useCricketStore(targetTournamentId?: string) {
     if (error) {
       console.error('Error updating team:', error);
       // Revert on error
-      setTeams(prev => prev.map(t => t.id === teamId ? team : t));
+      setTeams(prev => (prev || []).map(t => t.id === teamId ? team : t));
+    }
+  }, [teams]);
+
+  const removePlayerFromTeam = useCallback(async (teamId: string, playerId: string) => {
+    const team = (teams || []).find((t) => t.id === teamId);
+    if (!team) return;
+
+    const targetPlayer = (team.players || []).find((p) => p.id === playerId);
+    const refund = targetPlayer?.soldPrice || 0;
+    const remainingPlayers = (team.players || []).filter((p) => p.id !== playerId);
+    const updatedTeam: Team = {
+      ...team,
+      players: remainingPlayers,
+      playerCount: Math.max(0, (team.playerCount || 1) - 1),
+      remainingPurse: (team.remainingPurse ?? 10000) + refund,
+    };
+
+    const newTeams = (teams || []).map((t) => (t.id === teamId ? updatedTeam : t));
+    setTeams(newTeams);
+
+    const tid = team.tournamentId || 'kapl-3-mens';
+
+    // 1. Update localStorage
+    try {
+      localStorage.setItem('kapl_teams', JSON.stringify(newTeams));
+      localStorage.setItem(`kapl_auction_teams_${tid}`, JSON.stringify(newTeams.filter((t) => (t.tournamentId || 'kapl-3-mens') === tid)));
+
+      // Revert player to pending in kapl_auction_players_${tid}
+      const rawAuc = localStorage.getItem(`kapl_auction_players_${tid}`);
+      if (rawAuc) {
+        const parsed = JSON.parse(rawAuc);
+        if (Array.isArray(parsed)) {
+          const updatedAuc = parsed.map((p: any) =>
+            p.id === playerId ? { ...p, teamId: null, soldPrice: null, auctionStatus: 'pending' } : p
+          );
+          localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify(updatedAuc));
+        }
+      }
+    } catch {}
+
+    // 2. Dispatch window events for local reactive updates
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kapl-teams-updated', { detail: newTeams }));
+      window.dispatchEvent(
+        new CustomEvent('kapl-auction-local-update', {
+          detail: {
+            event: 'auction_revert',
+            targetPlayerId: playerId,
+            targetTeamId: teamId,
+            refundPrice: refund,
+            tournamentId: tid,
+          },
+        })
+      );
+    }
+
+    // 3. Cross-tab BroadcastChannels
+    if (tabSyncChannel) {
+      try {
+        tabSyncChannel.postMessage({
+          type: 'team_player_removed',
+          teamId,
+          playerId,
+          refund,
+          teams: newTeams,
+        });
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const crossTab = new BroadcastChannel('kapl-shared-tab-channel');
+        crossTab.postMessage({
+          event: 'auction_revert',
+          targetPlayerId: playerId,
+          targetTeamId: teamId,
+          refundPrice: refund,
+          tournamentId: tid,
+        });
+        const aucTab = new BroadcastChannel('kapl_auction_tab_sync');
+        aucTab.postMessage({
+          event: 'auction_revert',
+          targetPlayerId: playerId,
+          targetTeamId: teamId,
+          refundPrice: refund,
+          tournamentId: tid,
+        });
+      } catch {}
+    }
+
+    // 4. Supabase broadcast to all roles
+    try {
+      const channel = supabase.channel(`auction-room-${tid}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'auction_sync',
+        payload: {
+          event: 'auction_revert',
+          targetPlayerId: playerId,
+          targetTeamId: teamId,
+          refundPrice: refund,
+          tournamentId: tid,
+        },
+      });
+
+      const dirChannel = supabase.channel(`player-dir-auction-sync-${tid}`);
+      await dirChannel.send({
+        type: 'broadcast',
+        event: 'auction_sync',
+        payload: {
+          event: 'auction_revert',
+          targetPlayerId: playerId,
+          targetTeamId: teamId,
+          refundPrice: refund,
+          tournamentId: tid,
+        },
+      });
+    } catch {}
+
+    // 5. Remote Database sync
+    try {
+      await supabase
+        .from('teams')
+        .update({
+          players: remainingPlayers as any,
+          player_count: remainingPlayers.length,
+          remaining_purse: updatedTeam.remainingPurse,
+        })
+        .eq('id', teamId);
+
+      await supabase
+        .from('players')
+        .update({
+          team_id: null,
+          sold_price: null,
+          auction_status: 'pending',
+        })
+        .eq('id', playerId);
+    } catch (e) {
+      console.warn('DB update for player removal from team:', e);
     }
   }, [teams]);
 
   const getTeam = useCallback((teamId: string) => {
-    return teams.find(t => t.id === teamId) ||
+    return (teams || []).find(t => t.id === teamId) ||
            DEFAULT_TEAMS.find(t => t.id === teamId) ||
            DEFAULT_WOMENS_TEAMS.find(t => t.id === teamId);
   }, [teams]);
 
   const getTeamsByGroup = useCallback((group: 'A' | 'B', tournamentId?: string) => {
-    return teams.filter(t => t.group === group && (!tournamentId || (t.tournamentId || 'kapl-3-mens') === tournamentId));
+    return (teams || []).filter(t => t.group === group && (!tournamentId || (t.tournamentId || 'kapl-3-mens') === tournamentId));
   }, [teams]);
 
   const getTeamsByTournament = useCallback((tournamentId: string) => {
-    return teams.filter(t => (t.tournamentId || 'kapl-3-mens') === tournamentId);
+    return (teams || []).filter(t => (t.tournamentId || 'kapl-3-mens') === tournamentId);
   }, [teams]);
 
   const getPlayingPlayers = useCallback((teamId: string) => {
@@ -1070,7 +1492,7 @@ export function useCricketStore(targetTournamentId?: string) {
     selectedPlayingPlayers?: Record<string, string[]>,
     tournamentId?: string
   ) => {
-    const t1 = teams.find(t => t.id === team1Id) || DEFAULT_TEAMS.find(t => t.id === team1Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === team1Id);
+    const t1 = (teams || []).find(t => t.id === team1Id) || DEFAULT_TEAMS.find(t => t.id === team1Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === team1Id);
     const resolvedTournamentId = tournamentId || t1?.tournamentId || 'kapl-3-mens';
 
     const newMatch: Match = {
@@ -1164,9 +1586,22 @@ export function useCricketStore(targetTournamentId?: string) {
     const currentOverIndex = overs.length - 1;
     const currentOver = { ...overs[currentOverIndex], balls: [...overs[currentOverIndex].balls] };
 
+    // Check if target was already reached in 2nd innings
+    if (match.currentInnings === 2 && match.innings1 && innings.runs >= match.innings1.runs + 1) {
+      toast.info('Target has already been reached! Please end the match.');
+      return;
+    }
+
     // Check wicket limit
-    if (isWicket && innings.wickets >= MATCH_CONSTANTS.MAX_WICKETS) {
-      return; // Max wickets reached
+    if (innings.wickets >= MATCH_CONSTANTS.MAX_WICKETS) {
+      toast.error('All wickets down! Please switch innings or end match.');
+      return;
+    }
+
+    // Check overs limit
+    if (innings.currentOver >= MATCH_CONSTANTS.MAX_OVERS) {
+      toast.error(`Overs limit (${MATCH_CONSTANTS.MAX_OVERS} overs) reached for this innings.`);
+      return;
     }
 
     const wasFreeHit = innings.isFreeHit === true;
@@ -1352,9 +1787,14 @@ export function useCricketStore(targetTournamentId?: string) {
       return;
     }
 
+    if (innings.isFreeHit && params.type !== 'run_out' && params.type !== 'retired') {
+      toast.error('Free Hit in play: Only Run Out is allowed under cricket rules');
+      return;
+    }
+
     const runs = params.runsCompleted || 0;
     const bowlingTeam = getTeam(innings.bowlingTeamId);
-    const bowler = bowlingTeam?.players.find(p => p.id === innings.currentBowlerId);
+    const bowler = (bowlingTeam?.players || []).find(p => p.id === innings.currentBowlerId);
     const bowlerName = bowler?.name || 'Bowler';
 
     let description = '';
@@ -1627,6 +2067,20 @@ export function useCricketStore(targetTournamentId?: string) {
     const match = { ...matchState.currentMatch };
     const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
     
+    // Check quota: max 2 overs per bowler
+    const stats = innings.bowlerStats[playerId];
+    if (stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER) {
+      toast.error(`Bowler quota exceeded: Maximum ${MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER} overs allowed per bowler.`);
+      return;
+    }
+
+    // Check consecutive overs restriction
+    const lastBowlerId = (match as any).lastOverBowlerId || (innings.overs.length > 1 ? innings.overs[innings.overs.length - 2]?.bowlerId : null);
+    if (lastBowlerId && playerId === lastBowlerId && (innings.currentBall === 0 || playerId !== innings.currentBowlerId)) {
+      toast.error('A bowler cannot bowl two consecutive overs.');
+      return;
+    }
+
     innings.currentBowlerId = playerId;
     
     // Set bowler for current over
@@ -2254,6 +2708,8 @@ export function useCricketStore(targetTournamentId?: string) {
         matchesPlayed: 0, 
         wins: 0, 
         losses: 0, 
+        ties: 0,
+        points: 0,
         totalRuns: 0,
         totalFours: 0,
         totalSixes: 0,
@@ -2284,9 +2740,13 @@ export function useCricketStore(targetTournamentId?: string) {
       return Object.values(innings.bowlerStats).reduce((total, stats) => total + (stats.wickets || 0), 0);
     };
 
-    // Helper to calculate overs in decimal format
+    // Helper to calculate overs in decimal format (with ICC all-out rule)
     const getOversDecimal = (innings: Innings | null) => {
       if (!innings) return 0;
+      // ICC Rule: If a team is all out, their overs faced are counted as the full innings quota (7.0 overs)
+      if (innings.wickets >= MATCH_CONSTANTS.MAX_WICKETS) {
+        return MATCH_CONSTANTS.MAX_OVERS;
+      }
       return innings.currentOver + (innings.currentBall / 6);
     };
 
@@ -2329,8 +2789,13 @@ export function useCricketStore(targetTournamentId?: string) {
           team1Stats.oversBowled += team1OversBowled;
           if (match.winner === match.team1Id) {
             team1Stats.wins += 1;
-          } else if (match.winner) {
+            team1Stats.points += 2;
+          } else if (match.winner === match.team2Id) {
             team1Stats.losses += 1;
+          } else {
+            // Tied or no result match
+            team1Stats.ties += 1;
+            team1Stats.points += 1;
           }
         }
         if (team2Stats) {
@@ -2342,11 +2807,16 @@ export function useCricketStore(targetTournamentId?: string) {
           team2Stats.runsScored += innings2?.runs || 0;
           team2Stats.oversPlayed += team2OversPlayed;
           team2Stats.runsConceded += innings1?.runs || 0;
-          team2Stats.oversBowled += team1OversPlayed;
+          team2Stats.oversBowled += team2OversBowled;
           if (match.winner === match.team2Id) {
             team2Stats.wins += 1;
-          } else if (match.winner) {
+            team2Stats.points += 2;
+          } else if (match.winner === match.team1Id) {
             team2Stats.losses += 1;
+          } else {
+            // Tied or no result match
+            team2Stats.ties += 1;
+            team2Stats.points += 1;
           }
         }
       }
@@ -2389,22 +2859,187 @@ export function useCricketStore(targetTournamentId?: string) {
   }, [saveMatchState]);
 
   const resetEverything = useCallback(async () => {
-    // Reset season first
-    await resetSeason();
+    const tournamentIds = ['kapl-3-mens', 'kapl-3-womens'];
+    const resetTeams: Team[] = [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS].map((t) => ({
+      ...t,
+      players: [],
+      playerCount: 0,
+      remainingPurse: 10000,
+      initialPurse: 10000,
+    }));
 
-    // Reset teams to defaults
-    for (const defaultTeam of DEFAULT_TEAMS) {
-      const { error } = await supabase
-        .from('teams')
-        .update(teamToDb(defaultTeam))
-        .eq('id', defaultTeam.id);
+    // 1. Instantly reset LocalStorage & in-memory caches (zero-latency UI update)
+    try {
+      localStorage.setItem('kapl_all_players_cleared', 'true');
+      localStorage.setItem('kapl_registered_players', JSON.stringify([]));
 
-      if (error) {
-        console.error('Error resetting team:', error);
-      }
+      tournamentIds.forEach((tid) => {
+        localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+        localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
+        localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+        localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
+        localStorage.removeItem(`kapl_auction_active_player_${tid}`);
+
+        const tidTeams = (tid === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).map((t) => ({
+          ...t,
+          players: [],
+          playerCount: 0,
+          remainingPurse: 10000,
+          initialPurse: 10000,
+        }));
+        localStorage.setItem(`kapl_auction_teams_${tid}`, JSON.stringify(tidTeams));
+        localStorage.removeItem(`kapl_local_match_state_${tid}`);
+      });
+
+      localStorage.setItem('kapl_teams', JSON.stringify(resetTeams));
+      localStorage.removeItem('cricket_match_state');
+      localStorage.removeItem('kapl_local_match_state');
+    } catch (e) {
+      console.warn('LocalStorage reset error:', e);
     }
 
-    setTeams([...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS]);
+    setTeams(resetTeams);
+    setMatchHistory([]);
+    setMatchState({ currentMatch: null, lastAction: null });
+    setPlayingPlayers({});
+
+    // 2. Dispatch window events & broadcast immediately
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kapl-teams-updated', { detail: resetTeams }));
+      window.dispatchEvent(
+        new CustomEvent('kapl-auction-local-update', {
+          detail: { event: 'auction_reset', players: [], teams: resetTeams, currentPlayer: null },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('kapl_player_added', {
+          detail: { player: null, tournamentId: 'all' },
+        })
+      );
+    }
+
+    tournamentIds.forEach((tid) => {
+      try {
+        const channel = supabase.channel(`auction-room-${tid}`);
+        channel.send({
+          type: 'broadcast',
+          event: 'auction_sync',
+          payload: {
+            event: 'auction_reset',
+            players: [],
+            teams: (tid === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).map((t) => ({
+              ...t,
+              players: [],
+              playerCount: 0,
+              remainingPurse: 10000,
+            })),
+            currentPlayer: null,
+            tournamentId: tid,
+          },
+        });
+      } catch {}
+
+      try {
+        const syncChannel = supabase.channel(`player-dir-auction-sync-${tid}`);
+        syncChannel.send({
+          type: 'broadcast',
+          event: 'auction_sync',
+          payload: {
+            event: 'auction_reset',
+            players: [],
+            tournamentId: tid,
+          },
+        });
+      } catch {}
+    });
+
+    // Global Live Match sync channel for instantaneous cross-device viewer/role synchronization
+    const liveMatchChannel = initSharedRealtimeChannel();
+    if (liveMatchChannel) {
+      try {
+        liveMatchChannel.send({
+          type: 'broadcast',
+          event: 'system_reset_all_players',
+          payload: { timestamp: Date.now() },
+        }).catch(() => {});
+      } catch {}
+    }
+
+    // Cross-tab synchronization via BroadcastChannel
+    if (tabSyncChannel) {
+      try {
+        tabSyncChannel.postMessage({
+          type: 'system_reset_all_players',
+          timestamp: Date.now(),
+        });
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const crossTab = new BroadcastChannel('kapl-shared-tab-channel');
+        crossTab.postMessage({
+          type: 'system_reset_all_players',
+          event: 'auction_reset',
+          players: [],
+          teams: resetTeams,
+          timestamp: Date.now(),
+        });
+        crossTab.close();
+      } catch {}
+
+      try {
+        const aucTab = new BroadcastChannel('kapl_auction_tab_sync');
+        aucTab.postMessage({
+          event: 'auction_reset',
+          players: [],
+          teams: resetTeams,
+          currentPlayer: null,
+          timestamp: Date.now(),
+        });
+        aucTab.close();
+      } catch {}
+    }
+
+    // 3. Invoke Supabase RPC reset_all_players_and_teams (atomic SECURITY DEFINER execution)
+    try {
+      const { error: rpcErr } = await supabase.rpc('reset_all_players_and_teams');
+      if (rpcErr) {
+        console.warn('RPC reset_all_players_and_teams returned non-fatal error:', rpcErr);
+      }
+    } catch (e) {
+      console.warn('RPC reset_all_players_and_teams exception:', e);
+    }
+
+    // 4. Standard database clearance fallback
+    try {
+      await resetSeason();
+    } catch (e) {
+      console.warn('resetSeason fallback exception:', e);
+    }
+
+    try {
+      await supabase.from('players').delete().neq('id', '');
+    } catch (e) {
+      console.warn('DB delete players fallback exception:', e);
+    }
+
+    try {
+      await supabase.from('auction_state').delete().neq('id', '');
+      await supabase.from('auction_bids').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (e) {
+      console.warn('DB clear auction fallback exception:', e);
+    }
+
+    for (const defaultTeam of resetTeams) {
+      try {
+        await supabase
+          .from('teams')
+          .update(teamToDb(defaultTeam))
+          .eq('id', defaultTeam.id);
+      } catch (e) {
+        console.warn('Team update fallback exception:', e);
+      }
+    }
   }, [resetSeason]);
 
   return {
@@ -2418,6 +3053,7 @@ export function useCricketStore(targetTournamentId?: string) {
     isLoaded,
     playingPlayers,
     updateTeam,
+    removePlayerFromTeam,
     getTeam,
     getTeamsByGroup,
     getTeamsByTournament,

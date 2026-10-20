@@ -52,7 +52,7 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
             </TableHeader>
             <TableBody>
               {innings.battingOrder.map((playerId) => {
-                const player = battingTeam.players.find(p => p.id === playerId);
+                const player = (battingTeam?.players || []).find(p => p.id === playerId);
                 const stats = innings.batterStats[playerId];
                 if (!player || !stats) return null;
                 
@@ -93,7 +93,7 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
             </TableHeader>
             <TableBody>
               {Object.entries(innings.bowlerStats).map(([playerId, stats]) => {
-                const player = bowlingTeam.players.find(p => p.id === playerId);
+                const player = (bowlingTeam?.players || []).find(p => p.id === playerId);
                 if (!player) return null;
                 
                 const totalOvers = stats.overs + (stats.balls / 6);
@@ -118,7 +118,7 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
           <h4 className="font-semibold mb-2">Over by Over</h4>
           <div className="space-y-2">
             {innings.overs.map((over, idx) => {
-              const bowler = over.bowlerId ? bowlingTeam.players.find(p => p.id === over.bowlerId) : null;
+              const bowler = over.bowlerId ? (bowlingTeam?.players || []).find(p => p.id === over.bowlerId) : null;
               const overRuns = over.balls.reduce((sum, ball) => sum + ball.runs, 0);
               const wicketsInOver = over.balls.filter(b => b.isWicket).length;
               

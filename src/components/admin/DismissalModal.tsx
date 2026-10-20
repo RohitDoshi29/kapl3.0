@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ interface DismissalModalProps {
   bowler: Player | undefined;
   bowlingTeamPlayers: Player[];
   availableNextBatsmen: Player[];
+  isFreeHit?: boolean;
   onConfirm: (payload: {
     type: DismissalType;
     outBatsmanId: string;
@@ -45,13 +46,29 @@ export function DismissalModal({
   bowler,
   bowlingTeamPlayers,
   availableNextBatsmen,
+  isFreeHit = false,
   onConfirm,
 }: DismissalModalProps) {
-  const [selectedType, setSelectedType] = useState<DismissalType>('bowled');
+  const [selectedType, setSelectedType] = useState<DismissalType>(isFreeHit ? 'run_out' : 'bowled');
   const [outBatsmanId, setOutBatsmanId] = useState<string>(striker?.id || '');
   const [selectedFielderId, setSelectedFielderId] = useState<string>('');
   const [runsCompleted, setRunsCompleted] = useState<number>(0);
   const [nextBatsmanId, setNextBatsmanId] = useState<string>('');
+
+  // Synchronize state when dialog opens or mode changes
+  useEffect(() => {
+    if (open) {
+      if (isFreeHit) {
+        setSelectedType('run_out');
+      } else {
+        setSelectedType('bowled');
+      }
+      setOutBatsmanId(striker?.id || '');
+      setSelectedFielderId('');
+      setRunsCompleted(0);
+      setNextBatsmanId('');
+    }
+  }, [open, isFreeHit, striker?.id]);
 
   // Synchronize outBatsmanId when dialog opens or striker changes
   const currentOutBatsmanId = outBatsmanId || striker?.id || '';
@@ -75,7 +92,7 @@ export function DismissalModal({
   };
 
   const handleSubmit = () => {
-    const selectedFielder = bowlingTeamPlayers.find(p => p.id === selectedFielderId);
+    const selectedFielder = (bowlingTeamPlayers || []).find(p => p.id === selectedFielderId);
     onConfirm({
       type: selectedType,
       outBatsmanId: currentOutBatsmanId,
@@ -114,10 +131,18 @@ export function DismissalModal({
         </DialogHeader>
 
         <div className="space-y-4 pt-1">
+          {/* Free Hit Alert Banner */}
+          {isFreeHit && (
+            <div className="flex items-center gap-2.5 p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-amber-400 text-xs font-semibold">
+              <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+              <span>⚡ FREE HIT IN PLAY: Under MCC Law 21.18, batsmen cannot be bowled, caught, lbw, or stumped. Only RUN OUT is allowed!</span>
+            </div>
+          )}
+
           {/* Dismissal Type Grid */}
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-              1. Dismissal Mode
+              1. Dismissal Mode {isFreeHit && '(Locked to Run Out on Free Hit)'}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -127,22 +152,28 @@ export function DismissalModal({
                 { type: 'run_out', label: '🏃 Run Out' },
                 { type: 'stumped', label: '🧤 Stumped' },
                 { type: 'hit_wicket', label: '💥 Hit Wkt' },
-              ].map((item) => (
-                <Button
-                  key={item.type}
-                  type="button"
-                  variant={selectedType === item.type ? 'default' : 'outline'}
-                  size="sm"
-                  className={`font-bold text-xs h-10 ${
-                    selectedType === item.type
-                      ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 ring-2 ring-destructive'
-                      : ''
-                  }`}
-                  onClick={() => handleTypeSelect(item.type as DismissalType)}
-                >
-                  {item.label}
-                </Button>
-              ))}
+              ].map((item) => {
+                const isTypeDisabled = isFreeHit && item.type !== 'run_out';
+                return (
+                  <Button
+                    key={item.type}
+                    type="button"
+                    variant={selectedType === item.type ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={isTypeDisabled}
+                    className={`font-bold text-xs h-10 ${
+                      selectedType === item.type
+                        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 ring-2 ring-destructive'
+                        : isTypeDisabled
+                        ? 'opacity-30 cursor-not-allowed bg-muted/20'
+                        : ''
+                    }`}
+                    onClick={() => handleTypeSelect(item.type as DismissalType)}
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
 
