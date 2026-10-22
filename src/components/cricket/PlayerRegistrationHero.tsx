@@ -158,3 +158,4 @@ export function PlayerRegistrationHero({ tournamentName = 'KAPL 3.0', onOpenPopu
     </div>
   );
 }
+

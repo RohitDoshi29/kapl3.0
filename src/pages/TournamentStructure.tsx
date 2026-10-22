@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Medal, Sparkles } from 'lucide-react';
+import { Trophy, Medal, Sparkles, Clock } from 'lucide-react';
 import { TournamentCeremonyModal } from '@/components/cricket/TournamentCeremonyModal';
 import { useTournamentHonors } from '@/hooks/useTournamentHonors';
 
@@ -140,16 +140,39 @@ export default function TournamentStructure() {
       <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
-              {currentTournament?.name || "Tournament"} <span className="text-gradient-gold">Knockouts & Playoffs</span>
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
+                {currentTournament?.name || "Tournament"} <span className="text-gradient-gold">Knockouts & Playoffs</span>
+              </h1>
+              <Badge variant="outline" className="bg-amber-500/15 border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-wider">
+                ⏳ Bracket To Be Decided
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Qualification paths, Semi-Final matchups, and Championship Final bracket
+              The official playoff bracket has not yet been decided. Final qualification rules and bracket matchups will be locked post league stage.
             </p>
           </div>
           <Badge variant="gold" className="self-start sm:self-auto text-xs font-bold px-3 py-1">
             {currentTournament?.gender === 'women' ? '👑 Women\'s Division' : '🏏 Men\'s Division'}
           </Badge>
+        </div>
+
+        {/* Notice: Bracket Not Yet Decided */}
+        <div className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 text-xs">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-md">
+            <Clock className="w-5 h-5 text-amber-400" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2 font-bold text-amber-300">
+              <span className="text-sm font-black">Playoff Bracket: Not Yet Decided (TBD)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-200">
+                Format Under Final Review
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The official knockout & playoff bracket structure for {currentTournament?.name || "KAPL 3.0"} has not yet been decided. The tournament committee will announce the finalized knockout format and semi-final qualification pathways as the league matches conclude.
+            </p>
+          </div>
         </div>
 
         {/* Group Stage */}
@@ -232,9 +255,17 @@ export default function TournamentStructure() {
         {/* Knockout Stage */}
         <Card className="border-white/[0.08] bg-card/85 backdrop-blur-xl shadow-xl">
           <CardHeader className="border-b border-white/[0.06] pb-4 bg-white/[0.01]">
-            <CardTitle className="text-center font-display text-xl md:text-2xl text-gradient-gold">
-              Playoffs & Championship Bracket
-            </CardTitle>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                ⏳ Playoff Bracket: Not Yet Decided
+              </span>
+              <CardTitle className="font-display text-xl md:text-2xl text-gradient-gold">
+                Playoffs & Championship Bracket
+              </CardTitle>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Provisional draft layout shown below. Matchups and progression format will be finalized once the league stage concludes.
+              </p>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="flex flex-col items-center space-y-8">
@@ -255,7 +286,7 @@ export default function TournamentStructure() {
                   )}>
                     <div className="flex items-center justify-between mb-3 border-b border-white/[0.06] pb-2">
                       <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Semi-Final 1</span>
-                      <Badge variant="outline" className="text-[10px]">A1 vs B2</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-300">TBD • A1 vs B2</Badge>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <div className={cn(
@@ -296,7 +327,7 @@ export default function TournamentStructure() {
                   )}>
                     <div className="flex items-center justify-between mb-3 border-b border-white/[0.06] pb-2">
                       <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Semi-Final 2</span>
-                      <Badge variant="outline" className="text-[10px]">B1 vs A2</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-300">TBD • B1 vs A2</Badge>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <div className={cn(

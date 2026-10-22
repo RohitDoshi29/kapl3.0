@@ -162,3 +162,4 @@ export function PlayerRegistrationPopup({ forceOpen, onClose }: PlayerRegistrati
     </Dialog>
   );
 }
+

@@ -96,8 +96,8 @@ export function MatchFixturesCalendar({
     }
 
     return (
-      <Badge variant="outline" className="bg-white/[0.04] text-slate-300 font-semibold text-xs border-white/10">
-        SCHEDULED
+      <Badge variant="outline" className="bg-amber-500/10 text-amber-300 font-bold text-xs border-amber-500/30">
+        TO BE DECIDED (TBD)
       </Badge>
     );
   };
@@ -111,14 +111,17 @@ export function MatchFixturesCalendar({
               <Calendar className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <CardTitle className="text-base md:text-lg font-bold flex items-center gap-2">
+              <CardTitle className="text-base md:text-lg font-bold flex flex-wrap items-center gap-2">
                 Tournament Fixtures & Schedule
+                <Badge variant="outline" className="bg-amber-500/15 border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
+                  ⏳ TO BE DECIDED (TBD)
+                </Badge>
                 <Badge variant="gold" className="text-[10px]">
                   {currentTournament?.name || 'KAPL 3.0'}
                 </Badge>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Official tournament timeline, match timings, and ground venues
+                Match schedule, timings, and team matchups are To Be Decided following the Mega Player Auction
               </p>
             </div>
           </div>
@@ -206,7 +209,25 @@ export function MatchFixturesCalendar({
         </div>
       </CardHeader>
 
-      <CardContent className="p-3 md:p-6 space-y-3">
+      <CardContent className="p-3 md:p-6 space-y-4">
+        {/* TBD Notice Banner */}
+        <div className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 text-xs">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-md">
+            <Clock className="w-5 h-5 text-amber-400" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2 font-bold text-amber-300">
+              <span className="text-sm font-black">Official Schedule: To Be Decided (TBD)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-200">
+                Pending Mega Auction & Group Draws
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Official match dates, timings, venues, and team fixtures are currently being finalized and will be confirmed after the Mega Player Auction. Below is the provisional tournament draft structure.
+            </p>
+          </div>
+        </div>
+
         {filteredFixtures.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No fixtures found for the selected category.
@@ -296,7 +317,7 @@ export function MatchFixturesCalendar({
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5 font-medium text-slate-300">
                         <Clock className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{fixture.scheduledDate} • {fixture.scheduledTime}</span>
+                        <span>To Be Decided (TBD) • Post Auction</span>
                       </div>
                       <div className="flex items-center gap-1 text-[11px]">
                         <MapPin className="w-3 h-3 text-slate-400" />
