@@ -255,8 +255,20 @@ CREATE TABLE IF NOT EXISTS public.match_history (
   status TEXT NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'live', 'completed')),
   winner TEXT,
   match_type TEXT NOT NULL DEFAULT 'group',
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  player_of_the_match_id TEXT,
+  player_of_the_match_name TEXT,
+  player_of_the_match_team_id TEXT,
+  player_of_the_match_reason TEXT,
+  awards JSONB
 );
+
+-- Idempotent column additions for existing installations
+ALTER TABLE public.match_history ADD COLUMN IF NOT EXISTS player_of_the_match_id TEXT;
+ALTER TABLE public.match_history ADD COLUMN IF NOT EXISTS player_of_the_match_name TEXT;
+ALTER TABLE public.match_history ADD COLUMN IF NOT EXISTS player_of_the_match_team_id TEXT;
+ALTER TABLE public.match_history ADD COLUMN IF NOT EXISTS player_of_the_match_reason TEXT;
+ALTER TABLE public.match_history ADD COLUMN IF NOT EXISTS awards JSONB;
 
 -- 9. TOURNAMENT KNOCKOUT STATE TABLE
 CREATE TABLE IF NOT EXISTS public.tournament_state (

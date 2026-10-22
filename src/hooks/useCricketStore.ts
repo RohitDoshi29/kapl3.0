@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS, Ball, Over, Player, Innings, MatchType, SuperOver, DismissalType, WicketDetails } from '@/lib/cricketTypes';
+import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS, Ball, Over, Player, Innings, MatchType, SuperOver, DismissalType, WicketDetails, PlayerOfTheMatchData } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -1194,6 +1194,11 @@ export function useCricketStore(targetTournamentId?: string) {
             status: h.status as 'setup' | 'live' | 'completed',
             winner: h.winner,
             matchType: (h.match_type || 'group') as MatchType,
+            playerOfTheMatchId: h.player_of_the_match_id || h.innings2?.potm?.id || h.innings1?.potm?.id || undefined,
+            playerOfTheMatchName: h.player_of_the_match_name || h.innings2?.potm?.name || h.innings1?.potm?.name || undefined,
+            playerOfTheMatchTeamId: h.player_of_the_match_team_id || h.innings2?.potm?.teamId || h.innings1?.potm?.teamId || undefined,
+            playerOfTheMatchReason: h.player_of_the_match_reason || h.innings2?.potm?.reason || h.innings1?.potm?.reason || undefined,
+            awards: h.awards || h.innings2?.potm?.awards || h.innings1?.potm?.awards || undefined,
           })));
         }
 
@@ -2339,7 +2344,7 @@ export function useCricketStore(targetTournamentId?: string) {
     toast.success('Player replaced successfully');
   }, [matchState, saveMatchState]);
 
-  const endMatch = useCallback(async (forceTie: boolean = false) => {
+  const endMatch = useCallback(async (forceTie: boolean = false, potmData?: PlayerOfTheMatchData | null) => {
     if (!matchState.currentMatch) return;
     
     const match = { ...matchState.currentMatch };
@@ -2370,8 +2375,28 @@ export function useCricketStore(targetTournamentId?: string) {
     }
     
     match.status = 'completed';
+
+    // Attach Player of the Match honors if provided
+    if (potmData) {
+      match.playerOfTheMatchId = potmData.playerId;
+      match.playerOfTheMatchName = potmData.playerName;
+      match.playerOfTheMatchTeamId = potmData.playerTeamId;
+      match.playerOfTheMatchReason = potmData.reason;
+      match.awards = potmData.awards;
+    }
+
+    const potmPayload = match.playerOfTheMatchId ? {
+      id: match.playerOfTheMatchId,
+      name: match.playerOfTheMatchName,
+      teamId: match.playerOfTheMatchTeamId,
+      reason: match.playerOfTheMatchReason,
+      awards: match.awards,
+    } : null;
+
+    const innings1WithPotm = match.innings1 ? { ...match.innings1, potm: potmPayload } : null;
+    const innings2WithPotm = match.innings2 ? { ...match.innings2, potm: potmPayload } : null;
     
-    // Save to match history
+    // Save to match history (storing POTM in innings JSONB for flawless schema compatibility)
     const { error } = await supabase
       .from('match_history')
       .insert({
@@ -2380,8 +2405,8 @@ export function useCricketStore(targetTournamentId?: string) {
         group: match.group,
         team1_id: match.team1Id,
         team2_id: match.team2Id,
-        innings1: JSON.parse(JSON.stringify(match.innings1)) as Json,
-        innings2: JSON.parse(JSON.stringify(match.innings2)) as Json,
+        innings1: JSON.parse(JSON.stringify(innings1WithPotm)) as Json,
+        innings2: JSON.parse(JSON.stringify(innings2WithPotm)) as Json,
         current_innings: match.currentInnings,
         status: match.status,
         winner: match.winner,
@@ -2402,6 +2427,52 @@ export function useCricketStore(targetTournamentId?: string) {
     // Update local history
     setMatchHistory(prev => [...prev, match]);
   }, [matchState, saveMatchState]);
+
+  // Update or assign Player of the Match for a completed match
+  const updateMatchPOTM = useCallback(async (matchId: string, potmData: PlayerOfTheMatchData) => {
+    let targetMatch: Match | undefined;
+    setMatchHistory(prev => prev.map(m => {
+      if (m.id === matchId) {
+        targetMatch = {
+          ...m,
+          playerOfTheMatchId: potmData.playerId,
+          playerOfTheMatchName: potmData.playerName,
+          playerOfTheMatchTeamId: potmData.playerTeamId,
+          playerOfTheMatchReason: potmData.reason,
+          awards: potmData.awards,
+        };
+        return targetMatch;
+      }
+      return m;
+    }));
+
+    try {
+      const existing = matchHistory.find(m => m.id === matchId);
+      if (existing) {
+        const potmPayload = {
+          id: potmData.playerId,
+          name: potmData.playerName,
+          teamId: potmData.playerTeamId,
+          reason: potmData.reason,
+          awards: potmData.awards,
+        };
+        const inn1 = existing.innings1 ? { ...existing.innings1, potm: potmPayload } : null;
+        const inn2 = existing.innings2 ? { ...existing.innings2, potm: potmPayload } : null;
+
+        await supabase
+          .from('match_history')
+          .update({
+            innings1: JSON.parse(JSON.stringify(inn1)) as Json,
+            innings2: JSON.parse(JSON.stringify(inn2)) as Json,
+          })
+          .eq('id', matchId);
+      }
+      toast.success(`Player of the Match awarded to ${potmData.playerName}!`);
+    } catch (err) {
+      console.error('Error updating match POTM in Supabase:', err);
+      toast.error('Failed to sync Player of the Match');
+    }
+  }, [matchHistory]);
 
   // Discard / Abandon current live match without saving to history or affecting points table
   const abandonMatch = useCallback(async (tournamentId?: string) => {
@@ -3073,6 +3144,7 @@ export function useCricketStore(targetTournamentId?: string) {
     switchBattingTeam,
     swapStrike,
     endMatch,
+    updateMatchPOTM,
     abandonMatch,
     replacePlayer,
     getTeamStats,

@@ -41,6 +41,35 @@ export function LiveMatchInfo({ match, battingTeam, bowlingTeam, currentInnings,
 
   return (
     <div className={cn("space-y-4", className)}>
+      {/* Player of the Match Banner if awarded */}
+      {match.playerOfTheMatchName && (
+        <Card className="bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-500/40 shadow-md">
+          <CardContent className="p-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/30">
+                <Trophy className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                  Player of the Match
+                </span>
+                <p className="font-black text-base text-white">
+                  {match.playerOfTheMatchName}
+                </p>
+                {match.playerOfTheMatchReason && (
+                  <p className="text-xs text-amber-200/90 font-medium line-clamp-2">
+                    {match.playerOfTheMatchReason}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Badge className="bg-amber-500 text-slate-950 font-black text-xs px-2.5 py-1 flex-shrink-0">
+              🏆 POTM
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Match Title - Teams Playing */}
       <Card className="bg-gradient-to-r from-primary/5 via-transparent to-accent/5 border-primary/20">
         <CardContent className="p-4">

@@ -54,9 +54,17 @@ export function MatchHistory({ matchHistory, getTeam, className, limit = 10 }: M
                         <div className="font-medium text-xs md:text-sm">
                           {t1?.name} vs {t2?.name}
                         </div>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {MATCH_TYPE_LABELS[m.matchType]}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {MATCH_TYPE_LABELS[m.matchType]}
+                          </Badge>
+                          {m.playerOfTheMatchName && (
+                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-300 border border-amber-500/30 gap-1 font-semibold">
+                              <Trophy className="w-2.5 h-2.5 text-amber-400" />
+                              POTM: {m.playerOfTheMatchName}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-2">

@@ -37,6 +37,8 @@ import { NoBallModal } from './NoBallModal';
 import { DismissalModal } from './DismissalModal';
 import { OverTransitionDialog } from './OverTransitionDialog';
 import { BallAuditModal } from './BallAuditModal';
+import { PlayerOfTheMatchModal } from '@/components/cricket/PlayerOfTheMatchModal';
+import { PlayerOfTheMatchData } from '@/lib/cricketTypes';
 
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
@@ -90,6 +92,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   const [dismissalModalOpen, setDismissalModalOpen] = useState(false);
   const [overTransitionOpen, setOverTransitionOpen] = useState(false);
   const [ballAuditModalOpen, setBallAuditModalOpen] = useState(false);
+  const [potmModalOpen, setPotmModalOpen] = useState(false);
   const [auditTarget, setAuditTarget] = useState<{
     overIndex: number;
     ballIndex: number;
@@ -225,8 +228,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     toast.success('Innings switched!');
   };
 
-  const handleEndMatch = () => {
-    // Determine winner before ending match
+  const getMatchWinnerName = () => {
     const innings1 = match?.innings1;
     const innings2 = match?.innings2;
     let winnerName = 'Match';
@@ -245,9 +247,26 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
       const inn1Team = getTeam(innings1.battingTeamId);
       winnerName = inn1Team?.name || team1?.name || 'Team 1';
     }
-    
-    endMatch();
+    return winnerName;
+  };
+
+  const handleEndMatch = () => {
+    // Open Player of the Match presentation modal
+    setPotmModalOpen(true);
+  };
+
+  const handleConfirmPOTM = (potmData: PlayerOfTheMatchData) => {
+    const winnerName = getMatchWinnerName();
+    endMatch(false, potmData);
     triggerWinner(winnerName);
+    toast.success(`Match ended! 🏆 Player of the Match: ${potmData.playerName}`);
+  };
+
+  const handleSkipPOTM = () => {
+    const winnerName = getMatchWinnerName();
+    endMatch(false, null);
+    triggerWinner(winnerName);
+    toast.success('Match ended!');
   };
 
   const canUndo = !!matchState.lastAction;
@@ -277,9 +296,20 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   // Show Super Over Scorer if match is in super_over status
   if (match?.status === 'super_over') {
     return (
-      <SuperOverScorer onEndMatch={() => {
-        endMatch();
-      }} />
+      <>
+        <SuperOverScorer onEndMatch={() => {
+          setPotmModalOpen(true);
+        }} />
+        <PlayerOfTheMatchModal
+          open={potmModalOpen}
+          onOpenChange={setPotmModalOpen}
+          match={match}
+          team1={team1 || undefined}
+          team2={team2 || undefined}
+          onConfirm={handleConfirmPOTM}
+          onSkip={handleSkipPOTM}
+        />
+      </>
     );
   }
 
@@ -766,14 +796,23 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             <p className="text-xs md:text-sm text-emerald-200/90 font-medium max-w-md mx-auto">
               {battingTeam?.name} has successfully scored {currentInnings.runs}/{currentInnings.wickets} to chase down the target of {targetRuns} runs.
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               <Button
                 size="lg"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-8 shadow-lg shadow-emerald-600/30"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-6 shadow-lg shadow-emerald-600/30"
                 onClick={handleEndMatch}
               >
                 <Trophy className="w-5 h-5 mr-2" />
-                End Match & Finalize Result
+                End Match & Presentation
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-amber-400/50 text-amber-300 hover:bg-amber-400/10 font-bold px-5"
+                onClick={() => setPotmModalOpen(true)}
+              >
+                <Award className="w-5 h-5 mr-2 text-amber-400" />
+                Player of the Match
               </Button>
             </div>
           </CardContent>
@@ -822,14 +861,23 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 ? 'Match is TIED! Click End Match to start Super Over or finalize tie.'
                 : `${currentInnings.runs < (match?.innings1?.runs || 0) ? bowlingTeam?.name : battingTeam?.name} wins! Click End Match to finalize results.`}
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               <Button
                 size="lg"
                 className="bg-blue-600 hover:bg-blue-500 text-white font-extrabold px-6 shadow-md"
                 onClick={handleEndMatch}
               >
                 <Trophy className="w-5 h-5 mr-2" />
-                End Match & Finalize Result
+                End Match & Presentation
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-amber-400/50 text-amber-300 hover:bg-amber-400/10 font-bold px-5"
+                onClick={() => setPotmModalOpen(true)}
+              >
+                <Award className="w-5 h-5 mr-2 text-amber-400" />
+                Player of the Match
               </Button>
             </div>
           </CardContent>
@@ -1270,6 +1318,17 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         onEditBall={(oIdx, bIdx, updated) => editBall(oIdx, bIdx, updated)}
         onDeleteBall={(oIdx, bIdx) => deleteBall(oIdx, bIdx)}
         onUndoToBall={(oIdx, bIdx) => undoToBall(oIdx, bIdx)}
+      />
+
+      {/* Official Match Honors & Player of the Match Presentation Modal */}
+      <PlayerOfTheMatchModal
+        open={potmModalOpen}
+        onOpenChange={setPotmModalOpen}
+        match={match}
+        team1={team1 || undefined}
+        team2={team2 || undefined}
+        onConfirm={handleConfirmPOTM}
+        onSkip={handleSkipPOTM}
       />
     </div>
     </>

@@ -227,6 +227,23 @@ export interface SuperOver {
   completed: boolean;
 }
 
+export interface MatchAward {
+  id: string;
+  title: string;
+  playerId: string;
+  playerName: string;
+  playerTeamId?: string;
+  detail?: string;
+}
+
+export interface PlayerOfTheMatchData {
+  playerId: string;
+  playerName: string;
+  playerTeamId: string;
+  reason?: string;
+  awards?: MatchAward[];
+}
+
 export interface Match {
   id: string;
   tournamentId?: string;
@@ -241,6 +258,11 @@ export interface Match {
   matchType: MatchType;
   superOver?: SuperOver;
   isTied?: boolean;
+  playerOfTheMatchId?: string;
+  playerOfTheMatchName?: string;
+  playerOfTheMatchTeamId?: string;
+  playerOfTheMatchReason?: string;
+  awards?: MatchAward[];
 }
 
 export const MATCH_TYPE_LABELS: Record<MatchType, string> = {

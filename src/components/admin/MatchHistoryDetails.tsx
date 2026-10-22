@@ -1,12 +1,15 @@
-import { Match, Team, Innings } from '@/lib/cricketTypes';
+import { useState } from 'react';
+import { Match, Team, Innings, PlayerOfTheMatchData } from '@/lib/cricketTypes';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, Trophy, Award, Sparkles, Medal } from 'lucide-react';
 import { exportMatchToExcel } from '@/lib/exportMatchToExcel';
+import { useCricketStore } from '@/hooks/useCricketStore';
+import { PlayerOfTheMatchModal } from '@/components/cricket/PlayerOfTheMatchModal';
 
 interface MatchHistoryDetailsProps {
   match: Match | null;
@@ -16,11 +19,19 @@ interface MatchHistoryDetailsProps {
 }
 
 export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange }: MatchHistoryDetailsProps) {
+  const [potmModalOpen, setPotmModalOpen] = useState(false);
+  const { updateMatchPOTM } = useCricketStore();
+
   if (!match) return null;
 
   const team1 = getTeam(match.team1Id);
   const team2 = getTeam(match.team2Id);
   const winnerTeam = match.winner ? getTeam(match.winner) : null;
+  const potmTeam = match.playerOfTheMatchTeamId ? getTeam(match.playerOfTheMatchTeamId) : null;
+
+  const handleUpdatePOTM = (data: PlayerOfTheMatchData) => {
+    updateMatchPOTM(match.id, data);
+  };
 
   const renderInningsDetails = (innings: Innings | null, battingTeam: Team | undefined, bowlingTeam: Team | undefined) => {
     if (!innings || !battingTeam || !bowlingTeam) {
@@ -209,6 +220,63 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
           </DialogTitle>
         </DialogHeader>
         
+        {/* Player of the Match Honors Banner */}
+        {match.playerOfTheMatchName ? (
+          <div className="mx-1 my-1 p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-500/40 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
+                    Player of the Match
+                  </span>
+                  {potmTeam && (
+                    <Badge variant="outline" className="text-[10px] border-amber-500/30 text-slate-300">
+                      {potmTeam.name}
+                    </Badge>
+                  )}
+                </div>
+                <p className="font-extrabold text-sm text-slate-100">
+                  {match.playerOfTheMatchName}
+                </p>
+                {match.playerOfTheMatchReason && (
+                  <p className="text-xs text-amber-200/90 font-medium line-clamp-1">
+                    {match.playerOfTheMatchReason}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400/40 text-amber-300 hover:bg-amber-400/10 text-xs gap-1.5 font-bold"
+              onClick={() => setPotmModalOpen(true)}
+            >
+              <Award className="w-3.5 h-3.5" />
+              Edit Honors
+            </Button>
+          </div>
+        ) : (
+          <div className="mx-1 my-1 p-2.5 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Trophy className="w-4 h-4 text-slate-500" />
+              <span>Player of the Match not yet recorded</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400/40 text-amber-300 hover:bg-amber-400/10 text-xs gap-1 font-bold"
+              onClick={() => setPotmModalOpen(true)}
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              Award POTM
+            </Button>
+          </div>
+        )}
+
         <ScrollArea className="h-[65vh]">
           <Tabs defaultValue="innings1" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -230,6 +298,17 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
           </Tabs>
         </ScrollArea>
       </DialogContent>
+
+      {/* POTM Edit & Presentation Modal */}
+      <PlayerOfTheMatchModal
+        open={potmModalOpen}
+        onOpenChange={setPotmModalOpen}
+        match={match}
+        team1={team1}
+        team2={team2}
+        onConfirm={handleUpdatePOTM}
+        isPostMatchReview={true}
+      />
     </Dialog>
   );
 }
