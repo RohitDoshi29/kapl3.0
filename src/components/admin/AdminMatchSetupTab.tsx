@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
+import { useTournament } from '@/contexts/TournamentContext';
+import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,8 +39,8 @@ interface AdminMatchSetupTabProps {
 }
 
 export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSetupTabProps) {
-  const { getTeamsByGroup, getTeam, startMatch, abandonMatch, matchState, teams } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
+  const { getTeamsByGroup, getTeam, startMatch, abandonMatch, matchState, teams } = useCricketStore(activeTournamentId);
   const [selectedGroup, setSelectedGroup] = useState<'A' | 'B'>('A');
   const [team1Id, setTeam1Id] = useState<string>('');
   const [team2Id, setTeam2Id] = useState<string>('');
@@ -286,12 +288,23 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
     const activeTeam2 = getTeam(activeMatch.team2Id);
 
     return (
-      <div className="max-w-md mx-auto">
+      <div className="max-w-md mx-auto space-y-4">
+        {/* Tournament Division Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-card/80 border border-white/10 rounded-2xl p-2.5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tournament Division:</span>
+            <Badge variant="gold" className="text-xs font-bold">
+              {currentTournament?.name || 'KAPL 3.0'}
+            </Badge>
+          </div>
+          <TournamentSwitcher size="sm" />
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-500">
               <AlertCircle className="w-5 h-5" />
-              Match In Progress
+              Match In Progress ({currentTournament?.name || 'KAPL 3.0'})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -350,6 +363,17 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Tournament Division Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-card/80 border border-white/10 rounded-2xl p-2.5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tournament Division:</span>
+          <Badge variant="gold" className="text-xs font-bold">
+            {currentTournament?.name || 'KAPL 3.0'}
+          </Badge>
+        </div>
+        <TournamentSwitcher size="sm" />
+      </div>
+
       {/* Tournament Fixtures & Quick Launcher */}
       <MatchFixturesCalendar onSelectFixtureForScoring={handleSelectFixture} isAdminView={true} />
 

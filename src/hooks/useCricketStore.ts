@@ -379,11 +379,13 @@ if (typeof window !== 'undefined') {
 function notifyGlobalStateListeners(newState: MatchState, tournamentId?: string) {
   const resolvedTId = tournamentId || resolveTournamentId(newState.currentMatch);
   globalTournamentMatchStates[resolvedTId] = newState;
-  globalLocalMatchState = newState;
+  if (!newState.currentMatch || resolvedTId === 'kapl-3-mens') {
+    globalLocalMatchState = newState;
+  }
 
   globalStateListeners.forEach(listener => {
     try {
-      listener(newState);
+      (listener as any)(newState, resolvedTId);
     } catch (e) {
       console.warn('Error in state listener:', e);
     }
@@ -404,9 +406,10 @@ function notifyGlobalPlayersListeners(players: Record<string, string[]>) {
 export function broadcastLiveMatchDelta(
   currentMatch: Match | null,
   lastAction: any,
-  playingPlayers?: Record<string, string[]>
+  playingPlayers?: Record<string, string[]>,
+  explicitTournamentId?: string
 ) {
-  const matchTournId = resolveTournamentId(currentMatch);
+  const matchTournId = explicitTournamentId || resolveTournamentId(currentMatch);
   const matchWithPlayers = currentMatch ? {
     ...currentMatch,
     tournamentId: matchTournId,
@@ -434,13 +437,15 @@ export function broadcastLiveMatchDelta(
         last_action: lastAction,
         updated_at: new Date().toISOString(),
       });
-      localStorage.setItem('kapl_local_match_state', serialized);
       localStorage.setItem(`kapl_local_match_state_${matchTournId}`, serialized);
+      if (matchTournId === 'kapl-3-mens') {
+        localStorage.setItem('kapl_local_match_state', serialized);
+      }
     } else {
-      localStorage.removeItem('kapl_local_match_state');
       localStorage.removeItem(`kapl_local_match_state_${matchTournId}`);
-      localStorage.removeItem('kapl_local_match_state_kapl-3-mens');
-      localStorage.removeItem('kapl_local_match_state_kapl-3-womens');
+      if (matchTournId === 'kapl-3-mens') {
+        localStorage.removeItem('kapl_local_match_state');
+      }
     }
   } catch (e) {}
 
@@ -525,10 +530,14 @@ function initSharedRealtimeChannel() {
                 current_match: currentMatch,
                 last_action: lastAction,
               });
-              localStorage.setItem('kapl_local_match_state', serialized);
+              if (tId === 'kapl-3-mens') {
+                localStorage.setItem('kapl_local_match_state', serialized);
+              }
               localStorage.setItem(`kapl_local_match_state_${tId}`, serialized);
             } else {
-              localStorage.removeItem('kapl_local_match_state');
+              if (tId === 'kapl-3-mens') {
+                localStorage.removeItem('kapl_local_match_state');
+              }
               localStorage.removeItem(`kapl_local_match_state_${tId}`);
             }
           } catch (e) {}
@@ -630,10 +639,14 @@ function initSharedRealtimeChannel() {
                 current_match: effectiveCurrentMatch,
                 last_action: newState.last_action,
               });
-              localStorage.setItem('kapl_local_match_state', serialized);
+              if (tId === 'kapl-3-mens') {
+                localStorage.setItem('kapl_local_match_state', serialized);
+              }
               localStorage.setItem(`kapl_local_match_state_${tId}`, serialized);
             } else {
-              localStorage.removeItem('kapl_local_match_state');
+              if (tId === 'kapl-3-mens') {
+                localStorage.removeItem('kapl_local_match_state');
+              }
               localStorage.removeItem(`kapl_local_match_state_${tId}`);
             }
           } catch (e) {}
@@ -798,7 +811,9 @@ export async function pollMatchStateDatabase() {
           notifyGlobalStateListeners({ currentMatch: null, lastAction: null }, tId);
           notifyGlobalPlayersListeners({});
           try {
-            localStorage.removeItem('kapl_local_match_state');
+            if (tId === 'kapl-3-mens') {
+              localStorage.removeItem('kapl_local_match_state');
+            }
             localStorage.removeItem(`kapl_local_match_state_${tId}`);
           } catch (e) {}
           continue;
@@ -820,7 +835,9 @@ export async function pollMatchStateDatabase() {
               current_match: currentMatch,
               last_action: lastAction,
             });
-            localStorage.setItem('kapl_local_match_state', serialized);
+            if (tId === 'kapl-3-mens') {
+              localStorage.setItem('kapl_local_match_state', serialized);
+            }
             localStorage.setItem(`kapl_local_match_state_${tId}`, serialized);
           } catch (e) {}
         }
@@ -904,16 +921,27 @@ export function useCricketStore(targetTournamentId?: string) {
     if (tMatch && tMatch.id !== '1792091739936') {
       return globalTournamentMatchStates[effectiveTournamentId];
     }
-    if (globalLocalMatchState.currentMatch && globalLocalMatchState.currentMatch.id !== '1792091739936') {
+    if (
+      globalLocalMatchState.currentMatch &&
+      globalLocalMatchState.currentMatch.id !== '1792091739936' &&
+      resolveTournamentId(globalLocalMatchState.currentMatch) === effectiveTournamentId
+    ) {
       return globalLocalMatchState;
     }
     try {
-      const cached = localStorage.getItem(`kapl_local_match_state_${effectiveTournamentId}`) || localStorage.getItem('kapl_local_match_state');
+      const cachedKey = `kapl_local_match_state_${effectiveTournamentId}`;
+      const cached = localStorage.getItem(cachedKey) || (effectiveTournamentId === 'kapl-3-mens' ? localStorage.getItem('kapl_local_match_state') : null);
       if (cached) {
         const parsed = JSON.parse(cached);
+        const matchTId = resolveTournamentId(parsed.current_match);
+        if (matchTId !== effectiveTournamentId) {
+          return { currentMatch: null, lastAction: null };
+        }
         if (parsed.current_match?.id === '1792091739936') {
-          localStorage.removeItem(`kapl_local_match_state_${effectiveTournamentId}`);
-          localStorage.removeItem('kapl_local_match_state');
+          localStorage.removeItem(cachedKey);
+          if (effectiveTournamentId === 'kapl-3-mens') {
+            localStorage.removeItem('kapl_local_match_state');
+          }
           return { currentMatch: null, lastAction: null };
         }
         return {
@@ -979,9 +1007,9 @@ export function useCricketStore(targetTournamentId?: string) {
       setMatchState(currentTournState);
     }
 
-    const handleStateUpdate = (newState: MatchState) => {
-      const matchTournId = resolveTournamentId(newState.currentMatch);
-      if (!targetTournamentId || matchTournId === effectiveTournamentId) {
+    const handleStateUpdate = (newState: MatchState, updatedTId?: string) => {
+      const matchTournId = updatedTId || resolveTournamentId(newState.currentMatch);
+      if (matchTournId === effectiveTournamentId) {
         setMatchState(newState);
       }
     };
@@ -1015,7 +1043,7 @@ export function useCricketStore(targetTournamentId?: string) {
           const parsed = JSON.parse(e.newValue);
           if (parsed.current_match) {
             const tId = resolveTournamentId(parsed.current_match);
-            if (!targetTournamentId || tId === effectiveTournamentId) {
+            if (tId === effectiveTournamentId) {
               handleStateUpdate({
                 currentMatch: parsed.current_match,
                 lastAction: parsed.last_action || null,
@@ -1042,7 +1070,7 @@ export function useCricketStore(targetTournamentId?: string) {
     const handleLocalMatchUpdate = (e: any) => {
       if (e.detail && 'currentMatch' in e.detail) {
         const tId = resolveTournamentId(e.detail.currentMatch, e.detail.tournamentId);
-        if (!targetTournamentId || tId === effectiveTournamentId) {
+        if (tId === effectiveTournamentId) {
           handleStateUpdate({
             currentMatch: e.detail.currentMatch || null,
             lastAction: e.detail.lastAction || null,
@@ -1438,14 +1466,16 @@ export function useCricketStore(targetTournamentId?: string) {
     }
   }, []);
 
-  const saveMatchState = useCallback(async (newState: MatchState) => {
+  const saveMatchState = useCallback(async (newState: MatchState, explicitTournamentId?: string) => {
+    const matchTournId = explicitTournamentId || (newState.currentMatch as any)?.tournamentId || (matchState.currentMatch as any)?.tournamentId || effectiveTournamentId || 'kapl-3-mens';
     const matchWithPlayers = newState.currentMatch ? {
       ...newState.currentMatch,
+      tournamentId: matchTournId,
       playingPlayers,
     } : null;
 
     // 1. Immediately broadcast delta across in-tab components, cross-tab, and over WebSockets
-    broadcastLiveMatchDelta(matchWithPlayers, newState.lastAction, playingPlayers);
+    broadcastLiveMatchDelta(matchWithPlayers, newState.lastAction, playingPlayers, matchTournId);
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       try {
@@ -1456,14 +1486,13 @@ export function useCricketStore(targetTournamentId?: string) {
     }
 
     // 2. Persist to Supabase match_state with tournament segregation
-    const targetId = matchWithPlayers?.tournamentId === 'kapl-3-womens' ? 'womens' : 'current';
-    const tournId = matchWithPlayers?.tournamentId || 'kapl-3-mens';
+    const targetId = matchTournId === 'kapl-3-womens' ? 'womens' : 'current';
 
     const payload = {
       id: targetId,
-      tournament_id: tournId,
-      current_match: JSON.parse(JSON.stringify(matchWithPlayers)) as Json,
-      last_action: JSON.parse(JSON.stringify(newState.lastAction)) as Json,
+      tournament_id: matchTournId,
+      current_match: matchWithPlayers ? (JSON.parse(JSON.stringify(matchWithPlayers)) as Json) : null,
+      last_action: newState.lastAction ? (JSON.parse(JSON.stringify(newState.lastAction)) as Json) : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -2418,10 +2447,12 @@ export function useCricketStore(targetTournamentId?: string) {
       return;
     }
 
-    // Clear current match
+    // Clear current match specifically for this tournament
+    const matchTournId = match.tournamentId || effectiveTournamentId || 'kapl-3-mens';
     const newState = { currentMatch: null, lastAction: null };
     setMatchState(newState);
-    await saveMatchState(newState);
+    await saveMatchState(newState, matchTournId);
+    broadcastLiveMatchDelta(null, null, undefined, matchTournId);
     setPlayingPlayers({});
     
     // Update local history
@@ -2480,21 +2511,27 @@ export function useCricketStore(targetTournamentId?: string) {
     const newState = { currentMatch: null, lastAction: null };
     
     globalTournamentMatchStates[tId] = newState;
-    globalTournamentMatchStates['kapl-3-mens'] = newState;
-    globalTournamentMatchStates['kapl-3-womens'] = { currentMatch: null, lastAction: null };
-    globalLocalMatchState = newState;
+    if (globalLocalMatchState.currentMatch && resolveTournamentId(globalLocalMatchState.currentMatch) === tId) {
+      globalLocalMatchState = newState;
+    }
     setMatchState(newState);
     setPlayingPlayers({});
 
-    // 1. Broadcast delta to all mounted components & cross-tab & WebSockets
-    broadcastLiveMatchDelta(null, null, undefined);
+    // 1. Broadcast delta to all mounted components & cross-tab & WebSockets specifically for this tournament
+    broadcastLiveMatchDelta(null, null, undefined, tId);
 
-    // 2. Clear localStorage entries
+    // 2. Clear localStorage entries specifically for this tournament
     try {
-      localStorage.removeItem('kapl_local_match_state');
       localStorage.removeItem(`kapl_local_match_state_${tId}`);
-      localStorage.removeItem('kapl_local_match_state_kapl-3-mens');
-      localStorage.removeItem('kapl_local_match_state_kapl-3-womens');
+      const rawCurrent = localStorage.getItem('kapl_local_match_state');
+      if (rawCurrent) {
+        try {
+          const parsed = JSON.parse(rawCurrent);
+          if (resolveTournamentId(parsed.current_match) === tId) {
+            localStorage.removeItem('kapl_local_match_state');
+          }
+        } catch {}
+      }
     } catch (e) {}
 
     // 3. Persist to Supabase match_state

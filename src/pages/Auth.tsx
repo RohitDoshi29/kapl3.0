@@ -74,6 +74,7 @@ export default function Auth() {
     initialRole === 'spectator' ? 'spectator' : 'player'
   );
   const [playingRole, setPlayingRole] = useState<PlayerRole>('all_rounder');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [battingStyle, setBattingStyle] = useState('Right-hand bat');
   const [bowlingStyle, setBowlingStyle] = useState('Right-arm medium');
   const [jerseyNumber, setJerseyNumber] = useState('');
@@ -197,6 +198,7 @@ export default function Auth() {
         bowlingStyle,
         jerseyNumber: jerseyNumber.trim() ? Number(jerseyNumber) : null,
         tournamentId,
+        gender,
         bio: bio.trim() || undefined,
       });
 
@@ -407,12 +409,12 @@ export default function Auth() {
                     </div>
                   </div>
 
-                  {/* Mobile & Account Type */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Mobile, Gender & Account Type */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="signup-phone" className="text-xs font-bold flex items-center gap-1">
                         <Phone className="w-3 h-3 text-muted-foreground" />
-                        Mobile / WhatsApp Number
+                        Mobile / WhatsApp
                       </Label>
                       <Input
                         id="signup-phone"
@@ -423,6 +425,47 @@ export default function Auth() {
                         disabled={isSubmitting}
                         autoComplete="tel"
                       />
+                    </div>
+
+                    {/* Gender Selection */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">
+                        Gender <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGender('male');
+                            setTournamentId('kapl-3-mens');
+                          }}
+                          className={cn(
+                            "h-10 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all",
+                            gender === 'male'
+                              ? "bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-sm"
+                              : "bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.06]"
+                          )}
+                        >
+                          <span>🏏</span>
+                          <span>Male</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGender('female');
+                            setTournamentId('kapl-3-womens');
+                          }}
+                          className={cn(
+                            "h-10 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all",
+                            gender === 'female'
+                              ? "bg-pink-500/20 border-pink-500/60 text-pink-300 shadow-sm"
+                              : "bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.06]"
+                          )}
+                        >
+                          <span>👑</span>
+                          <span>Female</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
@@ -444,135 +487,144 @@ export default function Auth() {
                   </div>
                 </div>
 
-                {/* 2. Cricket Playing Attributes */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                        Cricket Playing Attributes
-                      </h3>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">Displayed on leaderboards & rosters</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Primary Role */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">Playing Role</Label>
-                      <Select
-                        value={playingRole}
-                        onValueChange={(val: any) => setPlayingRole(val)}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="h-10 text-xs">
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all_rounder">👑 All-Rounder</SelectItem>
-                          <SelectItem value="batter">🏏 Pure Batter</SelectItem>
-                          <SelectItem value="bowler">⚡ Strike Bowler</SelectItem>
-                          <SelectItem value="wicket_keeper">🧤 Wicket-Keeper</SelectItem>
-                        </SelectContent>
-                      </Select>
+                {/* 2. Cricket Playing Attributes (Only for Players) */}
+                {accountType === 'player' && (
+                  <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                          Cricket Playing Attributes
+                        </h3>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30 bg-amber-500/10">
+                        Dual League Eligible
+                      </Badge>
                     </div>
 
-                    {/* Batting Style */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">Batting Style</Label>
-                      <Select
-                        value={battingStyle}
-                        onValueChange={setBattingStyle}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="h-10 text-xs">
-                          <SelectValue placeholder="Select batting style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Right-hand bat">Right-hand bat</SelectItem>
-                          <SelectItem value="Left-hand bat">Left-hand bat</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Primary Role */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Playing Role</Label>
+                        <Select
+                          value={playingRole}
+                          onValueChange={(val: any) => setPlayingRole(val)}
+                          disabled={isSubmitting}
+                        >
+                          <SelectTrigger className="h-10 text-xs">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all_rounder">👑 All-Rounder</SelectItem>
+                            <SelectItem value="batter">🏏 Pure Batter</SelectItem>
+                            <SelectItem value="bowler">⚡ Strike Bowler</SelectItem>
+                            <SelectItem value="wicket_keeper">🧤 Wicket-Keeper</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Batting Style */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Batting Style</Label>
+                        <Select
+                          value={battingStyle}
+                          onValueChange={setBattingStyle}
+                          disabled={isSubmitting}
+                        >
+                          <SelectTrigger className="h-10 text-xs">
+                            <SelectValue placeholder="Select batting style" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Right-hand bat">Right-hand bat</SelectItem>
+                            <SelectItem value="Left-hand bat">Left-hand bat</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Bowling Style */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Bowling Style</Label>
+                        <Select
+                          value={bowlingStyle}
+                          onValueChange={setBowlingStyle}
+                          disabled={isSubmitting}
+                        >
+                          <SelectTrigger className="h-10 text-xs">
+                            <SelectValue placeholder="Select bowling style" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Right-arm medium">Right-arm medium</SelectItem>
+                            <SelectItem value="Right-arm fast">Right-arm fast</SelectItem>
+                            <SelectItem value="Left-arm fast">Left-arm fast</SelectItem>
+                            <SelectItem value="Right-arm off break">Right-arm off break</SelectItem>
+                            <SelectItem value="Right-arm leg break">Right-arm leg break</SelectItem>
+                            <SelectItem value="Left-arm orthodox">Left-arm orthodox</SelectItem>
+                            <SelectItem value="Left-arm chinaman">Left-arm chinaman</SelectItem>
+                            <SelectItem value="Non-bowler">None / Non-bowler</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    {/* Bowling Style */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">Bowling Style</Label>
-                      <Select
-                        value={bowlingStyle}
-                        onValueChange={setBowlingStyle}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="h-10 text-xs">
-                          <SelectValue placeholder="Select bowling style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Right-arm medium">Right-arm medium</SelectItem>
-                          <SelectItem value="Right-arm fast">Right-arm fast</SelectItem>
-                          <SelectItem value="Left-arm fast">Left-arm fast</SelectItem>
-                          <SelectItem value="Right-arm off break">Right-arm off break</SelectItem>
-                          <SelectItem value="Right-arm leg break">Right-arm leg break</SelectItem>
-                          <SelectItem value="Left-arm orthodox">Left-arm orthodox</SelectItem>
-                          <SelectItem value="Left-arm chinaman">Left-arm chinaman</SelectItem>
-                          <SelectItem value="Non-bowler">None / Non-bowler</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Jersey Number */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor="signup-jersey" className="text-xs font-bold">
+                          Preferred Jersey Number
+                        </Label>
+                        <Input
+                          id="signup-jersey"
+                          type="number"
+                          min="0"
+                          max="99"
+                          placeholder="e.g. 7, 18, 45, 99"
+                          value={jerseyNumber}
+                          onChange={(e) => setJerseyNumber(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Jersey Number */}
+                      {/* Tournament Division */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Primary Division Preference</Label>
+                        <Select
+                          value={tournamentId}
+                          onValueChange={setTournamentId}
+                          disabled={isSubmitting}
+                        >
+                          <SelectTrigger className="h-10 text-xs">
+                            <SelectValue placeholder="Select division" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="kapl-3-mens">🏏 KAPL 3.0 Men's Tournament</SelectItem>
+                            <SelectItem value="kapl-3-womens">👑 KAPL 3.0 Women's Tournament</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 bg-white/[0.02] p-2 rounded-xl border border-white/5">
+                      <span>✨</span>
+                      <span>Player profile will automatically sync to both <strong>Men's</strong> and <strong>Women's</strong> auction pools for complete team franchise accessibility.</span>
+                    </p>
+
+                    {/* Bio */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="signup-jersey" className="text-xs font-bold">
-                        Preferred Jersey Number
+                      <Label htmlFor="signup-bio" className="text-xs font-bold">
+                        Bio / Playing Experience
                       </Label>
-                      <Input
-                        id="signup-jersey"
-                        type="number"
-                        min="0"
-                        max="99"
-                        placeholder="e.g. 7, 18, 45, 99"
-                        value={jerseyNumber}
-                        onChange={(e) => setJerseyNumber(e.target.value)}
+                      <Textarea
+                        id="signup-bio"
+                        rows={2}
+                        placeholder="Short note about your batting strengths, bowling pace, past cricket achievements..."
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
                         disabled={isSubmitting}
+                        className="text-xs resize-none"
                       />
                     </div>
-
-                    {/* Tournament Division */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">Tournament Division</Label>
-                      <Select
-                        value={tournamentId}
-                        onValueChange={setTournamentId}
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="h-10 text-xs">
-                          <SelectValue placeholder="Select division" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kapl-3-mens">🏏 KAPL 3.0 Men's Tournament</SelectItem>
-                          <SelectItem value="kapl-3-womens">👑 KAPL 3.0 Women's Tournament</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-
-                  {/* Bio */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="signup-bio" className="text-xs font-bold">
-                      Bio / Playing Experience
-                    </Label>
-                    <Textarea
-                      id="signup-bio"
-                      rows={2}
-                      placeholder="Short note about your batting strengths, bowling pace, past cricket achievements..."
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      disabled={isSubmitting}
-                      className="text-xs resize-none"
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* 3. Password & Security */}
                 <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">

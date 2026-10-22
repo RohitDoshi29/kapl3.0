@@ -87,6 +87,7 @@ export interface PlayerRecord {
   auctionStatus: AuctionStatus;
   jerseyNumber?: number | null;
   mobileNumber?: string | null;
+  gender?: 'male' | 'female' | string;
   createdAt?: string;
   updatedAt?: string;
 }

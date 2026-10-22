@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
+import { useTournament } from '@/contexts/TournamentContext';
+import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +47,7 @@ interface AdminScorerTabProps {
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
+  const { activeTournamentId, currentTournament } = useTournament();
   const {
     matchState,
     matchHistory,
@@ -70,15 +73,18 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     pendingOfflineChanges,
     isSyncing,
     syncOfflineQueue,
-  } = useCricketStore();
+  } = useCricketStore(activeTournamentId);
   let match = matchState.currentMatch;
   if (!match) {
     try {
-      const cached = localStorage.getItem('kapl_local_match_state');
+      const cached = localStorage.getItem(`kapl_local_match_state_${activeTournamentId}`) || localStorage.getItem('kapl_local_match_state');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.current_match && parsed.current_match.status === 'live') {
-          match = parsed.current_match;
+          const tId = parsed.current_match.tournamentId || (getTeam(parsed.current_match.team1Id)?.tournamentId) || 'kapl-3-mens';
+          if (tId === activeTournamentId) {
+            match = parsed.current_match;
+          }
         }
       }
     } catch (e) {}
@@ -375,13 +381,24 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   if (!match || !team1 || !team2 || !currentInnings || !battingTeam || !bowlingTeam) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Tournament Division Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-card/80 border border-white/10 rounded-2xl p-2.5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Scoring Division:</span>
+            <Badge variant="gold" className="text-xs font-bold">
+              {currentTournament?.name || 'KAPL 3.0'}
+            </Badge>
+          </div>
+          <TournamentSwitcher size="sm" />
+        </div>
+
         <div className="text-center py-16 space-y-6">
           <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
             <PlayCircle className="w-12 h-12 text-muted-foreground" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold mb-2">No Active Match</h2>
-            <p className="text-muted-foreground mb-6">Start a new match to begin scoring</p>
+            <h2 className="text-2xl font-bold mb-2">No Active Match in {currentTournament?.name || "Tournament"}</h2>
+            <p className="text-muted-foreground mb-6">Start a new match or switch divisions to begin scoring</p>
             <Button size="lg" className="gap-2" onClick={onNavigateToSetup}>
               <PlayCircle className="w-5 h-5" />
               Setup New Match
@@ -465,7 +482,18 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         onComplete={clearAnimation}
       />
       <div className="max-w-4xl mx-auto space-y-4">
-      {/* Resilient Offline Status Banner */}
+        {/* Tournament Division Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-card/80 border border-white/10 rounded-2xl p-2.5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Scoring Division:</span>
+            <Badge variant="gold" className="text-xs font-bold">
+              {currentTournament?.name || 'KAPL 3.0'}
+            </Badge>
+          </div>
+          <TournamentSwitcher size="sm" />
+        </div>
+
+        {/* Resilient Offline Status Banner */}
       <div className="flex items-center justify-between bg-card border rounded-2xl px-4 py-2 shadow-sm text-xs">
         <div className="flex items-center gap-2">
           {isOnline ? (
