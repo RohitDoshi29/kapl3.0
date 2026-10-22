@@ -128,6 +128,13 @@ BEGIN
     VALUES (NEW.id, 'user')
     ON CONFLICT (user_id, role) DO NOTHING;
   END IF;
+
+  -- Ensure newly registered users are automatically verified without email confirmation
+  UPDATE auth.users
+  SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      confirmed_at = COALESCE(confirmed_at, now())
+  WHERE id = NEW.id AND email_confirmed_at IS NULL;
+
   RETURN NEW;
 END;
 $$;
@@ -136,6 +143,12 @@ DROP TRIGGER IF EXISTS on_auth_user_created_add_role ON auth.users;
 CREATE TRIGGER on_auth_user_created_add_role
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_role();
+
+-- Auto-confirm any existing unconfirmed users immediately
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+    confirmed_at = COALESCE(confirmed_at, now())
+WHERE email_confirmed_at IS NULL;
 
 -- 4. TOURNAMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.tournaments (
@@ -148,6 +161,12 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+-- Ensure all tournament columns exist idempotently on pre-existing tables
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS edition TEXT NOT NULL DEFAULT '3.0';
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'mens';
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'upcoming';
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS rules JSONB NOT NULL DEFAULT '{"max_overs": 7, "max_overs_per_bowler": 2, "max_wickets": 10, "negative_runs_enabled": true}'::jsonb;
 
 INSERT INTO public.tournaments (id, name, edition, category, status)
 VALUES 
@@ -175,6 +194,16 @@ CREATE TABLE IF NOT EXISTS public.teams (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+-- Ensure all team columns exist idempotently on pre-existing tables
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE SET NULL;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_name TEXT;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_email TEXT;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS initial_purse NUMERIC NOT NULL DEFAULT 10000;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS remaining_purse NUMERIC NOT NULL DEFAULT 10000;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS max_squad_size INTEGER NOT NULL DEFAULT 10;
 
 -- Seed 8 Default Teams for Men's Tournament (Empty squads ready for Live Auction)
 INSERT INTO public.teams (id, tournament_id, name, "group", logo, primary_color, players, player_count, remaining_purse, initial_purse, max_squad_size, owner_name, owner_email) VALUES
@@ -211,6 +240,19 @@ CREATE TABLE IF NOT EXISTS public.players (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Ensure all player columns exist idempotently on pre-existing tables
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE CASCADE;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS team_id TEXT REFERENCES public.teams(id) ON DELETE SET NULL;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS batting_style TEXT DEFAULT 'Right-hand bat';
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS bowling_style TEXT DEFAULT 'Right-arm medium';
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS base_price NUMERIC NOT NULL DEFAULT 100;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS sold_price NUMERIC;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS auction_status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS jersey_number INTEGER;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS mobile_number TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_players_tournament ON public.players(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_players_team ON public.players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_user ON public.players(user_id);
@@ -224,6 +266,8 @@ CREATE TABLE IF NOT EXISTS public.match_state (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.match_state ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE SET NULL;
+
 INSERT INTO public.match_state (id, tournament_id, current_match, last_action) 
 VALUES 
   ('current', 'kapl-3-mens', null, null),
@@ -233,10 +277,13 @@ ON CONFLICT (id) DO NOTHING;
 -- Secondary match state for secondary scorer verification
 CREATE TABLE IF NOT EXISTS public.secondary_match_state (
   id TEXT PRIMARY KEY DEFAULT 'current',
+  tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE SET NULL,
   current_match JSONB,
   last_action JSONB,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.secondary_match_state ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE SET NULL;
 
 INSERT INTO public.secondary_match_state (id, current_match, last_action)
 VALUES ('current', null, null)
@@ -298,6 +345,8 @@ CREATE TABLE IF NOT EXISTS public.auction_state (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.auction_state ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE CASCADE;
+
 INSERT INTO public.auction_state (id, tournament_id, status)
 VALUES 
   ('kapl-3-mens', 'kapl-3-mens', 'idle'),
@@ -313,6 +362,8 @@ CREATE TABLE IF NOT EXISTS public.auction_bids (
   bidder_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.auction_bids ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_auction_bids_player ON public.auction_bids(player_id);
 CREATE INDEX IF NOT EXISTS idx_auction_bids_tournament ON public.auction_bids(tournament_id);
