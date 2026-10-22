@@ -131,8 +131,7 @@ BEGIN
 
   -- Ensure newly registered users are automatically verified without email confirmation
   UPDATE auth.users
-  SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
-      confirmed_at = COALESCE(confirmed_at, now())
+  SET email_confirmed_at = COALESCE(email_confirmed_at, now())
   WHERE id = NEW.id AND email_confirmed_at IS NULL;
 
   RETURN NEW;
@@ -146,8 +145,7 @@ CREATE TRIGGER on_auth_user_created_add_role
 
 -- Auto-confirm any existing unconfirmed users immediately
 UPDATE auth.users
-SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
-    confirmed_at = COALESCE(confirmed_at, now())
+SET email_confirmed_at = COALESCE(email_confirmed_at, now())
 WHERE email_confirmed_at IS NULL;
 
 -- 4. TOURNAMENTS TABLE
