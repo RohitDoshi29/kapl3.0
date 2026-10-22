@@ -17,6 +17,8 @@ import { CricketAnimation, useCricketAnimation } from '@/components/cricket/Cric
 import { TournamentHonors } from '@/components/cricket/TournamentHonors';
 import { LiveCommentaryFeed } from '@/components/cricket/LiveCommentaryFeed';
 import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
+import { PlayerRegistrationPopup } from '@/components/cricket/PlayerRegistrationPopup';
+import { PlayerRegistrationHero } from '@/components/cricket/PlayerRegistrationHero';
 
 const Index = () => {
   const { activeTournamentId, currentTournament } = useTournament();
@@ -121,6 +123,9 @@ const Index = () => {
         <Header />
         <Navigation />
         <MultiMatchLiveBar />
+
+        {/* Player Registration Announcement Popup Modal */}
+        <PlayerRegistrationPopup />
 
       <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
         {match && team1 && team2 ? (
@@ -243,19 +248,8 @@ const Index = () => {
               />
             )}
             
-            <div className="text-center py-12 px-6 rounded-3xl border border-white/[0.08] bg-card/60 backdrop-blur-xl shadow-xl max-w-xl mx-auto space-y-5">
-              <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/15">
-                <span className="text-4xl animate-bounce">🏏</span>
-              </div>
-              <div className="space-y-1.5">
-                <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
-                  No Live Match in {currentTournament?.name || "KAPL"}
-                </h2>
-                <p className="text-xs md:text-sm text-muted-foreground max-w-sm mx-auto">
-                  The pitch is being prepared. Explore the tournament schedule below or check the live auction room.
-                </p>
-              </div>
-            </div>
+            {/* Player Registration Hero Banner (Before Mega Auction & Matches) */}
+            <PlayerRegistrationHero tournamentName={currentTournament?.name || "KAPL 3.0"} />
 
             {/* Tournament Fixtures & Schedule (When No Live Match) */}
             <MatchFixturesCalendar />

@@ -45,9 +45,15 @@ export default function Auth() {
   const location = useLocation();
   const { signInWithPassword, signUp, signInWithGoogle, isAuthenticated } = useAuth();
 
-  const prefillEmail = (location.state as any)?.prefillEmail || '';
+  const searchParams = new URLSearchParams(location.search);
+  const prefillEmail = (location.state as any)?.prefillEmail || searchParams.get('email') || '';
   const initialMessage = (location.state as any)?.message;
-  const initialTab = (location.state as any)?.tab === 'signup' ? 'signup' : 'signin';
+  const queryTab = searchParams.get('tab');
+  const queryMode = searchParams.get('mode');
+  const initialTab =
+    (location.state as any)?.tab === 'signup' || queryTab === 'signup' || queryMode === 'register'
+      ? 'signup'
+      : 'signin';
 
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>(initialTab);
 
@@ -64,7 +70,10 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [accountType, setAccountType] = useState<'player' | 'owner' | 'captain' | 'spectator'>('player');
+  const initialRole = searchParams.get('role');
+  const [accountType, setAccountType] = useState<'player' | 'owner' | 'captain' | 'spectator'>(
+    (initialRole === 'player' || initialRole === 'owner' || initialRole === 'captain' || initialRole === 'spectator') ? initialRole : 'player'
+  );
   const [playingRole, setPlayingRole] = useState<PlayerRole>('all_rounder');
   const [battingStyle, setBattingStyle] = useState('Right-hand bat');
   const [bowlingStyle, setBowlingStyle] = useState('Right-arm medium');
@@ -76,6 +85,23 @@ export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const from = (location.state as any)?.from?.pathname || '/profile';
+
+  // Synchronize activeTab and role if URL search params change
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    const modeParam = params.get('mode');
+    if (tabParam === 'signup' || modeParam === 'register') {
+      setActiveTab('signup');
+    } else if (tabParam === 'signin') {
+      setActiveTab('signin');
+    }
+
+    const roleParam = params.get('role');
+    if (roleParam && ['player', 'owner', 'captain', 'spectator'].includes(roleParam)) {
+      setAccountType(roleParam as any);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (initialMessage) {
