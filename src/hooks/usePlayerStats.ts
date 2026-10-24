@@ -603,18 +603,22 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
           }
         }
       }
-    } catch {}
+      if (baseList.length === 0) {
+        baseList = generateAuctionPlayers(tid);
+      }
+    } catch {
+      baseList = generateAuctionPlayers(tid);
+    }
 
-    // Merge registered players immediately
+    // Merge registered players immediately across both tournaments
     if (regList.length > 0) {
       regList.forEach((reg) => {
-        if (!tournamentIdFilter || tournamentIdFilter === 'all' || !reg.tournamentId || reg.tournamentId === tournamentIdFilter) {
-          const idx = baseList.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
-          if (idx >= 0) {
-            baseList[idx] = { ...baseList[idx], ...reg };
-          } else {
-            baseList.push(reg);
-          }
+        const idx = baseList.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+        const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
+        if (idx >= 0) {
+          baseList[idx] = { ...baseList[idx], ...playerRec };
+        } else {
+          baseList.push(playerRec);
         }
       });
     }
@@ -683,7 +687,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
           if (isMounted) setRawPlayers([]);
           return;
         } else {
-          // If DB has no non-legacy players, check local storage cache
+          // If DB has no non-legacy players, check local storage cache or fallback to generator
           try {
             const raw = localStorage.getItem(`kapl_auction_players_${tid}`);
             if (raw) {
@@ -693,18 +697,20 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
               }
             }
           } catch {}
+          if (loaded.length === 0) {
+            loaded = generateAuctionPlayers(tid);
+          }
         }
 
-        // Merge user-registered players
+        // Merge user-registered players across both tournaments
         if (regPlayers.length > 0) {
           regPlayers.forEach((reg) => {
-            if (!tournamentIdFilter || tournamentIdFilter === 'all' || !reg.tournamentId || reg.tournamentId === tournamentIdFilter) {
-              const idx = loaded.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
-              if (idx >= 0) {
-                loaded[idx] = { ...loaded[idx], ...reg };
-              } else {
-                loaded.push(reg);
-              }
+            const idx = loaded.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+            const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
+            if (idx >= 0) {
+              loaded[idx] = { ...loaded[idx], ...playerRec };
+            } else {
+              loaded.push(playerRec);
             }
           });
         }
@@ -899,7 +905,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         return;
       }
       if (!addedPlayer) return;
-      if (tournamentIdFilter && tournamentIdFilter !== 'all' && targetTournamentId && targetTournamentId !== tournamentIdFilter) {
+      if (tournamentIdFilter && tournamentIdFilter !== 'all' && targetTournamentId && targetTournamentId !== tournamentIdFilter && targetTournamentId !== 'all') {
         return;
       }
       try {
@@ -934,15 +940,21 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
         const onTabMessage = (e: MessageEvent) => {
           if (!isMounted || !e.data) return;
-          if (e.data.type === 'system_reset_all_players' || e.data.event === 'auction_reset') {
+          if (e.data.type === 'system_reset_all_players') {
             try {
               localStorage.setItem('kapl_all_players_cleared', 'true');
               localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
             } catch {}
             setRawPlayers([]);
+          } else if (e.data.event === 'auction_reset') {
+            if (Array.isArray(e.data.players) && e.data.players.length > 0) {
+              setRawPlayers(e.data.players);
+            } else {
+              setRawPlayers(generateAuctionPlayers(tid));
+            }
           } else if (e.data.event === 'auction_player_added' && e.data.player) {
             const addedPlayer = e.data.player;
-            if (tournamentIdFilter && tournamentIdFilter !== 'all' && e.data.tournamentId && e.data.tournamentId !== tournamentIdFilter) {
+            if (tournamentIdFilter && tournamentIdFilter !== 'all' && e.data.tournamentId && e.data.tournamentId !== tournamentIdFilter && e.data.tournamentId !== 'all') {
               return;
             }
             try {

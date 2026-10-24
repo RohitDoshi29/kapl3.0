@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { PlayerRecord, PlayerRole } from '@/lib/cricketTypes';
+import { generateAuctionPlayers } from '@/lib/mockPlayersData';
 
 export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecord) {
   try {
@@ -34,6 +35,9 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
             auctionList = parsed.filter((p: any) => p && !/^[ab][1-4]-/.test(p.id));
           }
         } catch {}
+      }
+      if (auctionList.length === 0) {
+        auctionList = generateAuctionPlayers(tId);
       }
       const tournRecord: PlayerRecord = {
         ...playerRecord,
@@ -935,7 +939,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const newPlayerRecord: PlayerRecord = {
       id: generatedPlayerId,
-      tournamentId: profileData.tournamentId || 'kapl-3-mens',
+      tournamentId: 'all', // Entered into both tournaments
       teamId: null,
       userId: supaUser?.id || activeUser.id,
       name: profileData.name,
