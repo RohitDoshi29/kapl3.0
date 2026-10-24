@@ -27,6 +27,18 @@ export interface RegistrationExportRow {
 export function saveToPlayerVault(player: Partial<PlayerRecord> & { email?: string; gender?: string }) {
   try {
     if (!player || (!player.id && !player.name)) return;
+    
+    // Clear any lingering "cleared" flags
+    localStorage.removeItem('kapl_all_players_cleared');
+    localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
+    localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
+
+    const enriched = {
+      ...player,
+      vaultSavedAt: new Date().toISOString(),
+    };
+
+    // 1. Save to persistent vault
     const raw = localStorage.getItem('kapl_player_vault');
     const vault: any[] = raw ? JSON.parse(raw) : [];
 
@@ -37,11 +49,6 @@ export function saveToPlayerVault(player: Partial<PlayerRecord> & { email?: stri
         (player.name && p.name && p.name.toLowerCase() === player.name.toLowerCase())
     );
 
-    const enriched = {
-      ...player,
-      vaultSavedAt: new Date().toISOString(),
-    };
-
     if (idx >= 0) {
       vault[idx] = { ...vault[idx], ...enriched };
     } else {
@@ -49,6 +56,22 @@ export function saveToPlayerVault(player: Partial<PlayerRecord> & { email?: stri
     }
 
     localStorage.setItem('kapl_player_vault', JSON.stringify(vault));
+
+    // 2. Also keep kapl_registered_players synced
+    const regRaw = localStorage.getItem('kapl_registered_players');
+    const regList: any[] = regRaw ? JSON.parse(regRaw) : [];
+    const rIdx = regList.findIndex(
+      (p) =>
+        (player.id && p.id === player.id) ||
+        (player.email && p.email && p.email.toLowerCase() === player.email.toLowerCase()) ||
+        (player.name && p.name && p.name.toLowerCase() === player.name.toLowerCase())
+    );
+    if (rIdx >= 0) {
+      regList[rIdx] = { ...regList[rIdx], ...enriched };
+    } else {
+      regList.push(enriched);
+    }
+    localStorage.setItem('kapl_registered_players', JSON.stringify(regList));
   } catch (e) {
     console.warn('Failed to save player to persistent vault:', e);
   }
@@ -265,3 +288,4 @@ export async function exportRegistrationsToText(providedRows?: RegistrationExpor
 
   return text;
 }
+

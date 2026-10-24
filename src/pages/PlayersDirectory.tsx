@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePlayersDirectory, PlayerDirectoryItem } from '@/hooks/usePlayerStats';
 import { PlayerRole } from '@/lib/cricketTypes';
 import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
+import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ import {
   Zap,
   Trash2,
   FileSpreadsheet,
+  UserPlus,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<PlayerRole, { label: string; icon: string; badgeClass: string }> = {
@@ -236,6 +238,19 @@ export default function PlayersDirectory() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <AddPlayerModal
+              tournamentId={filterTournamentId}
+              trigger={
+                <Button
+                  size="sm"
+                  className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm touch-manipulation"
+                >
+                  <UserPlus className="w-4 h-4 text-slate-950" />
+                  <span>+ Add Player</span>
+                </Button>
+              }
+            />
+
             <ExportRegistrationsDialog
               trigger={
                 <Button

@@ -31,15 +31,21 @@ import {
   Zap,
   ShieldAlert,
   Trophy,
+  UserPlus,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuctionSaleLog } from '@/hooks/useAuction';
+import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
 
 interface SinglePlayerAuctionStageProps {
   player: PlayerRecord | null;
   playerPool?: PlayerRecord[];
   teams: Team[];
   isAdmin: boolean;
+  tournamentId?: string;
+  onAddPlayer?: (data: any) => Promise<any>;
+  onResetAuction?: () => void;
   onNext: () => void;
   onPrev: () => void;
   onSpotlightPlayer?: (player: PlayerRecord) => void;
@@ -56,6 +62,9 @@ export function SinglePlayerAuctionStage({
   playerPool = [],
   teams = [],
   isAdmin,
+  tournamentId = 'kapl-3-mens',
+  onAddPlayer,
+  onResetAuction,
   onNext,
   onPrev,
   onSpotlightPlayer,
@@ -214,6 +223,16 @@ export function SinglePlayerAuctionStage({
     onDecideSold(player.id, selectedTeamId, soldAmount);
   };
 
+  // Automatically spotlight first pending player if no player is spotlighted
+  useEffect(() => {
+    if (!player && playerPool.length > 0 && onSpotlightPlayer) {
+      const firstPending = playerPool.find((p) => p.auctionStatus === 'pending') || playerPool[0];
+      if (firstPending) {
+        onSpotlightPlayer(firstPending);
+      }
+    }
+  }, [player, playerPool, onSpotlightPlayer]);
+
   // Check if auction is 100% complete
   const isAllSold = useMemo(() => {
     return playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
@@ -221,14 +240,40 @@ export function SinglePlayerAuctionStage({
 
   if (!player) {
     return (
-      <Card className="p-8 text-center border-dashed border-2 rounded-3xl bg-card/60">
-        <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
-          <User className="w-8 h-8 text-primary" />
+      <Card className="p-8 text-center border-dashed border-2 rounded-3xl bg-card/60 max-w-xl mx-auto shadow-xl">
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center mb-3 text-amber-400">
+          <Gavel className="w-8 h-8" />
         </div>
-        <h3 className="text-xl font-bold mb-1">No Player Selected</h3>
-        <p className="text-muted-foreground text-xs">
-          Select any candidate from the queue below to start the spotlight auction.
+        <h3 className="text-xl font-black mb-1 text-foreground">
+          {playerPool.length === 0 ? 'No Players in Auction Pool' : 'No Player Selected'}
+        </h3>
+        <p className="text-muted-foreground text-xs mb-5 max-w-md mx-auto">
+          {playerPool.length === 0
+            ? 'There are currently no candidates in the live auction queue. Add a player or seed the standard 80 players to begin live bidding.'
+            : 'Select any candidate from the queue below to start the spotlight auction.'}
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          <AddPlayerModal
+            tournamentId={tournamentId}
+            onAddPlayer={onAddPlayer}
+            trigger={
+              <Button className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-2 text-xs shadow-md">
+                <UserPlus className="w-4 h-4 text-slate-950" />
+                Add Player to Auction
+              </Button>
+            }
+          />
+          {isAdmin && onResetAuction && (
+            <Button
+              variant="outline"
+              onClick={onResetAuction}
+              className="h-9 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1.5 font-bold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset & Seed 80 Players
+            </Button>
+          )}
+        </div>
       </Card>
     );
   }

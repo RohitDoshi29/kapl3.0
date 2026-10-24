@@ -8,6 +8,7 @@ import { SinglePlayerAuctionStage } from '@/components/auction/SinglePlayerAucti
 import { CategoryPlayerGrid } from '@/components/auction/CategoryPlayerGrid';
 import { TeamPurseList } from '@/components/auction/TeamPurseList';
 import { AdminAuctionDesk } from '@/components/auction/AdminAuctionDesk';
+import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Gavel, Wallet, Users, Radio, Sparkles, RotateCcw, Zap } from 'lucide-react';
+import { Gavel, Wallet, Users, Radio, Sparkles, RotateCcw, Zap, UserPlus } from 'lucide-react';
 
 export default function Auction() {
   const { activeTournamentId, setActiveTournamentId } = useTournament();
@@ -43,6 +44,7 @@ export default function Auction() {
     adminDecideSold,
     adminDecideUnsold,
     revertPlayerStatus,
+    addPlayerToAuction,
     removePlayerFromAuction,
     startAcceleratedUnsoldRound,
     autoAdvanceCountdown,
@@ -120,6 +122,20 @@ export default function Auction() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <AddPlayerModal
+              tournamentId={activeTournamentId}
+              onAddPlayer={addPlayerToAuction}
+              trigger={
+                <Button
+                  size="sm"
+                  className="h-8 text-xs font-black bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 gap-1.5 shadow-sm touch-manipulation"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-slate-950" />
+                  + Add Player
+                </Button>
+              }
+            />
+
             {isAdmin && (
               <div className="flex items-center gap-1.5">
                 <Button
@@ -245,6 +261,9 @@ export default function Auction() {
               playerPool={playerPool}
               teams={teams}
               isAdmin={isAdmin}
+              tournamentId={activeTournamentId}
+              onAddPlayer={addPlayerToAuction}
+              onResetAuction={handleResetAuctionData}
               onNext={() => nextPlayer('next')}
               onPrev={() => nextPlayer('prev')}
               onSpotlightPlayer={spotlightPlayer}
@@ -299,6 +318,8 @@ export default function Auction() {
                 playerPool={playerPool}
                 teams={teams}
                 currentPlayer={currentPlayer}
+                tournamentId={activeTournamentId}
+                onAddPlayer={addPlayerToAuction}
                 onSpotlightPlayer={spotlightPlayer}
                 onDecideSold={adminDecideSold}
                 onDecideUnsold={adminDecideUnsold}
