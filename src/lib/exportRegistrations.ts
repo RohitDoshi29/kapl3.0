@@ -78,6 +78,124 @@ export function saveToPlayerVault(player: Partial<PlayerRecord> & { email?: stri
 }
 
 /**
+ * Automatically repairs and synchronizes local player state across tabs and reloads:
+ * 1. Purges zombie clear flags ('kapl_all_players_cleared', etc.) if any vault or registered players exist.
+ * 2. Keeps `kapl_player_vault` and `kapl_registered_players` bidirectional in sync.
+ * 3. Populates both `kapl_auction_players_kapl-3-mens` and `kapl_auction_players_kapl-3-womens` so newly created players appear instantly in Auction without tab-switch data loss.
+ */
+export function repairAndSyncLocalPlayerState() {
+  if (typeof window === 'undefined') return;
+  try {
+    const vaultRaw = localStorage.getItem('kapl_player_vault');
+    let vaultList: any[] = vaultRaw ? JSON.parse(vaultRaw) : [];
+    if (!Array.isArray(vaultList)) vaultList = [];
+
+    const regRaw = localStorage.getItem('kapl_registered_players');
+    let regList: any[] = regRaw ? JSON.parse(regRaw) : [];
+    if (!Array.isArray(regList)) regList = [];
+
+    // Also check accounts registry if any players registered
+    try {
+      const accRaw = localStorage.getItem('kapl_registered_accounts');
+      if (accRaw) {
+        const accounts = JSON.parse(accRaw);
+        Object.values(accounts).forEach((acc: any) => {
+          if (acc && (acc.role === 'player' || !acc.role) && acc.profile) {
+            const p = acc.profile;
+            if (p.name && !vaultList.some((v: any) => v.name && v.name.toLowerCase() === p.name.toLowerCase())) {
+              vaultList.push({
+                id: p.playerId || `p_u_${acc.id?.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`,
+                name: p.name,
+                role: p.role || 'all_rounder',
+                battingStyle: p.battingStyle || 'Right-hand bat',
+                bowlingStyle: p.bowlingStyle || 'Right-arm medium',
+                jerseyNumber: p.jerseyNumber ? Number(p.jerseyNumber) : null,
+                mobileNumber: p.mobileNumber || null,
+                email: acc.email,
+                gender: p.gender || 'male',
+                tournamentId: 'all',
+                basePrice: 100,
+                auctionStatus: 'pending',
+              });
+            }
+          }
+        });
+      }
+    } catch {}
+
+    const totalLocalPlayers = Math.max(vaultList.length, regList.length);
+
+    // If any registered players exist, immediately kill any "cleared" or "everything_reset" flags
+    if (totalLocalPlayers > 0) {
+      localStorage.removeItem('kapl_all_players_cleared');
+      localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
+      localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
+    }
+
+    // Merge vault into registered players if missing
+    if (vaultList.length > 0) {
+      vaultList.forEach((vp: any) => {
+        if (!regList.some((r: any) => r.id === vp.id || (r.name && vp.name && r.name.toLowerCase() === vp.name.toLowerCase()))) {
+          regList.push(vp);
+        }
+      });
+      localStorage.setItem('kapl_registered_players', JSON.stringify(regList));
+    }
+
+    // Merge registered players into vault if missing
+    if (regList.length > 0) {
+      regList.forEach((rp: any) => {
+        if (!vaultList.some((v: any) => v.id === rp.id || (v.name && rp.name && v.name.toLowerCase() === rp.name.toLowerCase()))) {
+          vaultList.push(rp);
+        }
+      });
+      localStorage.setItem('kapl_player_vault', JSON.stringify(vaultList));
+    }
+
+    // Populate auction caches for both leagues so switching tabs never flashes 0 players
+    const masterList = vaultList.length > 0 ? vaultList : regList;
+    if (masterList.length > 0) {
+      for (const tid of ['kapl-3-mens', 'kapl-3-womens']) {
+        const rawAuc = localStorage.getItem(`kapl_auction_players_${tid}`);
+        let aucList = rawAuc ? JSON.parse(rawAuc) : [];
+        if (!Array.isArray(aucList)) aucList = [];
+        let modified = false;
+
+        masterList.forEach((p: any) => {
+          const expectedId = tid === 'kapl-3-womens' ? (p.id.endsWith('_w') ? p.id : `${p.id}_w`) : p.id.replace(/_w$/, '');
+          const existingIdx = aucList.findIndex((a: any) => a.id === expectedId || (a.name && p.name && a.name.toLowerCase() === p.name.toLowerCase()));
+          const candidateRecord = {
+            ...p,
+            id: expectedId,
+            tournamentId: tid,
+            auctionStatus: p.auctionStatus || 'pending',
+            basePrice: Number(p.basePrice || 100),
+          };
+          if (existingIdx >= 0) {
+            aucList[existingIdx] = { ...aucList[existingIdx], ...candidateRecord };
+            modified = true;
+          } else {
+            aucList.push(candidateRecord);
+            modified = true;
+          }
+        });
+
+        if (modified) {
+          localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify(aucList));
+        }
+
+        const activeId = localStorage.getItem(`kapl_auction_active_player_${tid}`);
+        if (!activeId && aucList.length > 0) {
+          localStorage.setItem(`kapl_auction_active_player_${tid}`, aucList[0].id);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('repairAndSyncLocalPlayerState notice:', e);
+  }
+}
+
+/**
  * Gather all registered players across all sources:
  * 1. Persistent Player Vault (`kapl_player_vault`)
  * 2. Master registered list (`kapl_registered_players`)

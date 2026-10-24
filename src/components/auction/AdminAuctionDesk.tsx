@@ -37,9 +37,11 @@ import {
   Zap,
   Trash2,
   UserPlus,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
+import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 
 interface AdminAuctionDeskProps {
   playerPool: PlayerRecord[];
@@ -637,6 +639,18 @@ export function AdminAuctionDesk({
                   <Button size="sm" className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-1.5 text-xs shrink-0 shadow-sm">
                     <UserPlus className="w-3.5 h-3.5 text-slate-950" />
                     + Add Player
+                  </Button>
+                }
+              />
+              <ExportRegistrationsDialog
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 gap-1.5 shrink-0 shadow-sm"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    Export
                   </Button>
                 }
               />

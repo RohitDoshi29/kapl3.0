@@ -36,7 +36,16 @@ const dbToTeam = (dbTeam: any): Team => {
   const tournamentId = dbTeam.tournament_id || 'kapl-3-mens';
 
   let teamPlayers = (dbTeam.players as Player[]) || [];
-  const isReset = typeof window !== 'undefined' && (
+  const hasVaultPlayers = typeof window !== 'undefined' && Boolean(
+    localStorage.getItem('kapl_player_vault') || localStorage.getItem('kapl_registered_players')
+  );
+  if (hasVaultPlayers) {
+    try {
+      localStorage.removeItem('kapl_all_players_cleared');
+      localStorage.removeItem(`kapl_everything_reset_${tournamentId}`);
+    } catch {}
+  }
+  const isReset = !hasVaultPlayers && typeof window !== 'undefined' && (
     localStorage.getItem(`kapl_auction_manually_reset_${tournamentId}`) === 'true' ||
     localStorage.getItem(`kapl_everything_reset_${tournamentId}`) === 'true' ||
     localStorage.getItem('kapl_all_players_cleared') === 'true'
@@ -885,7 +894,17 @@ function stopGlobalHeartbeat() {
 export function useCricketStore(targetTournamentId?: string) {
   const [teams, setTeams] = useState<Team[]>(() => {
     try {
-      const isReset = typeof window !== 'undefined' && (
+      const hasVault = typeof window !== 'undefined' && (
+        Boolean(localStorage.getItem('kapl_player_vault')) || Boolean(localStorage.getItem('kapl_registered_players'))
+      );
+      if (hasVault) {
+        try {
+          localStorage.removeItem('kapl_all_players_cleared');
+          localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
+          localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
+        } catch {}
+      }
+      const isReset = !hasVault && typeof window !== 'undefined' && (
         localStorage.getItem('kapl_auction_manually_reset_kapl-3-mens') === 'true' ||
         localStorage.getItem('kapl_everything_reset_kapl-3-mens') === 'true' ||
         localStorage.getItem('kapl_all_players_cleared') === 'true'
@@ -1169,7 +1188,17 @@ export function useCricketStore(targetTournamentId?: string) {
         
         if (teamsError) throw teamsError;
         let loadedTeams: Team[] = [];
-        const isAllCleared = typeof window !== 'undefined' && localStorage.getItem('kapl_all_players_cleared') === 'true';
+        const hasVault = typeof window !== 'undefined' && (
+          Boolean(localStorage.getItem('kapl_player_vault')) || Boolean(localStorage.getItem('kapl_registered_players'))
+        );
+        if (hasVault || (teamsData && teamsData.length > 0)) {
+          try {
+            localStorage.removeItem('kapl_all_players_cleared');
+            localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
+            localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
+          } catch {}
+        }
+        const isAllCleared = !hasVault && typeof window !== 'undefined' && localStorage.getItem('kapl_all_players_cleared') === 'true';
 
         if (teamsData && teamsData.length > 0) {
           loadedTeams = teamsData.map(dbToTeam);

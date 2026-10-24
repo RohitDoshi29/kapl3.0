@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { PlayerRecord, PlayerRole, Team, Match, MatchType, MATCH_TYPE_LABELS, Innings } from '@/lib/cricketTypes';
 import { MOCK_AUCTION_PLAYERS, generateAuctionPlayers } from '@/lib/mockPlayersData';
+import { saveToPlayerVault } from '@/lib/exportRegistrations';
 
 export interface PlayerCareerBatting {
   matches: number;
@@ -591,7 +592,15 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
         if (Array.isArray(vaultList)) {
           vaultList.forEach((vp) => {
-            if (vp && !regList.some((r) => r.id === vp.id || (r.userId && vp.userId && r.userId === vp.userId))) {
+            if (
+              vp &&
+              !regList.some(
+                (r) =>
+                  r.id === vp.id ||
+                  (r.userId && vp.userId && r.userId === vp.userId) ||
+                  (r.name && vp.name && r.name.toLowerCase() === vp.name.toLowerCase())
+              )
+            ) {
               regList.push(vp);
             }
           });
@@ -599,7 +608,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       }
     } catch {}
 
-    if (isCleared && regList.length === 0) {
+    if (regList.length > 0) {
+      try {
+        localStorage.removeItem('kapl_all_players_cleared');
+        localStorage.removeItem(`kapl_everything_reset_${tid}`);
+      } catch {}
+    } else if (isCleared) {
       return [];
     }
 
@@ -620,7 +634,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
     // Merge registered players immediately across both tournaments
     if (regList.length > 0) {
       regList.forEach((reg) => {
-        const idx = baseList.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+        const idx = baseList.findIndex(
+          (p) =>
+            p.id === reg.id ||
+            (p.userId && reg.userId && p.userId === reg.userId) ||
+            (p.name && reg.name && p.name.toLowerCase() === reg.name.toLowerCase())
+        );
         const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
         if (idx >= 0) {
           baseList[idx] = { ...baseList[idx], ...playerRec };
@@ -654,7 +673,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         const cleanDbData = (dbData || []).filter((p: any) => {
           if (!p || /^[ab][1-4]-/.test(p.id)) return false;
           if (!tournamentIdFilter || tournamentIdFilter === 'all') return true;
-          const isUserRegistered = Boolean(p.user_id || p.id.startsWith('p_u_'));
+          const isUserRegistered = Boolean(p.user_id || p.id.startsWith('p_u_') || p.id.startsWith('p_c_'));
           if (isUserRegistered) {
             if (p.tournament_id && p.tournament_id !== tournamentIdFilter && p.tournament_id !== 'all') {
               return false;
@@ -683,7 +702,15 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
             const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
             if (Array.isArray(vaultList)) {
               vaultList.forEach((vp) => {
-                if (vp && !regPlayers.some((r) => r.id === vp.id || (r.userId && vp.userId && r.userId === vp.userId))) {
+                if (
+                  vp &&
+                  !regPlayers.some(
+                    (r) =>
+                      r.id === vp.id ||
+                      (r.userId && vp.userId && r.userId === vp.userId) ||
+                      (r.name && vp.name && r.name.toLowerCase() === vp.name.toLowerCase())
+                  )
+                ) {
                   regPlayers.push(vp);
                 }
               });
@@ -697,22 +724,27 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
             localStorage.removeItem('kapl_all_players_cleared');
             localStorage.removeItem(`kapl_everything_reset_${tid}`);
           } catch {}
-          loaded = cleanDbData.map((p) => ({
-            id: p.id,
-            userId: (p as any).user_id || undefined,
-            tournamentId: p.tournament_id || 'kapl-3-mens',
-            teamId: p.team_id,
-            name: p.name,
-            role: (p.role as PlayerRole) || 'all_rounder',
-            battingStyle: p.batting_style || 'Right-hand bat',
-            bowlingStyle: p.bowling_style || 'Right-arm medium',
-            photoUrl: p.photo_url,
-            basePrice: Number(p.base_price || 100),
-            soldPrice: p.sold_price ? Number(p.sold_price) : null,
-            auctionStatus: (p.auction_status as any) || 'pending',
-            jerseyNumber: p.jersey_number,
-            mobileNumber: (p as any).mobile_number || null,
-          }));
+          loaded = cleanDbData.map((p) => {
+            const rec: PlayerRecord = {
+              id: p.id,
+              userId: (p as any).user_id || undefined,
+              tournamentId: p.tournament_id || 'kapl-3-mens',
+              teamId: p.team_id,
+              name: p.name,
+              role: (p.role as PlayerRole) || 'all_rounder',
+              battingStyle: p.batting_style || 'Right-hand bat',
+              bowlingStyle: p.bowling_style || 'Right-arm medium',
+              photoUrl: p.photo_url,
+              basePrice: Number(p.base_price || 100),
+              soldPrice: p.sold_price ? Number(p.sold_price) : null,
+              auctionStatus: (p.auction_status as any) || 'pending',
+              jerseyNumber: p.jersey_number,
+              mobileNumber: (p as any).mobile_number || null,
+            };
+            // Cache remote DB player into local vault permanently
+            saveToPlayerVault(rec);
+            return rec;
+          });
         } else if (isCleared && regPlayers.length === 0) {
           if (isMounted) setRawPlayers([]);
           return;
@@ -736,7 +768,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         // Merge user-registered players across both tournaments
         if (regPlayers.length > 0) {
           regPlayers.forEach((reg) => {
-            const idx = loaded.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+            const idx = loaded.findIndex(
+              (p) =>
+                p.id === reg.id ||
+                (p.userId && reg.userId && p.userId === reg.userId) ||
+                (p.name && reg.name && p.name.toLowerCase() === reg.name.toLowerCase())
+            );
             const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
             if (idx >= 0) {
               loaded[idx] = { ...loaded[idx], ...playerRec };
@@ -1029,7 +1066,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       localStorage.getItem('kapl_all_players_cleared') === 'true' ||
       localStorage.getItem(`kapl_everything_reset_${tid}`) === 'true'
     );
-    if (isCleared && rawPlayers.length === 0) {
+    if (rawPlayers.length > 0) {
+      try {
+        localStorage.removeItem('kapl_all_players_cleared');
+        localStorage.removeItem(`kapl_everything_reset_${tid}`);
+      } catch {}
+    } else if (isCleared) {
       return [];
     }
 

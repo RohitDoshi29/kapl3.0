@@ -9,6 +9,7 @@ import { CategoryPlayerGrid } from '@/components/auction/CategoryPlayerGrid';
 import { TeamPurseList } from '@/components/auction/TeamPurseList';
 import { AdminAuctionDesk } from '@/components/auction/AdminAuctionDesk';
 import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
+import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Gavel, Wallet, Users, Radio, Sparkles, RotateCcw, Zap, UserPlus } from 'lucide-react';
+import { Gavel, Wallet, Users, Radio, Sparkles, RotateCcw, Zap, UserPlus, FileSpreadsheet } from 'lucide-react';
 
 export default function Auction() {
   const { activeTournamentId, setActiveTournamentId } = useTournament();
@@ -136,6 +137,19 @@ export default function Auction() {
               }
             />
 
+            <ExportRegistrationsDialog
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 gap-1.5 shadow-sm touch-manipulation"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  Export to Excel / Text
+                </Button>
+              }
+            />
+
             {isAdmin && (
               <div className="flex items-center gap-1.5">
                 <Button
@@ -229,7 +243,16 @@ export default function Auction() {
         </div>
 
         {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full space-y-4 md:space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            setActiveTab(val as any);
+            if (val === 'categories') {
+              setSelectedCategory('all');
+            }
+          }}
+          className="w-full space-y-4 md:space-y-6"
+        >
           <TabsList className={`grid w-full ${isAdmin ? 'max-w-2xl grid-cols-2 sm:grid-cols-4' : 'max-w-md grid-cols-3'} mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md`}>
             <TabsTrigger value="spotlight" className="gap-1 sm:gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35 touch-manipulation">
               <Gavel className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
