@@ -121,6 +121,8 @@ export type Database = {
       }
       teams: {
         Row: {
+          captain_name: string | null
+          captain_player_id: string | null
           captain_user_id: string | null
           created_at: string
           group: string
@@ -129,6 +131,9 @@ export type Database = {
           logo: string | null
           max_squad_size: number
           name: string
+          owner_email: string | null
+          owner_name: string | null
+          owner_user_id: string | null
           player_count: number
           players: Json
           primary_color: string
@@ -137,6 +142,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          captain_name?: string | null
+          captain_player_id?: string | null
           captain_user_id?: string | null
           created_at?: string
           group: string
@@ -145,6 +152,9 @@ export type Database = {
           logo?: string | null
           max_squad_size?: number
           name: string
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
           player_count?: number
           players?: Json
           primary_color: string
@@ -153,6 +163,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          captain_name?: string | null
+          captain_player_id?: string | null
           captain_user_id?: string | null
           created_at?: string
           group?: string
@@ -161,6 +173,9 @@ export type Database = {
           logo?: string | null
           max_squad_size?: number
           name?: string
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
           player_count?: number
           players?: Json
           primary_color?: string
@@ -465,6 +480,39 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_primary_scorer: { Args: never; Returns: boolean }
       is_secondary_scorer: { Args: never; Returns: boolean }
+      reset_all_players_and_teams: { Args: never; Returns: void }
+      delete_player_by_id: {
+        Args: {
+          p_id: string
+        }
+        Returns: void
+      }
+      register_new_player: {
+        Args: {
+          p_base_price?: number
+          p_batting_style?: string
+          p_bowling_style?: string
+          p_id: string
+          p_jersey_number?: number | null
+          p_mobile_number?: string | null
+          p_name: string
+          p_photo_url?: string | null
+          p_role: string
+          p_tournament_id?: string
+          p_user_id?: string | null
+        }
+        Returns: Json
+      }
+      sell_player_to_team: {
+        Args: {
+          p_bidder_user_id?: string | null
+          p_player_id: string
+          p_sold_price: number
+          p_team_id: string
+          p_tournament_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "co_admin" | "user" | "primary_scorer" | "secondary_scorer" | "captain" | "owner" | "player"

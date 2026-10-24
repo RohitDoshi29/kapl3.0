@@ -268,8 +268,8 @@ export function PlayerOfTheMatchModal({
                 <div className="relative">
                   <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-md">
                     <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-amber-300 font-black text-xl overflow-hidden">
-                      {selectedPlayer.photoUrl ? (
-                        <img src={selectedPlayer.photoUrl} alt={selectedPlayer.name} className="w-full h-full object-cover" />
+                      {(selectedPlayer.photo || (selectedPlayer as any).photoUrl) ? (
+                        <img src={selectedPlayer.photo || (selectedPlayer as any).photoUrl} alt={selectedPlayer.name} className="w-full h-full object-cover" />
                       ) : (
                         <span>{selectedPlayer.name.charAt(0)}</span>
                       )}

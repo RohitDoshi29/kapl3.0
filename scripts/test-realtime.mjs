@@ -1,3 +1,9 @@
+// WARNING: Test script only. DO NOT run against live production database during tournaments.
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+  console.error('⛔ Refusing to run test-realtime.mjs in production environment');
+  process.exit(1);
+}
+
 import WebSocket from 'ws';
 global.WebSocket = WebSocket;
 import { createClient } from '@supabase/supabase-js';

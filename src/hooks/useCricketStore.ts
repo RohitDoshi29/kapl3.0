@@ -968,6 +968,56 @@ export function useCricketStore(targetTournamentId?: string) {
     return () => clearTimeout(timer);
   }, []);
 
+  const syncOfflineQueue = useCallback(async () => {
+    try {
+      setIsSyncing(true);
+      const tournamentIds = ['kapl-3-mens', 'kapl-3-womens'];
+      let syncedAny = false;
+
+      for (const tId of tournamentIds) {
+        const raw = localStorage.getItem(`kapl_local_match_state_${tId}`) || (tId === 'kapl-3-mens' ? localStorage.getItem('kapl_local_match_state') : null);
+        if (!raw) continue;
+
+        try {
+          const stateData = JSON.parse(raw);
+          const targetId = tId === 'kapl-3-womens' ? 'womens' : 'current';
+          const { error } = await supabase
+            .from('match_state')
+            .upsert({
+              id: targetId,
+              tournament_id: tId,
+              current_match: stateData.current_match,
+              last_action: stateData.last_action,
+              updated_at: new Date().toISOString(),
+            });
+
+          if (!error) {
+            localStorage.removeItem(`kapl_offline_sync_pending_${tId}`);
+            localStorage.removeItem(`kapl_local_match_state_${tId}`);
+            if (tId === 'kapl-3-mens') {
+              localStorage.removeItem('kapl_offline_sync_pending');
+              localStorage.removeItem('kapl_local_match_state');
+            }
+            syncedAny = true;
+          } else {
+            console.warn(`Sync failed for tournament ${tId}:`, error);
+          }
+        } catch (parseErr) {
+          console.warn(`Error parsing offline state for ${tId}:`, parseErr);
+        }
+      }
+
+      if (syncedAny) {
+        setPendingOfflineChanges(0);
+        toast.success('Synced offline scores successfully with cloud');
+      }
+    } catch (err) {
+      console.warn('Sync error:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
   // Monitor online/offline events for resilient scoring
   useEffect(() => {
     const handleOnline = () => {
@@ -993,7 +1043,7 @@ export function useCricketStore(targetTournamentId?: string) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [syncOfflineQueue]);
 
   // Connect to shared global sync state & heartbeat
   useEffect(() => {
@@ -1018,7 +1068,7 @@ export function useCricketStore(targetTournamentId?: string) {
     };
     const handleTeamsUpdate = (updatedTeams: Team[]) => {
       setTeams(prev => {
-        let current = [...prev];
+        const current = [...prev];
         for (const u of updatedTeams) {
           const idx = current.findIndex(t => t.id === u.id);
           if (idx >= 0) current[idx] = u;
@@ -1127,18 +1177,21 @@ export function useCricketStore(targetTournamentId?: string) {
           if (!hasWomensTeams) {
             loadedTeams = [...loadedTeams, ...DEFAULT_WOMENS_TEAMS];
           }
+          // The remote database is the source of truth and wins over local cleared flag
+          try {
+            localStorage.removeItem('kapl_all_players_cleared');
+          } catch {}
         } else {
           loadedTeams = [...DEFAULT_TEAMS, ...DEFAULT_WOMENS_TEAMS];
-        }
-
-        if (isAllCleared) {
-          loadedTeams = loadedTeams.map(t => ({
-            ...t,
-            players: [],
-            playerCount: 0,
-            remainingPurse: 10000,
-            initialPurse: 10000,
-          }));
+          if (isAllCleared) {
+            loadedTeams = loadedTeams.map(t => ({
+              ...t,
+              players: [],
+              playerCount: 0,
+              remainingPurse: 10000,
+              initialPurse: 10000,
+            }));
+          }
         }
 
         if (isMounted) setTeams(loadedTeams);
@@ -1183,21 +1236,6 @@ export function useCricketStore(targetTournamentId?: string) {
                   localStorage.removeItem(`kapl_local_match_state_${tId}`);
                 } catch (e) {}
               }
-            }
-          }
-
-          // If effective tournament didn't have match, fall back to any active live match
-          const activeTournState = globalTournamentMatchStates[effectiveTournamentId];
-          if (!activeTournState?.currentMatch) {
-            const anyActiveRow = stateRows.find(r => 
-              r.current_match && 
-              r.current_match.id !== '1792091739936' && 
-              ((r.current_match as any)?.status === 'live' || (r.current_match as any)?.status === 'super_over')
-            );
-            if (anyActiveRow?.current_match) {
-              const currentMatch = anyActiveRow.current_match as unknown as Match | null;
-              const lastAction = anyActiveRow.last_action as unknown as MatchState['lastAction'];
-              setMatchState({ currentMatch, lastAction });
             }
           }
         }
@@ -1438,34 +1476,6 @@ export function useCricketStore(targetTournamentId?: string) {
     return playingPlayers[teamId] || [];
   }, [playingPlayers]);
 
-  const syncOfflineQueue = useCallback(async () => {
-    try {
-      const raw = localStorage.getItem('kapl_local_match_state');
-      if (!raw) return;
-      setIsSyncing(true);
-      const stateData = JSON.parse(raw);
-      const { error } = await supabase
-        .from('match_state')
-        .update({
-          current_match: stateData.current_match,
-          last_action: stateData.last_action,
-        })
-        .eq('id', 'current');
-
-      if (!error) {
-        localStorage.removeItem('kapl_offline_sync_pending');
-        setPendingOfflineChanges(0);
-        toast.success('Synced scores successfully with cloud');
-      } else {
-        console.warn('Sync failed, will retry:', error);
-      }
-    } catch (err) {
-      console.warn('Sync error:', err);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, []);
-
   const saveMatchState = useCallback(async (newState: MatchState, explicitTournamentId?: string) => {
     const matchTournId = explicitTournamentId || (newState.currentMatch as any)?.tournamentId || (matchState.currentMatch as any)?.tournamentId || effectiveTournamentId || 'kapl-3-mens';
     const matchWithPlayers = newState.currentMatch ? {
@@ -1477,17 +1487,7 @@ export function useCricketStore(targetTournamentId?: string) {
     // 1. Immediately broadcast delta across in-tab components, cross-tab, and over WebSockets
     broadcastLiveMatchDelta(matchWithPlayers, newState.lastAction, playingPlayers, matchTournId);
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      try {
-        localStorage.setItem('kapl_offline_sync_pending', 'true');
-        setPendingOfflineChanges(prev => prev + 1);
-      } catch (e) {}
-      return;
-    }
-
-    // 2. Persist to Supabase match_state with tournament segregation
     const targetId = matchTournId === 'kapl-3-womens' ? 'womens' : 'current';
-
     const payload = {
       id: targetId,
       tournament_id: matchTournId,
@@ -1496,6 +1496,23 @@ export function useCricketStore(targetTournamentId?: string) {
       updated_at: new Date().toISOString(),
     };
 
+    // Cache locally per tournament
+    try {
+      localStorage.setItem(`kapl_local_match_state_${matchTournId}`, JSON.stringify(payload));
+      if (matchTournId === 'kapl-3-mens') {
+        localStorage.setItem('kapl_local_match_state', JSON.stringify(payload));
+      }
+    } catch (e) {}
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        localStorage.setItem(`kapl_offline_sync_pending_${matchTournId}`, 'true');
+        localStorage.setItem('kapl_offline_sync_pending', 'true');
+        setPendingOfflineChanges(prev => prev + 1);
+      } catch (e) {}
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('match_state')
@@ -1503,20 +1520,23 @@ export function useCricketStore(targetTournamentId?: string) {
 
       if (error) {
         console.warn('Supabase match_state upsert warning, queued locally:', error);
+        localStorage.setItem(`kapl_offline_sync_pending_${matchTournId}`, 'true');
         localStorage.setItem('kapl_offline_sync_pending', 'true');
         setPendingOfflineChanges(prev => prev + 1);
       } else {
+        localStorage.removeItem(`kapl_offline_sync_pending_${matchTournId}`);
         localStorage.removeItem('kapl_offline_sync_pending');
         setPendingOfflineChanges(0);
       }
     } catch (err) {
       console.warn('Network error saving match state, queued locally:', err);
       try {
+        localStorage.setItem(`kapl_offline_sync_pending_${matchTournId}`, 'true');
         localStorage.setItem('kapl_offline_sync_pending', 'true');
         setPendingOfflineChanges(prev => prev + 1);
       } catch (e) {}
     }
-  }, [playingPlayers]);
+  }, [playingPlayers, matchState.currentMatch, effectiveTournamentId]);
 
   const startMatch = useCallback(async (
     group: 'A' | 'B', 
@@ -2171,7 +2191,7 @@ export function useCricketStore(targetTournamentId?: string) {
     
     // Get total balls to undo
     const overs = [...innings.overs];
-    let ballsToRemove: Ball[] = [];
+    const ballsToRemove: Ball[] = [];
     
     // Collect balls to remove (from end back to specified position)
     for (let i = overs.length - 1; i >= overIndex; i--) {
@@ -2457,7 +2477,7 @@ export function useCricketStore(targetTournamentId?: string) {
     
     // Update local history
     setMatchHistory(prev => [...prev, match]);
-  }, [matchState, saveMatchState]);
+  }, [matchState, saveMatchState, effectiveTournamentId]);
 
   // Update or assign Player of the Match for a completed match
   const updateMatchPOTM = useCallback(async (matchId: string, potmData: PlayerOfTheMatchData) => {

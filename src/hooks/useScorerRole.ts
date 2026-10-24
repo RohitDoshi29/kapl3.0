@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export type ScorerRole = 'scorer' | 'primary_scorer' | 'admin' | 'user' | null;
+export type ScorerRole = 'scorer' | 'primary_scorer' | 'secondary_scorer' | 'admin' | 'user' | null;
 
 export function useScorerRole() {
   const [scorerRole, setScorerRole] = useState<ScorerRole>(null);
@@ -23,7 +23,8 @@ export function useScorerRole() {
       const roles = data?.map(r => r.role) || [];
       
       if (roles.includes('admin') || roles.includes('co_admin')) return 'admin';
-      if (roles.includes('scorer') || roles.includes('primary_scorer') || roles.includes('secondary_scorer')) return 'scorer';
+      if (roles.includes('primary_scorer')) return 'primary_scorer';
+      if (roles.includes('secondary_scorer')) return 'secondary_scorer';
       if (roles.includes('user')) return 'user';
       
       return null;
@@ -61,9 +62,9 @@ export function useScorerRole() {
     return () => subscription.unsubscribe();
   }, [checkScorerRole]);
 
-  const isScorer = scorerRole === 'scorer' || scorerRole === 'primary_scorer' || scorerRole === 'admin';
-  const isPrimaryScorer = isScorer;
-  const isSecondaryScorer = false;
+  const isPrimaryScorer = scorerRole === 'primary_scorer' || scorerRole === 'admin';
+  const isSecondaryScorer = scorerRole === 'secondary_scorer';
+  const isScorer = isPrimaryScorer || isSecondaryScorer;
   const canScore = isScorer;
 
   return {

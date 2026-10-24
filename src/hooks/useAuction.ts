@@ -230,10 +230,10 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         activePlayerId = state.currentPlayerId || null;
       }
 
-      // 2. Fetch all players for this tournament
+      // 2. Fetch all players for this tournament (public safe columns)
       const { data: allPlayers, error: playersError } = await supabase
         .from('players')
-        .select('*')
+        .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
         .eq('tournament_id', tournamentId)
         .order('name');
 
@@ -252,7 +252,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         soldPrice: p.sold_price ? Number(p.sold_price) : null,
         auctionStatus: p.auction_status || 'pending',
         jerseyNumber: p.jersey_number,
-        mobileNumber: p.mobile_number,
+        mobileNumber: (p as any).mobile_number || null,
       }));
 
       // Strip any legacy dummy template players (a1-p1 to b4-p10) from remote DB
@@ -409,7 +409,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         metaMap = JSON.parse(localStorage.getItem('kapl_team_metadata') || '{}');
       } catch {}
 
-      let cachedTeamsMap: Record<string, Team> = {};
+      const cachedTeamsMap: Record<string, Team> = {};
       try {
         const raw = localStorage.getItem(`kapl_auction_teams_${tournamentId}`);
         if (raw) {
@@ -519,20 +519,82 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         } catch {}
       }
 
-      // 4. Load sales history
-      let loadedSales: AuctionSaleLog[] = [];
+      // 4. Load sales history from DB with fallback to localStorage
       try {
-        const rawSales = localStorage.getItem(`kapl_auction_sales_${tournamentId}`);
-        if (rawSales) loadedSales = JSON.parse(rawSales);
-      } catch {}
-      setSalesHistory(loadedSales);
+        const { data: bidsData } = await supabase
+          .from('auction_bids')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .order('created_at', { ascending: false });
+
+        if (bidsData && bidsData.length > 0) {
+          const loadedHistory: AuctionSaleLog[] = bidsData.map((b) => {
+            const player = mappedPlayers.find((p) => p.id === b.player_id);
+            const team = (teamsData || []).find((t: any) => t.id === b.team_id);
+            return {
+              id: b.id,
+              playerId: b.player_id,
+              playerName: player?.name || 'Player',
+              playerRole: (player?.role as any) || 'all_rounder',
+              teamId: b.team_id,
+              teamName: team?.name || 'Team',
+              teamLogo: team?.logo || null,
+              teamColor: team?.primary_color || '0 0% 50%',
+              amount: Number(b.bid_amount),
+              status: 'sold',
+              timestamp: new Date(b.created_at).getTime(),
+            };
+          });
+          setSalesHistory(loadedHistory);
+          try {
+            localStorage.setItem(`kapl_auction_sales_${tournamentId}`, JSON.stringify(loadedHistory));
+          } catch {}
+        } else {
+          // Reconstruct from sold players in DB
+          const soldFromDb = mappedPlayers.filter((p) => p.auctionStatus === 'sold' && p.teamId);
+          if (soldFromDb.length > 0) {
+            const reconstructed: AuctionSaleLog[] = soldFromDb.map((p) => {
+              const team = (teamsData || []).find((t: any) => t.id === p.teamId);
+              return {
+                id: `sale_${p.id}`,
+                playerId: p.id,
+                playerName: p.name,
+                playerRole: p.role,
+                teamId: p.teamId!,
+                teamName: team?.name || 'Team',
+                teamLogo: team?.logo || null,
+                teamColor: team?.primary_color || '0 0% 50%',
+                amount: p.soldPrice || p.basePrice || 100,
+                status: 'sold',
+                timestamp: Date.now(),
+              };
+            });
+            setSalesHistory(reconstructed);
+          } else {
+            let loadedSales: AuctionSaleLog[] = [];
+            try {
+              const rawSales = localStorage.getItem(`kapl_auction_sales_${tournamentId}`);
+              if (rawSales) loadedSales = JSON.parse(rawSales);
+            } catch {}
+            setSalesHistory(loadedSales);
+          }
+        }
+      } catch (histErr) {
+        console.warn('Error loading auction history from DB, falling back to local cache:', histErr);
+        let loadedSales: AuctionSaleLog[] = [];
+        try {
+          const rawSales = localStorage.getItem(`kapl_auction_sales_${tournamentId}`);
+          if (rawSales) loadedSales = JSON.parse(rawSales);
+        } catch {}
+        setSalesHistory(loadedSales);
+      }
 
       setIsLoading(false);
     } catch (err: any) {
       console.error('Error fetching auction data:', err);
       setIsLoading(false);
     }
-  }, [tournamentId]);
+  }, [tournamentId, currentPlayer]);
 
   useEffect(() => {
     fetchData();
@@ -943,7 +1005,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
   }, [tournamentId, fetchData]);
 
   // Broadcast helper
-  const broadcastAuctionEvent = (event: string, data: any) => {
+  const broadcastAuctionEvent = useCallback((event: string, data: any) => {
     const envelope = { event, ...data, tournamentId };
     if (sharedAuctionBroadcastChannel) {
       sharedAuctionBroadcastChannel
@@ -956,7 +1018,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('kapl-auction-local-update', { detail: envelope }));
     }
-  };
+  }, [tournamentId]);
 
   // Countdown timer handler
   useEffect(() => {
@@ -999,7 +1061,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
     try {
       const stateId = auctionState?.id || tournamentId;
-      await supabase
+      const { error } = await supabase
         .from('auction_state')
         .upsert({
           id: stateId,
@@ -1012,9 +1074,14 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           updated_at: new Date().toISOString(),
         });
 
-      toast.info(`⚡ Now in Spotlight: ${player.name} (${player.role.replace('_', ' ')})`);
+      if (error) {
+        console.error('Failed to update spotlight in auction_state:', error);
+        toast.error('Spotlight sync notice: ' + error.message);
+      } else {
+        toast.info(`⚡ Now in Spotlight: ${player.name} (${player.role.replace('_', ' ')})`);
+      }
     } catch (err: any) {
-      console.warn('DB update for spotlight player:', err);
+      console.error('DB update exception for spotlight player:', err);
     }
   };
 
@@ -1149,9 +1216,26 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       }, 3500);
     }
 
-    // Persist to Supabase in background
+    // Persist to Supabase atomically via RPC (with direct fallback capturing all errors)
     try {
-      await supabase
+      const { data: rpcData, error: rpcError } = await supabase.rpc('sell_player_to_team', {
+        p_tournament_id: tournamentId,
+        p_player_id: targetPlayer.id,
+        p_team_id: targetTeam.id,
+        p_sold_price: soldPrice,
+        p_bidder_user_id: user?.id || null,
+      });
+
+      if (!rpcError) {
+        return;
+      }
+      console.warn('sell_player_to_team RPC notice, falling back to direct persistence:', rpcError.message);
+    } catch (rpcErr) {
+      console.warn('RPC invocation notice:', rpcErr);
+    }
+
+    try {
+      const { error: pErr } = await supabase
         .from('players')
         .update({
           team_id: targetTeam.id,
@@ -1160,8 +1244,9 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           updated_at: new Date().toISOString(),
         })
         .eq('id', targetPlayer.id);
+      if (pErr) console.error('Failed to update player status to sold:', pErr);
 
-      await supabase
+      const { error: tErr } = await supabase
         .from('teams')
         .update({
           remaining_purse: newRemainingPurse,
@@ -1170,9 +1255,10 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           updated_at: new Date().toISOString(),
         })
         .eq('id', targetTeam.id);
+      if (tErr) console.error('Failed to update team purse and players:', tErr);
 
       const stateId = auctionState?.id || tournamentId;
-      await supabase
+      const { error: sErr } = await supabase
         .from('auction_state')
         .upsert({
           id: stateId,
@@ -1184,16 +1270,18 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           timer_ends_at: null,
           updated_at: new Date().toISOString(),
         });
+      if (sErr) console.error('Failed to update auction_state for sold player:', sErr);
 
-      await supabase.from('auction_bids').insert({
+      const { error: bErr } = await supabase.from('auction_bids').insert({
         tournament_id: tournamentId,
         player_id: targetPlayer.id,
         team_id: targetTeam.id,
         bid_amount: soldPrice,
         bidder_user_id: user?.id,
       });
+      if (bErr) console.error('Failed to insert bid for sold player:', bErr);
     } catch (err: any) {
-      console.warn('DB persistence notice for sold player:', err.message);
+      console.error('DB persistence error for sold player:', err?.message || err);
     }
   };
 
@@ -1257,7 +1345,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     }
 
     try {
-      await supabase
+      const { error: pErr } = await supabase
         .from('players')
         .update({
           auction_status: 'unsold',
@@ -1266,9 +1354,10 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           updated_at: new Date().toISOString(),
         })
         .eq('id', targetPlayer.id);
+      if (pErr) console.error('Failed to update player status to unsold:', pErr);
 
       const stateId = auctionState?.id || tournamentId;
-      await supabase
+      const { error: sErr } = await supabase
         .from('auction_state')
         .upsert({
           id: stateId,
@@ -1278,8 +1367,9 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           timer_ends_at: null,
           updated_at: new Date().toISOString(),
         });
+      if (sErr) console.error('Failed to update auction_state to unsold:', sErr);
     } catch (err: any) {
-      console.warn('DB persistence notice for unsold player:', err.message);
+      console.error('DB persistence error for unsold player:', err?.message || err);
     }
   };
 

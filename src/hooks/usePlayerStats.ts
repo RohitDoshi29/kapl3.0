@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { PlayerRecord, PlayerRole, Team, Match, MatchType, MATCH_TYPE_LABELS, Innings } from '@/lib/cricketTypes';
-import { MOCK_AUCTION_PLAYERS } from '@/lib/mockPlayersData';
+import { MOCK_AUCTION_PLAYERS, generateAuctionPlayers } from '@/lib/mockPlayersData';
 
 export interface PlayerCareerBatting {
   matches: number;
@@ -206,7 +206,7 @@ export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?
     return () => {
       isMounted = false;
     };
-  }, [playerId, teams]);
+  }, [playerId, teams, tournamentIdFilter]);
 
   // Resolve team
   const playerTeam = useMemo(() => {
@@ -629,7 +629,9 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
     async function loadDbPlayers() {
       try {
-        let query = supabase.from('players').select('*');
+        let query = supabase
+          .from('players')
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status');
         if (tournamentIdFilter && tournamentIdFilter !== 'all') {
           query = query.eq('tournament_id', tournamentIdFilter);
         }
@@ -674,7 +676,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
             soldPrice: p.sold_price ? Number(p.sold_price) : null,
             auctionStatus: (p.auction_status as any) || 'pending',
             jerseyNumber: p.jersey_number,
-            mobileNumber: p.mobile_number,
+            mobileNumber: (p as any).mobile_number || null,
           }));
         } else if (isCleared && regPlayers.length === 0) {
           if (isMounted) setRawPlayers([]);
@@ -1077,12 +1079,13 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       inningsList.forEach(innings => {
         // Batsmen
         const batterStats = innings.batterStats || {};
-        Object.values(batterStats).forEach(b => {
-          if (!b?.id) return;
-          const acc = getAccum(b.id);
+        Object.entries(batterStats).forEach(([pId, b]) => {
+          const playerId = (b as any)?.id || pId;
+          if (!playerId || !b) return;
+          const acc = getAccum(playerId);
           acc.matchIds.add(match.id);
           acc.runs += b.runs || 0;
-          acc.ballsFaced += b.balls || 0;
+          acc.ballsFaced += b.ballsFaced || (b as any).balls || 0;
           acc.fours += b.fours || 0;
           acc.sixes += b.sixes || 0;
           if (b.runs > acc.highestScore) {
@@ -1095,21 +1098,23 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
         // Bowlers
         const bowlerStats = innings.bowlerStats || {};
-        Object.values(bowlerStats).forEach(bowler => {
-          if (!bowler?.id) return;
-          const acc = getAccum(bowler.id);
+        Object.entries(bowlerStats).forEach(([pId, bowler]) => {
+          const playerId = (bowler as any)?.id || pId;
+          if (!playerId || !bowler) return;
+          const acc = getAccum(playerId);
           acc.matchIds.add(match.id);
           const balls = (bowler.overs || 0) * 6 + (bowler.balls || 0);
+          const runsConceded = bowler.runs || (bowler as any).runsConceded || 0;
           acc.ballsBowled += balls;
-          acc.runsConceded += bowler.runsConceded || 0;
+          acc.runsConceded += runsConceded;
           acc.wickets += bowler.wickets || 0;
 
           if (
             bowler.wickets > acc.bestWickets ||
-            (bowler.wickets === acc.bestWickets && bowler.runsConceded < acc.bestRuns)
+            (bowler.wickets === acc.bestWickets && runsConceded < acc.bestRuns)
           ) {
             acc.bestWickets = bowler.wickets;
-            acc.bestRuns = bowler.runsConceded;
+            acc.bestRuns = runsConceded;
           }
         });
       });

@@ -143,7 +143,7 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
   }
 }
 
-export type UserRole = 'admin' | 'co_admin' | 'owner' | 'captain' | 'player' | 'user' | null;
+export type UserRole = 'admin' | 'co_admin' | 'primary_scorer' | 'secondary_scorer' | 'owner' | 'captain' | 'player' | 'user' | null;
 
 export interface SignUpMetadata {
   name: string;
@@ -312,6 +312,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roles = data?.map(r => r.role) || [];
       if (roles.includes('admin')) return 'admin';
       if (roles.includes('co_admin')) return 'co_admin';
+      if (roles.includes('primary_scorer')) return 'primary_scorer';
+      if (roles.includes('secondary_scorer')) return 'secondary_scorer';
       if (roles.includes('owner')) return 'owner';
       if (roles.includes('captain')) return 'captain';
       if (roles.includes('player')) return 'player';
@@ -1107,10 +1109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const effectiveUserRole: UserRole = isMainAdmin || hasGroundOverride ? 'admin' : userRole;
-  const isSuperAdmin = isMainAdmin || (effectiveUserRole === 'admin' && effectiveUserRole !== 'co_admin');
-  const isAdmin = isMainAdmin || hasGroundOverride || effectiveUserRole === 'admin' || effectiveUserRole === 'co_admin';
   const isCoAdmin = !isMainAdmin && !hasGroundOverride && effectiveUserRole === 'co_admin';
-  const isScorer = isAdmin;
+  const isSuperAdmin = isMainAdmin || (effectiveUserRole === 'admin' && !isCoAdmin);
+  const isAdmin = isMainAdmin || hasGroundOverride || effectiveUserRole === 'admin' || effectiveUserRole === 'co_admin';
+  const isScorer = isAdmin || effectiveUserRole === 'primary_scorer' || effectiveUserRole === 'secondary_scorer';
   const isOwner = effectiveUserRole === 'owner';
   const isCaptain = isAdmin || effectiveUserRole === 'captain';
   const isPlayer = !isAdmin && (effectiveUserRole === 'player' || !effectiveUserRole || effectiveUserRole === 'user');

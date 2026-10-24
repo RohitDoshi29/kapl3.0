@@ -53,7 +53,7 @@ export default function SecondaryScorerTab() {
       // Primary match ended, clear secondary
       syncWithPrimaryMatch(null);
     }
-  }, [primaryMatch?.id, secondaryMatch?.id, syncWithPrimaryMatch]);
+  }, [primaryMatch, secondaryMatch, syncWithPrimaryMatch]);
 
   const team1 = secondaryMatch ? getTeam(secondaryMatch.team1Id) : null;
   const team2 = secondaryMatch ? getTeam(secondaryMatch.team2Id) : null;
@@ -259,7 +259,7 @@ export default function SecondaryScorerTab() {
                   {getFilteredPlayers(bowlingTeam, bowlingPlayingPlayers).map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
                     const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
-                    const lastBowlerId = (match as any)?.lastOverBowlerId || (currentInnings.overs.length > 1 ? currentInnings.overs[currentInnings.overs.length - 2]?.bowlerId : null);
+                    const lastBowlerId = (secondaryMatch as any)?.lastOverBowlerId || (currentInnings.overs.length > 1 ? currentInnings.overs[currentInnings.overs.length - 2]?.bowlerId : null);
                     const isConsecutiveBowler = Boolean(
                       lastBowlerId && 
                       player.id === lastBowlerId && 

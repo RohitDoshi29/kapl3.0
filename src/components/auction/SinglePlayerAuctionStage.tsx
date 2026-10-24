@@ -94,7 +94,7 @@ export function SinglePlayerAuctionStage({
     } else if ((teams || []).length > 0 && !activeOwnerTeamId) {
       setActiveOwnerTeamId(teams[0].id);
     }
-  }, [userOwnedTeam, teams]);
+  }, [userOwnedTeam, teams, activeOwnerTeamId]);
 
   // Sync sold amount when spotlight player changes
   useEffect(() => {
@@ -106,7 +106,7 @@ export function SinglePlayerAuctionStage({
         setSelectedTeamId(teams[0].id);
       }
     }
-  }, [player, teams]);
+  }, [player, teams, selectedTeamId]);
 
   const fallbackTeam: Team = {
     id: 'placeholder',
@@ -214,6 +214,11 @@ export function SinglePlayerAuctionStage({
     onDecideSold(player.id, selectedTeamId, soldAmount);
   };
 
+  // Check if auction is 100% complete
+  const isAllSold = useMemo(() => {
+    return playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
+  }, [playerPool]);
+
   if (!player) {
     return (
       <Card className="p-8 text-center border-dashed border-2 rounded-3xl bg-card/60">
@@ -227,11 +232,6 @@ export function SinglePlayerAuctionStage({
       </Card>
     );
   }
-
-  // Check if auction is 100% complete
-  const isAllSold = useMemo(() => {
-    return playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
-  }, [playerPool]);
 
   return (
     <div className="space-y-6">

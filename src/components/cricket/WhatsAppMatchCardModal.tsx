@@ -52,8 +52,9 @@ export function WhatsAppMatchCardModal({
       }
     });
     Object.entries(inn.bowlerStats || {}).forEach(([pId, bw]) => {
-      if (bw && (bw.wickets > topBowler.wickets || (bw.wickets === topBowler.wickets && bw.runsConceded < topBowler.runsConceded))) {
-        topBowler = { name: getPlayerName(pId), wickets: bw.wickets, runsConceded: bw.runsConceded, overs: bw.overs };
+      const runs = (bw as any)?.runsConceded ?? bw?.runs ?? 0;
+      if (bw && (bw.wickets > topBowler.wickets || (bw.wickets === topBowler.wickets && runs < topBowler.runsConceded))) {
+        topBowler = { name: getPlayerName(pId), wickets: bw.wickets, runsConceded: runs, overs: bw.overs };
       }
     });
   });

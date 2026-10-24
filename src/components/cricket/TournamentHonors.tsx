@@ -89,24 +89,24 @@ export function TournamentHonors({ tournamentId }: { tournamentId?: string }) {
         if (!innings) return;
 
         // Batters
-        Object.values(innings.batterStats || {}).forEach(b => {
-          if (!b?.id) return;
-          const acc = getOrCreate(b.id, b.name, innings.battingTeamId);
+        Object.entries(innings.batterStats || {}).forEach(([pId, b]) => {
+          if (!pId || !b) return;
+          const acc = getOrCreate(pId, (b as any).name || 'Player', innings.battingTeamId);
           acc.matchIds.add(match.id);
           acc.runs += b.runs || 0;
-          acc.balls += b.balls || 0;
+          acc.balls += b.ballsFaced || (b as any).balls || 0;
           acc.fours += b.fours || 0;
           acc.sixes += b.sixes || 0;
         });
 
         // Bowlers
-        Object.values(innings.bowlerStats || {}).forEach(bowler => {
-          if (!bowler?.id) return;
-          const acc = getOrCreate(bowler.id, bowler.name, innings.bowlingTeamId);
+        Object.entries(innings.bowlerStats || {}).forEach(([pId, bowler]) => {
+          if (!pId || !bowler) return;
+          const acc = getOrCreate(pId, (bowler as any).name || 'Player', innings.bowlingTeamId);
           acc.matchIds.add(match.id);
           acc.wickets += bowler.wickets || 0;
           acc.overs += bowler.overs || 0;
-          acc.runsConceded += bowler.runsConceded || 0;
+          acc.runsConceded += bowler.runs || (bowler as any).runsConceded || 0;
         });
       });
     });

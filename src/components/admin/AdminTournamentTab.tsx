@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,31 +35,29 @@ export function AdminTournamentTab() {
   const groupATeams = tournamentTeams.filter(t => t.group === 'A');
   const groupBTeams = tournamentTeams.filter(t => t.group === 'B');
 
-  useEffect(() => {
-    fetchTournamentState();
-  }, [activeTournamentId]);
-
-  const fetchTournamentState = async () => {
-    let { data, error } = await supabase
+  const fetchTournamentState = useCallback(async () => {
+    let resolvedData: any = null;
+    const { data, error: fetchErr } = await supabase
       .from('tournament_state')
       .select('*')
       .eq('id', activeTournamentId)
       .maybeSingle();
 
-    if (!data && activeTournamentId === 'kapl-3-mens') {
+    resolvedData = data;
+    if (!resolvedData && activeTournamentId === 'kapl-3-mens') {
       const { data: legacyData } = await supabase
         .from('tournament_state')
         .select('*')
         .eq('id', 'current')
         .maybeSingle();
-      data = legacyData;
+      resolvedData = legacyData;
     }
 
-    if (error) {
-      console.error('Error fetching tournament state:', error);
+    if (fetchErr) {
+      console.error('Error fetching tournament state:', fetchErr);
       toast.error('Failed to load tournament state');
-    } else if (data) {
-      setTournamentState(data as TournamentState);
+    } else if (resolvedData) {
+      setTournamentState(resolvedData as TournamentState);
     } else {
       setTournamentState({
         id: activeTournamentId,
@@ -73,7 +71,11 @@ export function AdminTournamentTab() {
       });
     }
     setLoading(false);
-  };
+  }, [activeTournamentId]);
+
+  useEffect(() => {
+    fetchTournamentState();
+  }, [fetchTournamentState]);
 
   const updateTournamentState = async (field: keyof TournamentState, value: string | null) => {
     const stateId = tournamentState?.id || activeTournamentId;

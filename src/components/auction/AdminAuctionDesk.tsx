@@ -96,7 +96,7 @@ export function AdminAuctionDesk({
         setSelectedTeamId(teams[0].id);
       }
     }
-  }, [currentPlayer, teams]);
+  }, [currentPlayer, teams, selectedTeamId]);
 
   const formatMoney = (val: number) => `₹${val.toLocaleString('en-IN')}`;
 

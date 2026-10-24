@@ -20,7 +20,6 @@ import { PlayCircle, AlertCircle, Trophy, Users, UserCheck, Trash2 } from 'lucid
 import { MatchType, MATCH_TYPE_LABELS, MatchFixture } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import { Badge } from '@/components/ui/badge';
-import { useTournament } from '@/contexts/TournamentContext';
 import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
 import {
   AlertDialog,

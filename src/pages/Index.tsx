@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { Header } from '@/components/cricket/Header';
@@ -59,7 +59,9 @@ const Index = () => {
   ) : null;
   const battingTeam = match?.currentInnings === 1 ? team1 : team2;
   const bowlingTeam = match?.currentInnings === 1 ? team2 : team1;
-  const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
+  const allBalls = useMemo(() => {
+    return currentInnings?.overs.flatMap(o => o.balls) || [];
+  }, [currentInnings?.overs]);
 
   // Filter tournament-specific match history
   const tournamentMatches = matchHistory.filter(m => {

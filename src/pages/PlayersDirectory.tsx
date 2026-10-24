@@ -177,10 +177,11 @@ export default function PlayersDirectory() {
             if (a.overs === 0) return 1;
             if (b.overs === 0) return -1;
             return a.economy - b.economy;
-          case 'price':
+          case 'price': {
             const priceA = a.soldPrice || a.basePrice || 0;
             const priceB = b.soldPrice || b.basePrice || 0;
             return priceB - priceA;
+          }
           case 'matches':
             return b.matchesPlayed - a.matchesPlayed;
           default:

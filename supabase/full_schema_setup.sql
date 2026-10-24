@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS public.teams (
   owner_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   owner_name TEXT,
   owner_email TEXT,
+  captain_name TEXT,
+  captain_player_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -196,6 +198,8 @@ CREATE TABLE IF NOT EXISTS public.teams (
 -- Ensure all team columns exist idempotently on pre-existing tables
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS tournament_id TEXT REFERENCES public.tournaments(id) ON DELETE SET NULL;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_name TEXT;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_player_id TEXT;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_name TEXT;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS owner_email TEXT;
@@ -338,7 +342,7 @@ CREATE TABLE IF NOT EXISTS public.auction_state (
   current_bid NUMERIC NOT NULL DEFAULT 0,
   highest_bidder_team_id TEXT REFERENCES public.teams(id) ON DELETE SET NULL,
   bid_history JSONB NOT NULL DEFAULT '[]'::jsonb,
-  status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'bidding', 'fair_warning', 'sold', 'unsold')),
+  status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'bidding', 'fair_warning', 'sold', 'unsold', 'completed', 'paused')),
   timer_ends_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -409,42 +413,64 @@ CREATE POLICY "Admins can manage tournaments" ON public.tournaments FOR ALL TO a
 DROP POLICY IF EXISTS "Anyone can view teams" ON public.teams;
 CREATE POLICY "Anyone can view teams" ON public.teams FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can update teams" ON public.teams;
-CREATE POLICY "Anyone can update teams" ON public.teams FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage teams" ON public.teams;
+CREATE POLICY "Admins can manage teams" ON public.teams FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view players" ON public.players;
 CREATE POLICY "Anyone can view players" ON public.players FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can register or update players" ON public.players;
-CREATE POLICY "Anyone can register or update players" ON public.players FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage all players" ON public.players;
+DROP POLICY IF EXISTS "Users can update own player record" ON public.players;
+DROP POLICY IF EXISTS "Users can insert own player record" ON public.players;
+CREATE POLICY "Admins can manage all players" ON public.players FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Users can update own player record" ON public.players FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own player record" ON public.players FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Anyone can view match state" ON public.match_state;
 CREATE POLICY "Anyone can view match state" ON public.match_state FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage match_state" ON public.match_state;
-CREATE POLICY "Anyone can manage match_state" ON public.match_state FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Scorers and Admins can manage match_state" ON public.match_state;
+CREATE POLICY "Scorers and Admins can manage match_state" ON public.match_state FOR ALL TO authenticated USING (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer()) WITH CHECK (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer());
 
 DROP POLICY IF EXISTS "Anyone can view secondary match state" ON public.secondary_match_state;
 CREATE POLICY "Anyone can view secondary match state" ON public.secondary_match_state FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage secondary_match_state" ON public.secondary_match_state;
-CREATE POLICY "Anyone can manage secondary_match_state" ON public.secondary_match_state FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Scorers and Admins can manage secondary_match_state" ON public.secondary_match_state;
+CREATE POLICY "Scorers and Admins can manage secondary_match_state" ON public.secondary_match_state FOR ALL TO authenticated USING (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer()) WITH CHECK (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer());
 
 DROP POLICY IF EXISTS "Anyone can view match history" ON public.match_history;
 CREATE POLICY "Anyone can view match history" ON public.match_history FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage match_history" ON public.match_history;
-CREATE POLICY "Anyone can manage match_history" ON public.match_history FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Scorers and Admins can manage match_history" ON public.match_history;
+CREATE POLICY "Scorers and Admins can manage match_history" ON public.match_history FOR ALL TO authenticated USING (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer()) WITH CHECK (public.is_admin() OR public.is_primary_scorer() OR public.is_secondary_scorer());
 
 DROP POLICY IF EXISTS "Anyone can view tournament state" ON public.tournament_state;
 CREATE POLICY "Anyone can view tournament state" ON public.tournament_state FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage tournament state" ON public.tournament_state;
-CREATE POLICY "Anyone can manage tournament state" ON public.tournament_state FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage tournament state" ON public.tournament_state;
+CREATE POLICY "Admins can manage tournament state" ON public.tournament_state FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view auction state" ON public.auction_state;
 CREATE POLICY "Anyone can view auction state" ON public.auction_state FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage auction state" ON public.auction_state;
-CREATE POLICY "Anyone can manage auction state" ON public.auction_state FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage auction state" ON public.auction_state;
+CREATE POLICY "Admins can manage auction state" ON public.auction_state FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view auction bids" ON public.auction_bids;
 CREATE POLICY "Anyone can view auction bids" ON public.auction_bids FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can manage auction bids" ON public.auction_bids;
-CREATE POLICY "Anyone can manage auction bids" ON public.auction_bids FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users and Admins can insert bids" ON public.auction_bids;
+DROP POLICY IF EXISTS "Admins can manage auction bids" ON public.auction_bids;
+CREATE POLICY "Authenticated users and Admins can insert bids" ON public.auction_bids FOR INSERT TO authenticated WITH CHECK (public.is_admin() OR auth.uid() = bidder_user_id);
+CREATE POLICY "Admins can manage auction bids" ON public.auction_bids FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Sensitive Column Protection: Revoke mobile_number and user_id from anon on public.players
+REVOKE SELECT ON TABLE public.players FROM anon;
+GRANT SELECT (
+  id, name, photo_url, role, batting_style, bowling_style, 
+  tournament_id, team_id, jersey_number, base_price, sold_price, 
+  auction_status, created_at, updated_at
+) ON public.players TO anon;
 
 -- 13. ENABLE REALTIME & REPLICA IDENTITY FULL
 ALTER TABLE public.tournaments REPLICA IDENTITY FULL;
@@ -492,6 +518,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access Denied: Only administrators can reset tournament data.';
+  END IF;
+
   -- 1. Permanently delete all players
   DELETE FROM public.players;
 
@@ -513,7 +543,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.reset_all_players_and_teams() TO anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.reset_all_players_and_teams() FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.reset_all_players_and_teams() TO authenticated, service_role;
 
 -- 15. RPC FUNCTION TO REGISTER NEW PLAYER ATOMICALLY (Bypasses RLS)
 CREATE OR REPLACE FUNCTION public.register_new_player(
@@ -537,6 +568,11 @@ AS $$
 DECLARE
   v_result JSONB;
 BEGIN
+  -- Verify caller is admin OR registering their own user_id
+  IF NOT (public.is_admin() OR (auth.uid() IS NOT NULL AND auth.uid() = p_user_id)) THEN
+    RAISE EXCEPTION 'Access Denied: Only administrators or the authenticated user can register or update this player profile.';
+  END IF;
+
   INSERT INTO public.players (
     id, user_id, name, role, batting_style, bowling_style, 
     tournament_id, jersey_number, mobile_number, photo_url, 
@@ -562,7 +598,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.register_new_player TO anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.register_new_player FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.register_new_player TO authenticated, service_role;
 
 -- 16. RPC FUNCTION TO DELETE A PLAYER BY ID (Bypasses RLS)
 CREATE OR REPLACE FUNCTION public.delete_player_by_id(p_id TEXT)
@@ -572,6 +609,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access Denied: Only administrators can delete players.';
+  END IF;
+
   DELETE FROM public.players WHERE id = p_id;
   -- If player was in any team roster, remove them and refund purse
   UPDATE public.teams
@@ -590,4 +631,98 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.delete_player_by_id(TEXT) TO anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.delete_player_by_id(TEXT) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.delete_player_by_id(TEXT) TO authenticated, service_role;
+
+-- 17. RPC FUNCTION TO FINALIZE PLAYER SALE ATOMICALLY
+CREATE OR REPLACE FUNCTION public.sell_player_to_team(
+  p_tournament_id TEXT,
+  p_player_id TEXT,
+  p_team_id TEXT,
+  p_sold_price NUMERIC,
+  p_bidder_user_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_team RECORD;
+  v_player RECORD;
+  v_new_purse NUMERIC;
+  v_updated_players JSONB;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access Denied: Only administrators can finalize player sales.';
+  END IF;
+
+  -- 1. Lock team row
+  SELECT * INTO v_team FROM public.teams WHERE id = p_team_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Team not found: %', p_team_id;
+  END IF;
+
+  -- 2. Lock player row
+  SELECT * INTO v_player FROM public.players WHERE id = p_player_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Player not found: %', p_player_id;
+  END IF;
+
+  v_new_purse := v_team.remaining_purse - p_sold_price;
+  IF v_new_purse < 0 THEN
+    RAISE EXCEPTION 'Insufficient purse: team has % but sale price is %', v_team.remaining_purse, p_sold_price;
+  END IF;
+
+  -- 3. Update player
+  UPDATE public.players
+  SET
+    team_id = p_team_id,
+    sold_price = p_sold_price,
+    auction_status = 'sold',
+    updated_at = now()
+  WHERE id = p_player_id;
+
+  -- 4. Append player to team roster
+  v_updated_players := (
+    SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+    FROM jsonb_array_elements(COALESCE(v_team.players, '[]'::jsonb)) AS elem
+    WHERE elem->>'id' != p_player_id
+  ) || jsonb_build_array(jsonb_build_object(
+    'id', v_player.id,
+    'name', v_player.name,
+    'photo', v_player.photo_url,
+    'role', v_player.role,
+    'soldPrice', p_sold_price
+  ));
+
+  UPDATE public.teams
+  SET
+    remaining_purse = v_new_purse,
+    players = v_updated_players,
+    player_count = jsonb_array_length(v_updated_players),
+    updated_at = now()
+  WHERE id = p_team_id;
+
+  -- 5. Update auction state
+  INSERT INTO public.auction_state (id, tournament_id, current_player_id, current_bid, highest_bidder_team_id, status, timer_ends_at, updated_at)
+  VALUES (p_tournament_id, p_tournament_id, p_player_id, p_sold_price, p_team_id, 'sold', NULL, now())
+  ON CONFLICT (id) DO UPDATE SET
+    tournament_id = EXCLUDED.tournament_id,
+    current_player_id = EXCLUDED.current_player_id,
+    current_bid = EXCLUDED.current_bid,
+    highest_bidder_team_id = EXCLUDED.highest_bidder_team_id,
+    status = 'sold',
+    timer_ends_at = NULL,
+    updated_at = now();
+
+  -- 6. Record bid in auction_bids
+  INSERT INTO public.auction_bids (tournament_id, player_id, team_id, bid_amount, bidder_user_id)
+  VALUES (p_tournament_id, p_player_id, p_team_id, p_sold_price, p_bidder_user_id);
+
+  RETURN jsonb_build_object('success', true, 'remainingPurse', v_new_purse);
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.sell_player_to_team FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.sell_player_to_team TO authenticated, service_role;

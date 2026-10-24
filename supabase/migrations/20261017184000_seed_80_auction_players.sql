@@ -1,6 +1,15 @@
 -- ==============================================================================
 -- Seed 80 Fake Auction Players & Reset Teams to 0 Players with Full 10,000 Purse
+-- NOTE: FOR LOCAL DEVELOPMENT AND SEED TESTING ONLY. DO NOT RUN IN PRODUCTION.
 -- ==============================================================================
+
+-- 0. Safety Guard: Do NOT wipe production if user-registered players exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.players WHERE user_id IS NOT NULL LIMIT 1) THEN
+    RAISE EXCEPTION 'Safety Stop: Real user registered players detected in database. Aborting seed_80_auction_players to prevent data loss.';
+  END IF;
+END $$;
 
 -- 1. Clear previous auction bids & reset auction state
 DELETE FROM public.auction_bids;
