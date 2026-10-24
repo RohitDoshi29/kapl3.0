@@ -17,6 +17,7 @@ export interface BowlerStats {
   wickets: number;
   wides: number;
   noBalls: number;
+  maidens?: number;
 }
 
 export type TournamentCategory = 'mens' | 'womens';
@@ -106,7 +107,7 @@ export interface AuctionState {
   currentBid: number;
   highestBidderTeamId?: string | null;
   bidHistory: BidHistoryEntry[];
-  status: 'idle' | 'bidding' | 'fair_warning' | 'sold' | 'unsold';
+  status: 'idle' | 'bidding' | 'fair_warning' | 'sold' | 'unsold' | 'completed' | 'paused';
   timerEndsAt?: string | null;
   updatedAt?: string;
 }
@@ -126,6 +127,7 @@ export interface Player {
 export interface Team {
   id: string;
   name: string;
+  shortName?: string;
   group: 'A' | 'B';
   logo: string | null; // base64 string
   primaryColor: string; // HSL color

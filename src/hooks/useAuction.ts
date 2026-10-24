@@ -428,11 +428,9 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
             (p) => p.teamId === t.id && p.auctionStatus === 'sold'
           );
 
-          // Squad derivation:
+          // Squad derivation: DB / Real-time pool takes strict precedence over local cache
           let teamPlayers: any[] = [];
-          if (localCached && Array.isArray(localCached.players) && localCached.players.length > 0 && !localCached.players.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
-            teamPlayers = localCached.players;
-          } else if (soldFromPool.length > 0) {
+          if (soldFromPool.length > 0) {
             teamPlayers = soldFromPool.map((p) => ({
               id: p.id,
               name: p.name,
@@ -442,6 +440,8 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
             }));
           } else if (Array.isArray(t.players) && t.players.length > 0 && !t.players.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
             teamPlayers = t.players;
+          } else if (localCached && Array.isArray(localCached.players) && localCached.players.length > 0 && !localCached.players.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
+            teamPlayers = localCached.players;
           }
 
           const initialPurse = Number(t.initial_purse || 10000);
@@ -1140,13 +1140,34 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       return;
     }
 
+    // 1. Persist to Supabase atomically via RPC first (ensures DB confirmation before UI changes)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('sell_player_to_team', {
+        p_tournament_id: tournamentId,
+        p_player_id: targetPlayer.id,
+        p_team_id: targetTeam.id,
+        p_sold_price: soldPrice,
+        p_bidder_user_id: user?.id || null,
+      });
+
+      if (rpcError) {
+        console.error('Auction sale failed via RPC:', rpcError);
+        toast.error(`❌ Auction sale failed: ${rpcError.message}`);
+        return;
+      }
+    } catch (rpcErr: any) {
+      console.error('Auction sale RPC invocation error:', rpcErr);
+      toast.error(`❌ Auction sale failed: ${rpcErr?.message || 'Network error'}`);
+      return;
+    }
+
+    // 2. Database confirmed sale atomically. Now update UI state, localStorage, and broadcast.
     const newRemainingPurse = Math.max(0, availablePurse - soldPrice);
     const updatedPlayersJson = [
       ...(targetTeam.players || []).filter((p) => p.id !== targetPlayer.id),
       { id: targetPlayer.id, name: targetPlayer.name, photo: targetPlayer.photoUrl, role: targetPlayer.role, soldPrice },
     ];
 
-    // Optimistic local state update
     const updatedPool = playerPool.map(p => p.id === targetPlayer.id ? { ...p, auctionStatus: 'sold' as const, teamId: targetTeam.id, soldPrice } : p);
     const updatedTeams = teams.map(t => t.id === targetTeam.id ? { ...t, remainingPurse: newRemainingPurse, players: updatedPlayersJson, playerCount: updatedPlayersJson.length } : t);
     
@@ -1214,74 +1235,6 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         setAutoAdvanceCountdown(null);
         spotlightPlayer(remainingPending[0]);
       }, 3500);
-    }
-
-    // Persist to Supabase atomically via RPC (with direct fallback capturing all errors)
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('sell_player_to_team', {
-        p_tournament_id: tournamentId,
-        p_player_id: targetPlayer.id,
-        p_team_id: targetTeam.id,
-        p_sold_price: soldPrice,
-        p_bidder_user_id: user?.id || null,
-      });
-
-      if (!rpcError) {
-        return;
-      }
-      console.warn('sell_player_to_team RPC notice, falling back to direct persistence:', rpcError.message);
-    } catch (rpcErr) {
-      console.warn('RPC invocation notice:', rpcErr);
-    }
-
-    try {
-      const { error: pErr } = await supabase
-        .from('players')
-        .update({
-          team_id: targetTeam.id,
-          sold_price: soldPrice,
-          auction_status: 'sold',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', targetPlayer.id);
-      if (pErr) console.error('Failed to update player status to sold:', pErr);
-
-      const { error: tErr } = await supabase
-        .from('teams')
-        .update({
-          remaining_purse: newRemainingPurse,
-          players: updatedPlayersJson as any,
-          player_count: updatedPlayersJson.length,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', targetTeam.id);
-      if (tErr) console.error('Failed to update team purse and players:', tErr);
-
-      const stateId = auctionState?.id || tournamentId;
-      const { error: sErr } = await supabase
-        .from('auction_state')
-        .upsert({
-          id: stateId,
-          tournament_id: tournamentId,
-          current_player_id: targetPlayer.id,
-          current_bid: soldPrice,
-          highest_bidder_team_id: targetTeam.id,
-          status: 'sold',
-          timer_ends_at: null,
-          updated_at: new Date().toISOString(),
-        });
-      if (sErr) console.error('Failed to update auction_state for sold player:', sErr);
-
-      const { error: bErr } = await supabase.from('auction_bids').insert({
-        tournament_id: tournamentId,
-        player_id: targetPlayer.id,
-        team_id: targetTeam.id,
-        bid_amount: soldPrice,
-        bidder_user_id: user?.id,
-      });
-      if (bErr) console.error('Failed to insert bid for sold player:', bErr);
-    } catch (err: any) {
-      console.error('DB persistence error for sold player:', err?.message || err);
     }
   };
 

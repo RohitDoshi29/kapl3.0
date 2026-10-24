@@ -95,7 +95,7 @@ export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?
       try {
         const { data, error } = await supabase
           .from('players')
-          .select('*')
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
           .eq('id', playerId)
           .maybeSingle();
 
@@ -545,6 +545,7 @@ export interface PlayerDirectoryItem {
   battingStyle?: string;
   bowlingStyle?: string;
   photoUrl?: string | null;
+  photo?: string | null;
   basePrice: number;
   soldPrice?: number | null;
   auctionStatus: 'pending' | 'sold' | 'unsold';
@@ -1150,6 +1151,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         battingStyle: p.battingStyle,
         bowlingStyle: p.bowlingStyle,
         photoUrl: p.photoUrl,
+        photo: p.photoUrl || (p as any).photo || null,
         basePrice: p.basePrice,
         soldPrice: p.soldPrice,
         auctionStatus: p.auctionStatus,

@@ -140,7 +140,17 @@ export function calculateMatchPerformances(
       current.bowlingRuns += (stats.runs || 0);
       current.overs += (stats.overs || 0);
       current.balls += (stats.balls || 0);
-      current.maidens += (stats.maidens || 0);
+
+      let maidens = stats.maidens;
+      if (maidens === undefined) {
+        const playerOvers = (innings.overs || []).filter(o => o.bowlerId === playerId);
+        maidens = playerOvers.filter(o => {
+          const legalBalls = (o.balls || []).filter(b => !b.isWide && !b.isNoBall);
+          const overRuns = (o.balls || []).reduce((acc, b) => acc + (b.runs || 0), 0);
+          return legalBalls.length >= 6 && overRuns === 0;
+        }).length;
+      }
+      current.maidens += (maidens || 0);
     });
 
     // Fielding events from overs

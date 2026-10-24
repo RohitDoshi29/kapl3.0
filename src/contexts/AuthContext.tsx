@@ -233,12 +233,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let dbPlayer: any = null;
     try {
-      const { data } = await supabase
-        .from('players')
-        .select('*')
-        .eq('user_id', userObj.id)
-        .maybeSingle();
-      if (data) dbPlayer = data;
+      const { data: privData } = await supabase.rpc('get_my_private_player_profile');
+      if (privData) {
+        dbPlayer = privData;
+      } else {
+        const { data } = await supabase
+          .from('players')
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
+          .eq('user_id', userObj.id)
+          .maybeSingle();
+        if (data) dbPlayer = data;
+      }
     } catch (e) {
       console.warn('Could not query players table for user profile:', e);
     }

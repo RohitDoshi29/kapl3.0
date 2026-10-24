@@ -513,6 +513,16 @@ export type Database = {
         }
         Returns: Json
       }
+      get_my_private_player_profile: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      get_player_private_details: {
+        Args: {
+          p_player_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "co_admin" | "user" | "primary_scorer" | "secondary_scorer" | "captain" | "owner" | "player"
@@ -643,7 +653,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "primary_scorer", "secondary_scorer"],
+      app_role: ["admin", "co_admin", "user", "primary_scorer", "secondary_scorer", "captain", "owner", "player"],
     },
   },
 } as const

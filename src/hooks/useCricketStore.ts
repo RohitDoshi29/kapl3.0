@@ -806,7 +806,8 @@ export async function pollMatchStateDatabase() {
       if (lastHeartbeatRowSignatures[row.id] !== rowSig) {
         lastHeartbeatRowSignatures[row.id] = rowSig;
 
-        const isDiscarded = (row.current_match as any)?.id === '1792091739936';
+        const currentMatchData = row.current_match as unknown as Match | null;
+        const isDiscarded = currentMatchData?.id === '1792091739936';
         if (isDiscarded) {
           notifyGlobalStateListeners({ currentMatch: null, lastAction: null }, tId);
           notifyGlobalPlayersListeners({});
@@ -819,11 +820,11 @@ export async function pollMatchStateDatabase() {
           continue;
         }
 
-        if (row.current_match) {
-          const currentMatch = {
-            ...row.current_match,
+        if (currentMatchData) {
+          const currentMatch: Match = {
+            ...currentMatchData,
             tournamentId: tId,
-          } as Match;
+          };
           const lastAction = row.last_action as MatchState['lastAction'];
 
           notifyGlobalStateListeners({ currentMatch, lastAction }, tId);
@@ -1205,12 +1206,13 @@ export function useCricketStore(targetTournamentId?: string) {
         if (stateRows && stateRows.length > 0 && isMounted) {
           for (const row of stateRows) {
             const tId = resolveTournamentId(row.current_match, row.tournament_id || (row.id === 'womens' ? 'kapl-3-womens' : 'kapl-3-mens'));
-            const isDiscarded = row.current_match?.id === '1792091739936';
-            if (row.current_match && !isDiscarded) {
-              const currentMatch = {
-                ...row.current_match,
+            const currentMatchData = row.current_match as unknown as Match | null;
+            const isDiscarded = currentMatchData?.id === '1792091739936';
+            if (currentMatchData && !isDiscarded) {
+              const currentMatch: Match = {
+                ...currentMatchData,
                 tournamentId: tId,
-              } as Match;
+              };
               const lastAction = row.last_action as MatchState['lastAction'];
               globalTournamentMatchStates[tId] = { currentMatch, lastAction };
               if (tId === effectiveTournamentId) {

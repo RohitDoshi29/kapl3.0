@@ -1,5 +1,7 @@
 import { PlayerRecord, PlayerRole, Team, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS } from './cricketTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 export function generateAuctionPlayers(tournamentId: string = 'kapl-3-mens'): PlayerRecord[] {
   const isWomens = tournamentId === 'kapl-3-womens';
@@ -435,7 +437,7 @@ export async function autoCompleteAuctionForAll80Players(
         const { error: teamErr } = await customClient
           .from('teams')
           .update({
-            players: t.players,
+            players: t.players as unknown as Json,
             player_count: t.playerCount,
             max_squad_size: 10,
             remaining_purse: t.remainingPurse,
@@ -460,9 +462,13 @@ export async function autoCompleteAuctionForAll80Players(
             updated_at: new Date().toISOString(),
           }
         ], { onConflict: 'id' });
-      if (stateErr) console.warn('Supabase auction completion notice:', stateErr);
-    } catch (e) {
-      console.warn('Supabase auction completion notice:', e);
+      if (stateErr) {
+        console.error('Supabase auction completion error:', stateErr);
+        toast.error(`Auction state sync failed: ${stateErr.message}`);
+      }
+    } catch (e: any) {
+      console.error('Supabase auction completion error:', e);
+      toast.error(`Auction sync error: ${e?.message || e}`);
     }
     // Dispatch local events so current tab and all store hooks update instantaneously
     if (typeof window !== 'undefined') {
