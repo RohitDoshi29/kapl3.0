@@ -81,134 +81,142 @@ export function Header({ className }: { className?: string }) {
   };
 
   return (
-    <header className={cn('relative overflow-hidden py-3 md:py-4 bg-card/85 backdrop-blur-xl border-b border-white/[0.08] shadow-md shadow-black/20', className)}>
+    <header className={cn('relative overflow-hidden py-2.5 md:py-3.5 bg-card/85 backdrop-blur-xl border-b border-white/[0.08] shadow-md shadow-black/20', className)}>
       <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-emerald-500/5 to-cyan-500/10 opacity-70 pointer-events-none" />
 
-      <div className="relative container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Title & Branding */}
-        <div className="text-center md:text-left flex items-center gap-3">
-          <Link to="/" className="group flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/25 group-hover:scale-105 group-hover:shadow-amber-500/40 transition-all text-black font-black">
-              <span className="text-xl">🏏</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl md:text-2xl font-black tracking-tight text-foreground font-display">
-                  KAPL
-                </span>
-                <Badge variant="gold" className="text-[11px] px-2 py-0.5 tracking-wider font-black">
-                  <Sparkles className="w-2.5 h-2.5 mr-1 text-amber-300" /> 3.0
-                </Badge>
+      <div className="relative container mx-auto px-3 sm:px-4">
+        {/* Desktop Single Row / Mobile Responsive Split */}
+        <div className="flex items-center justify-between gap-2 md:gap-4">
+          {/* Title & Branding */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link to="/" className="group flex items-center gap-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/25 group-hover:scale-105 group-hover:shadow-amber-500/40 transition-all text-black font-black">
+                <span className="text-lg sm:text-xl">🏏</span>
               </div>
-              <p className="text-[11px] text-muted-foreground font-medium tracking-wide">
-                Premier Cricket League
-              </p>
-            </div>
-          </Link>
-        </div>
-
-        {/* Global Tournament Switcher (Men's vs Women's) */}
-        <div className="my-1 md:my-0 flex items-center gap-2">
-          <TournamentSwitcher size="md" />
-        </div>
-
-        {/* Controls & User Account Bar */}
-        <div className="flex items-center gap-2">
-          {/* Quick Audio Toggle */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSoundToggle}
-            className="h-8.5 w-8.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08] shadow-xs"
-            title={soundOn ? 'Mute Sound Effects' : 'Enable Sound Effects'}
-          >
-            {soundOn ? (
-              <Volume2 className="w-4 h-4 text-amber-400" />
-            ) : (
-              <VolumeX className="w-4 h-4 text-muted-foreground" />
-            )}
-          </Button>
-
-          {/* High-Contrast Outdoor Sunlight Mode Toggle */}
-          <Button
-            variant={isSunlightMode ? 'default' : 'outline'}
-            size="icon"
-            onClick={handleSunlightToggle}
-            className={cn(
-              'h-8.5 w-8.5 rounded-xl shadow-xs transition-all',
-              isSunlightMode
-                ? 'bg-amber-500 text-black border-amber-600 hover:bg-amber-400'
-                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
-            )}
-            title={isSunlightMode ? 'Switch to Stadium Night Mode' : 'Switch to Outdoor High-Contrast Sunlight Mode'}
-          >
-            {isSunlightMode ? (
-              <Sun className="w-4 h-4 text-black animate-spin-slow" />
-            ) : (
-              <Moon className="w-4 h-4 text-muted-foreground" />
-            )}
-          </Button>
-
-          {/* User Account / Auth */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl pl-2 pr-2.5 py-1 shadow-sm transition-all">
-              <Link
-                to="/profile"
-                className="flex items-center gap-2 group"
-                title="View & Edit My Profile"
-              >
-                <Avatar className="w-7 h-7 border border-amber-500/40 group-hover:border-amber-400 transition-colors shadow-xs">
-                  {profile?.photoUrl && (
-                    <AvatarImage src={profile.photoUrl} alt={profile.name || 'User avatar'} className="object-cover" />
-                  )}
-                  <AvatarFallback className="bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-                    {profile?.name
-                      ? profile.name.slice(0, 2).toUpperCase()
-                      : user.email
-                      ? user.email.slice(0, 2).toUpperCase()
-                      : <User className="w-3 h-3" />}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex flex-col text-left">
-                  <span className="text-[11px] font-bold text-foreground max-w-[100px] md:max-w-[140px] truncate leading-tight group-hover:text-amber-400 transition-colors">
-                    {profile?.name || user.email}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-lg sm:text-2xl font-black tracking-tight text-foreground font-display">
+                    KAPL
                   </span>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    {getRoleBadge(userRole)}
-                  </div>
+                  <Badge variant="gold" className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 tracking-wider font-black">
+                    <Sparkles className="w-2.5 h-2.5 mr-0.5 sm:mr-1 text-amber-300" /> 3.0
+                  </Badge>
                 </div>
-              </Link>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium tracking-wide hidden sm:block">
+                  Premier Cricket League
+                </p>
+              </div>
+            </Link>
+          </div>
 
-              <div className="h-4 w-px bg-white/10 mx-0.5" />
+          {/* Global Tournament Switcher (Desktop only inline) */}
+          <div className="hidden md:flex items-center justify-center">
+            <TournamentSwitcher size="md" />
+          </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                onClick={handleSignOut}
-                title="Sign Out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <Link to="/auth" state={{ tab: 'signin' }}>
-                <Button size="sm" variant="ghost" className="h-8.5 rounded-xl text-xs font-bold hover:bg-white/[0.08] px-2.5">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/auth" state={{ tab: 'signup' }}>
-                <Button
-                  size="sm"
-                  className="h-8.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/20 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black hover:opacity-95 px-3"
+          {/* Controls & User Account Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Quick Audio Toggle */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSoundToggle}
+              className="h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08] shadow-xs touch-manipulation"
+              title={soundOn ? 'Mute Sound Effects' : 'Enable Sound Effects'}
+            >
+              {soundOn ? (
+                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+              )}
+            </Button>
+
+            {/* High-Contrast Outdoor Sunlight Mode Toggle */}
+            <Button
+              variant={isSunlightMode ? 'default' : 'outline'}
+              size="icon"
+              onClick={handleSunlightToggle}
+              className={cn(
+                'h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-xl shadow-xs transition-all touch-manipulation',
+                isSunlightMode
+                  ? 'bg-amber-500 text-black border-amber-600 hover:bg-amber-400'
+                  : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
+              )}
+              title={isSunlightMode ? 'Switch to Stadium Night Mode' : 'Switch to Outdoor High-Contrast Sunlight Mode'}
+            >
+              {isSunlightMode ? (
+                <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black animate-spin-slow" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+              )}
+            </Button>
+
+            {/* User Account / Auth */}
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-white/[0.04] hover:bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl pl-1.5 sm:pl-2 pr-2 py-1 shadow-sm transition-all">
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-1.5 sm:gap-2 group min-w-0"
+                  title="View & Edit My Profile"
                 >
-                  Create Account
+                  <Avatar className="w-6 h-6 sm:w-7 sm:h-7 border border-amber-500/40 group-hover:border-amber-400 transition-colors shadow-xs shrink-0">
+                    {profile?.photoUrl && (
+                      <AvatarImage src={profile.photoUrl} alt={profile.name || 'User avatar'} className="object-cover" />
+                    )}
+                    <AvatarFallback className="bg-amber-500/20 text-amber-300 text-[9px] sm:text-[10px] font-bold">
+                      {profile?.name
+                        ? profile.name.slice(0, 2).toUpperCase()
+                        : user.email
+                        ? user.email.slice(0, 2).toUpperCase()
+                        : <User className="w-3 h-3" />}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex flex-col text-left min-w-0">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-foreground max-w-[70px] sm:max-w-[120px] md:max-w-[140px] truncate leading-tight group-hover:text-amber-400 transition-colors">
+                      {profile?.name || user.email}
+                    </span>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {getRoleBadge(userRole)}
+                    </div>
+                  </div>
+                </Link>
+
+                <div className="h-3.5 w-px bg-white/10 mx-0.5" />
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 sm:h-7 sm:w-7 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/10 touch-manipulation"
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
-              </Link>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Link to="/auth" state={{ tab: 'signin' }}>
+                  <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs font-bold hover:bg-white/[0.08] px-2 sm:px-2.5 touch-manipulation">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth" state={{ tab: 'signup' }}>
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-xl text-xs font-black shadow-md shadow-amber-500/20 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black hover:opacity-95 px-2.5 sm:px-3 touch-manipulation"
+                  >
+                    Join
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Tournament Switcher Sub-Bar */}
+        <div className="md:hidden flex items-center justify-center pt-2 mt-1 border-t border-white/[0.06]">
+          <TournamentSwitcher size="sm" />
         </div>
       </div>
     </header>

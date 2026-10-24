@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { Header } from '@/components/cricket/Header';
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Medal, Sparkles, Clock } from 'lucide-react';
+import { Trophy, Medal, Sparkles, Clock, GitBranch, BarChart3 } from 'lucide-react';
 import { TournamentCeremonyModal } from '@/components/cricket/TournamentCeremonyModal';
 import { useTournamentHonors } from '@/hooks/useTournamentHonors';
 
@@ -25,6 +26,7 @@ interface TournamentState {
 }
 
 export default function TournamentStructure() {
+  const location = useLocation();
   const { teams, getTeamStats } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
   const stats = getTeamStats(activeTournamentId);
@@ -127,7 +129,7 @@ export default function TournamentStructure() {
     teamId === tournamentState?.qualified_b1 || teamId === tournamentState?.qualified_b2;
 
   return (
-    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+    <div className="relative min-h-screen bg-background pb-24 md:pb-8">
       {/* Ambient Stadium Lighting Mesh */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -137,11 +139,51 @@ export default function TournamentStructure() {
       <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-3 sm:px-4 py-4 md:py-6 space-y-5 md:space-y-6">
+        {/* Tournament Sub-Navigation (Standings, Bracket, Stats) */}
+        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/10 rounded-2xl w-full max-w-lg mx-auto">
+          <Link
+            to="/points"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/points'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span>Points Table</span>
+          </Link>
+          <Link
+            to="/bracket"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/bracket'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-amber-400" />
+            <span>Playoffs Bracket</span>
+          </Link>
+          <Link
+            to="/stats"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/stats'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Team Stats</span>
+          </Link>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
                 {currentTournament?.name || "Tournament"} <span className="text-gradient-gold">Knockouts & Playoffs</span>
               </h1>
               <Badge variant="outline" className="bg-amber-500/15 border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-wider">

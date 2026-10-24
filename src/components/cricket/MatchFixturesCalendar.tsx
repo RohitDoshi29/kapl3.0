@@ -268,34 +268,34 @@ export function MatchFixturesCalendar({
                   {/* Teams Matchup Center */}
                   <div className="py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                     {/* Team 1 */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {team1 && <TeamBadge team={team1} size="md" showName={false} />}
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                      {team1 && <TeamBadge team={team1} size="sm" showName={false} className="shrink-0" />}
                       <div className="min-w-0">
-                        <div className="font-bold text-sm text-foreground truncate">
-                          {team1 ? team1.name : fixture.team1Id}
+                        <div className="font-bold text-xs sm:text-sm text-foreground truncate">
+                          {team1 ? (team1.shortName || team1.name) : fixture.team1Id}
                         </div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">
                           Team 1
                         </div>
                       </div>
                     </div>
 
                     {/* VS Pill */}
-                    <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center font-bold text-[11px] text-muted-foreground">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center font-bold text-[10px] sm:text-[11px] text-muted-foreground shrink-0">
                       VS
                     </div>
 
                     {/* Team 2 */}
-                    <div className="flex items-center justify-end gap-2.5 min-w-0 text-right">
+                    <div className="flex items-center justify-end gap-2 sm:gap-2.5 min-w-0 text-right">
                       <div className="min-w-0">
-                        <div className="font-bold text-sm text-foreground truncate">
-                          {team2 ? team2.name : fixture.team2Id}
+                        <div className="font-bold text-xs sm:text-sm text-foreground truncate">
+                          {team2 ? (team2.shortName || team2.name) : fixture.team2Id}
                         </div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">
                           Team 2
                         </div>
                       </div>
-                      {team2 && <TeamBadge team={team2} size="md" showName={false} />}
+                      {team2 && <TeamBadge team={team2} size="sm" showName={false} className="shrink-0" />}
                     </div>
                   </div>
 

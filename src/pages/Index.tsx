@@ -114,7 +114,7 @@ const Index = () => {
         teamName={animation.teamName}
         onComplete={clearAnimation}
       />
-      <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+      <div className="relative min-h-screen bg-background pb-24 md:pb-8">
         {/* Ambient Stadium Lighting Mesh */}
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -127,7 +127,7 @@ const Index = () => {
         {/* Player Registration Announcement Popup Modal */}
         <PlayerRegistrationPopup />
 
-      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-3 sm:px-4 py-4 md:py-6 space-y-5 md:space-y-6">
         {match && team1 && team2 ? (
           <>
             {/* Match Status */}

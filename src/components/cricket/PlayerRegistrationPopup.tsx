@@ -63,7 +63,7 @@ export function PlayerRegistrationPopup({ forceOpen, onClose }: PlayerRegistrati
       if (!open) handleDismiss();
       else setIsOpen(true);
     }}>
-      <DialogContent className="sm:max-w-md md:max-w-lg p-0 overflow-hidden border border-amber-500/40 bg-card/95 backdrop-blur-2xl shadow-2xl shadow-amber-500/20 rounded-3xl">
+      <DialogContent className="max-w-[94vw] sm:max-w-md md:max-w-lg max-h-[90dvh] overflow-y-auto p-0 border border-amber-500/40 bg-card/95 backdrop-blur-2xl shadow-2xl shadow-amber-500/20 rounded-3xl">
         {/* Glow Header Background */}
         <div className="relative p-6 pb-4 bg-gradient-to-b from-amber-500/15 via-yellow-500/5 to-transparent border-b border-white/[0.08]">
           <div className="flex items-center justify-between mb-3">

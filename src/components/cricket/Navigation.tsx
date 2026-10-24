@@ -84,10 +84,10 @@ export function Navigation() {
                 key={path}
                 to={path}
                 className={cn(
-                  'relative flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 min-w-0 select-none',
+                  'relative flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] rounded-xl transition-all duration-200 min-w-0 select-none touch-manipulation',
                   isActive
                     ? 'text-amber-300 font-black'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground active:text-amber-300'
                 )}
               >
                 <div

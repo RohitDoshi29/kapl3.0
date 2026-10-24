@@ -99,13 +99,14 @@ export function LiveScoreHero({
                 NOW BATTING • INNINGS {match.currentInnings}
               </div>
 
-              <div className="flex items-center gap-3 pt-1">
-                <TeamBadge team={battingTeam} size="lg" showName={false} />
-                <div>
-                  <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
+              <div className="flex items-center gap-2.5 sm:gap-3 pt-1">
+                <TeamBadge team={battingTeam} size="md" showName={false} className="shrink-0 sm:hidden" />
+                <TeamBadge team={battingTeam} size="lg" showName={false} className="shrink-0 hidden sm:inline-flex" />
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm truncate">
                     {battingTeam.name}
                   </h2>
-                  <p className="text-xs md:text-sm text-white/80 font-medium">
+                  <p className="text-xs md:text-sm text-white/80 font-medium truncate">
                     vs {bowlingTeam.name} • Group {battingTeam.group}
                   </p>
                 </div>

@@ -89,7 +89,7 @@ export default function Auction() {
   const isAllSold = playerPool.length >= 80 && playerPool.every((p) => p.auctionStatus === 'sold');
 
   return (
-    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+    <div className="relative min-h-screen bg-background pb-24 md:pb-8">
       {/* Ambient Stadium Lighting Mesh */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -99,38 +99,38 @@ export default function Auction() {
       <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="relative z-10 container mx-auto px-4 py-4 md:py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-3 sm:px-4 py-3 sm:py-4 md:py-6 space-y-4 md:space-y-6">
         {/* Tournament Switcher & Live Status Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-white/[0.08] bg-card/85 backdrop-blur-xl rounded-3xl p-4 md:p-5 shadow-xl shadow-black/20">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-white/[0.08] bg-card/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 md:p-5 shadow-xl shadow-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/15 border border-amber-500/30 flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/15 border border-amber-500/30 flex items-center justify-center shadow-xs shrink-0">
               <Gavel className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h1 className="text-lg md:text-2xl font-black text-foreground flex items-center gap-2 font-display tracking-tight">
+              <h1 className="text-base sm:text-lg md:text-2xl font-black text-foreground flex items-center gap-1.5 sm:gap-2 font-display tracking-tight">
                 Live Player <span className="text-gradient-gold">Auction Room</span>
-                <Badge variant="gold" className="text-[10px] font-black tracking-wider">
+                <Badge variant="gold" className="text-[9px] sm:text-[10px] font-black tracking-wider px-1.5 sm:px-2">
                   <Sparkles className="w-2.5 h-2.5 mr-0.5 text-amber-300" /> KAPL 3.0
                 </Badge>
               </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Category-wise bidding • Single player spotlight hammer • Team purse management
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                Category bidding • Player spotlight • Team purse budgets
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {isAdmin && (
-              <>
+              <div className="flex items-center gap-1.5">
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={isResetting}
                   onClick={handleAutoCompleteAuction}
-                  className="h-8 text-xs font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1.5"
+                  className="h-8 text-xs font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1.5 touch-manipulation"
                 >
                   <Zap className={`w-3.5 h-3.5 text-emerald-400 ${isResetting ? 'animate-spin' : ''}`} />
-                  Auto-Complete 80 (Test)
+                  Auto-Complete (Test)
                 </Button>
 
                 <AlertDialog>
@@ -139,10 +139,10 @@ export default function Auction() {
                       size="sm"
                       variant="outline"
                       disabled={isResetting}
-                      className="h-8 text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5"
+                      className="h-8 text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5 touch-manipulation"
                     >
                       <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-                      Reset & Seed
+                      Reset
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -170,27 +170,27 @@ export default function Auction() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              </>
+              </div>
             )}
 
             {/* Live or Completed Indicator */}
             {isAllSold ? (
-              <span className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
+              <span className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 80/80 SOLD
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs font-black shadow-xs tracking-wider">
                 <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
                 LIVE AUCTION
               </span>
             )}
 
             {/* Division Switcher */}
-            <div className="flex items-center bg-white/[0.04] border border-white/10 p-1 rounded-xl text-xs font-semibold backdrop-blur-sm">
+            <div className="flex items-center bg-white/[0.04] border border-white/10 p-0.5 rounded-xl text-xs font-semibold backdrop-blur-sm">
               <button
                 onClick={() => setActiveTournamentId('kapl-3-mens')}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-2.5 py-1 rounded-lg transition-all touch-manipulation ${
                   activeTournamentId === 'kapl-3-mens'
                     ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -200,7 +200,7 @@ export default function Auction() {
               </button>
               <button
                 onClick={() => setActiveTournamentId('kapl-3-womens')}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-2.5 py-1 rounded-lg transition-all touch-manipulation ${
                   activeTournamentId === 'kapl-3-womens'
                     ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -213,27 +213,27 @@ export default function Auction() {
         </div>
 
         {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full space-y-6">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full space-y-4 md:space-y-6">
           <TabsList className={`grid w-full ${isAdmin ? 'max-w-2xl grid-cols-2 sm:grid-cols-4' : 'max-w-md grid-cols-3'} mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md`}>
-            <TabsTrigger value="spotlight" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
-              <Gavel className="w-4 h-4 text-amber-400" />
-              Spotlight Stage
+            <TabsTrigger value="spotlight" className="gap-1 sm:gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35 touch-manipulation">
+              <Gavel className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span>Spotlight</span><span className="hidden sm:inline">&nbsp;Stage</span>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
-              <Users className="w-4 h-4 text-amber-400" />
-              Categories ({playerPool.length})
+            <TabsTrigger value="categories" className="gap-1 sm:gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35 touch-manipulation">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span>Categories</span><span className="text-[10px] opacity-80 ml-0.5">({playerPool.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="teams" className="gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35">
-              <Wallet className="w-4 h-4 text-amber-400" />
-              Team Purses ({teams.length})
+            <TabsTrigger value="teams" className="gap-1 sm:gap-1.5 text-xs md:text-sm font-bold rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/20 data-[state=active]:to-yellow-500/15 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/35 touch-manipulation">
+              <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span>Purses</span><span className="text-[10px] opacity-80 ml-0.5">({teams.length})</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger
                 value="admin"
-                className="gap-1.5 text-xs md:text-sm font-black rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/25 data-[state=active]:to-yellow-500/20 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/40 text-amber-400/90"
+                className="gap-1 sm:gap-1.5 text-xs md:text-sm font-black rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500/25 data-[state=active]:to-yellow-500/20 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/40 text-amber-400/90 touch-manipulation"
               >
-                <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-                Admin Desk
+                <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse" />
+                <span>Admin</span>
               </TabsTrigger>
             )}
           </TabsList>

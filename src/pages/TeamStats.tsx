@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
@@ -21,10 +22,11 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Innings, PlayerStats, BowlerStats } from '@/lib/cricketTypes';
-import { Users, TrendingUp, Target } from 'lucide-react';
+import { Users, TrendingUp, Target, Trophy, GitBranch, BarChart3 } from 'lucide-react';
 import { TournamentHonors } from '@/components/cricket/TournamentHonors';
 import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
 import { useTournament } from '@/contexts/TournamentContext';
+import { cn } from '@/lib/utils';
 
 
 interface AggregatedPlayerStats {
@@ -52,6 +54,7 @@ interface AggregatedPlayerStats {
 }
 
 export default function TeamStats() {
+  const location = useLocation();
   const { teams, matchHistory, getTeam } = useCricketStore();
   const { activeTournamentId } = useTournament();
   const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
@@ -205,7 +208,7 @@ export default function TeamStats() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+    <div className="relative min-h-screen bg-background pb-24 md:pb-8">
       {/* Ambient Stadium Lighting Mesh */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -214,7 +217,47 @@ export default function TeamStats() {
       <Header />
       <Navigation />
 
-      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-3 sm:px-4 py-4 md:py-6 space-y-5 md:space-y-6">
+        {/* Tournament Sub-Navigation (Standings, Bracket, Stats) */}
+        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/10 rounded-2xl w-full max-w-lg mx-auto">
+          <Link
+            to="/points"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/points'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span>Points Table</span>
+          </Link>
+          <Link
+            to="/bracket"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/bracket'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-amber-400" />
+            <span>Playoffs Bracket</span>
+          </Link>
+          <Link
+            to="/stats"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/stats'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Team Stats</span>
+          </Link>
+        </div>
+
         {/* Tournament Honors: Orange Cap, Purple Cap & Maximum Sixes */}
         <TournamentHonors tournamentId={activeTournamentId} />
 

@@ -27,7 +27,7 @@ export default function Admin() {
   return (
     <ErrorBoundary fallbackTitle="KAPL Admin Console Error" fallbackDescription="An unexpected error occurred while loading the Admin interface.">
       <AdminPasswordGate>
-        <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+        <div className="relative min-h-screen bg-background pb-24 md:pb-8">
         {/* Ambient Stadium Lighting Mesh */}
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -36,7 +36,7 @@ export default function Admin() {
         <Header />
         <Navigation />
 
-        <main className="relative z-10 container mx-auto px-4 py-4 md:py-6">
+        <main className="relative z-10 container mx-auto px-3 sm:px-4 py-3 sm:py-4 md:py-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-white/[0.08] pb-3">
             <div className="flex flex-wrap items-center gap-2 md:gap-4">
               <Link to="/">

@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router-dom';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { Header } from '@/components/cricket/Header';
@@ -17,8 +18,10 @@ import { cn } from '@/lib/utils';
 import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
 import { Badge } from '@/components/ui/badge';
 import { MatchFixturesCalendar } from '@/components/cricket/MatchFixturesCalendar';
+import { Trophy, GitBranch, BarChart3 } from 'lucide-react';
 
 export default function PointsTable() {
+  const location = useLocation();
   const { teams, getTeamStats, getTeam, matchHistory } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
 
@@ -79,17 +82,17 @@ export default function PointsTable() {
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-white/[0.06] bg-white/[0.01]">
-                  <TableHead className="w-10 text-xs md:text-sm font-bold text-center">#</TableHead>
-                  <TableHead className="text-xs md:text-sm font-bold">Team</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold">M</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-emerald-400">W</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-red-400">L</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-blue-400">T</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-amber-400">4s</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-purple-400">6s</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold text-red-400">Wkts</TableHead>
-                  <TableHead className="text-center text-xs md:text-sm font-bold">NRR</TableHead>
-                  <TableHead className="text-right text-xs md:text-sm font-bold pr-4">Pts</TableHead>
+                  <TableHead className="w-8 sm:w-10 text-xs md:text-sm font-bold text-center">#</TableHead>
+                  <TableHead className="text-xs md:text-sm font-bold min-w-[120px]">Team</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm font-bold px-1.5 sm:px-3">M</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm font-bold text-emerald-400 px-1.5 sm:px-3">W</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm font-bold text-red-400 px-1.5 sm:px-3">L</TableHead>
+                  <TableHead className="hidden sm:table-cell text-center text-xs md:text-sm font-bold text-blue-400">T</TableHead>
+                  <TableHead className="hidden sm:table-cell text-center text-xs md:text-sm font-bold text-amber-400">4s</TableHead>
+                  <TableHead className="hidden sm:table-cell text-center text-xs md:text-sm font-bold text-purple-400">6s</TableHead>
+                  <TableHead className="hidden md:table-cell text-center text-xs md:text-sm font-bold text-red-400">Wkts</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm font-bold px-1.5 sm:px-3">NRR</TableHead>
+                  <TableHead className="text-right text-xs md:text-sm font-bold pr-3 sm:pr-4">Pts</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -103,42 +106,44 @@ export default function PointsTable() {
                         isQualifying && 'bg-emerald-500/[0.03]'
                       )}
                     >
-                      <TableCell className="font-bold text-xs md:text-sm text-center">
+                      <TableCell className="font-bold text-xs md:text-sm text-center px-1">
                         {isQualifying ? (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black shadow-xs">
+                          <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black shadow-xs">
                             {index + 1}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">{index + 1}</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <TeamBadge team={item.team} size="sm" showName={false} className="md:hidden" />
-                          <TeamBadge team={item.team} size="sm" className="hidden md:flex font-bold" />
+                      <TableCell className="py-2.5">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                          <TeamBadge team={item.team} size="sm" showName={false} />
+                          <span className="font-bold text-foreground text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">
+                            {item.team.shortName || item.team.name}
+                          </span>
                           {isQualifying && (
-                            <span className="hidden lg:inline-block text-[9px] uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                            <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/30 shrink-0">
                               Q
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center text-xs md:text-sm font-medium">{item.matchesPlayed}</TableCell>
-                      <TableCell className="text-center text-emerald-400 font-bold text-xs md:text-sm">{item.wins}</TableCell>
-                      <TableCell className="text-center text-red-400 font-semibold text-xs md:text-sm">{item.losses}</TableCell>
-                      <TableCell className="text-center text-blue-400 font-semibold text-xs md:text-sm">{item.ties}</TableCell>
-                      <TableCell className="text-center text-xs md:text-sm text-amber-400 font-medium">{item.totalFours}</TableCell>
-                      <TableCell className="text-center text-xs md:text-sm text-purple-400 font-medium">{item.totalSixes}</TableCell>
-                      <TableCell className="text-center text-xs md:text-sm text-red-400 font-medium">{item.totalWickets}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm font-medium px-1.5 sm:px-3">{item.matchesPlayed}</TableCell>
+                      <TableCell className="text-center text-emerald-400 font-bold text-xs md:text-sm px-1.5 sm:px-3">{item.wins}</TableCell>
+                      <TableCell className="text-center text-red-400 font-semibold text-xs md:text-sm px-1.5 sm:px-3">{item.losses}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-blue-400 font-semibold text-xs md:text-sm">{item.ties}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-xs md:text-sm text-amber-400 font-medium">{item.totalFours}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-xs md:text-sm text-purple-400 font-medium">{item.totalSixes}</TableCell>
+                      <TableCell className="hidden md:table-cell text-center text-xs md:text-sm text-red-400 font-medium">{item.totalWickets}</TableCell>
                       <TableCell
                         className={cn(
-                          'text-center text-xs md:text-sm font-semibold font-mono',
+                          'text-center text-xs md:text-sm font-semibold font-mono px-1.5 sm:px-3',
                           item.nrr > 0 ? 'text-emerald-400' : item.nrr < 0 ? 'text-red-400' : 'text-muted-foreground'
                         )}
                       >
                         {item.nrr > 0 ? '+' : ''}{item.nrr.toFixed(3)}
                       </TableCell>
-                      <TableCell className="text-right font-black text-sm md:text-base text-amber-400 pr-4 font-display">
+                      <TableCell className="text-right font-black text-sm md:text-base text-amber-400 pr-3 sm:pr-4 font-display">
                         {item.points}
                       </TableCell>
                     </TableRow>
@@ -159,7 +164,7 @@ export default function PointsTable() {
   });
 
   return (
-    <div className="relative min-h-screen bg-background pb-20 md:pb-8">
+    <div className="relative min-h-screen bg-background pb-24 md:pb-8">
       {/* Ambient Stadium Lighting Mesh */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl opacity-60" />
@@ -169,10 +174,50 @@ export default function PointsTable() {
       <Navigation />
       <MultiMatchLiveBar />
 
-      <main className="relative z-10 container mx-auto px-4 py-6 space-y-6">
+      <main className="relative z-10 container mx-auto px-3 sm:px-4 py-4 md:py-6 space-y-5 md:space-y-6">
+        {/* Tournament Sub-Navigation (Standings, Bracket, Stats) */}
+        <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/10 rounded-2xl w-full max-w-lg mx-auto">
+          <Link
+            to="/points"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/points'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span>Points Table</span>
+          </Link>
+          <Link
+            to="/bracket"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/bracket'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-amber-400" />
+            <span>Playoffs Bracket</span>
+          </Link>
+          <Link
+            to="/stats"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 text-center py-2 px-2.5 rounded-xl text-xs font-bold transition-all touch-manipulation",
+              location.pathname === '/stats'
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Team Stats</span>
+          </Link>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground font-display tracking-tight">
               {currentTournament?.name || "Tournament"} <span className="text-gradient-gold">Standings</span>
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
