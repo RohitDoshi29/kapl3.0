@@ -61,10 +61,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT (COALESCE(auth.jwt()->>'email', '') = 'rohit.doshi2007@gmail.com') 
-    OR public.has_role(auth.uid(), 'admin')
-    OR public.has_role(auth.uid(), 'co_admin')
-    OR public.has_role(auth.uid(), 'owner');
+  SELECT (COALESCE(auth.jwt()->>'email', '') = 'rohit.doshi2007@gmail.com') OR public.has_role(auth.uid(), 'admin');
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_primary_scorer()
@@ -467,13 +464,13 @@ DROP POLICY IF EXISTS "Admins can manage auction bids" ON public.auction_bids;
 CREATE POLICY "Authenticated users and Admins can insert bids" ON public.auction_bids FOR INSERT TO authenticated WITH CHECK (public.is_admin() OR auth.uid() = bidder_user_id);
 CREATE POLICY "Admins can manage auction bids" ON public.auction_bids FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- Sensitive Column Protection: Revoke mobile_number and user_id from anon and authenticated on public.players
-REVOKE SELECT ON TABLE public.players FROM anon, authenticated;
+-- Sensitive Column Protection: Revoke mobile_number and user_id from anon on public.players
+REVOKE SELECT ON TABLE public.players FROM anon;
 GRANT SELECT (
   id, name, photo_url, role, batting_style, bowling_style, 
   tournament_id, team_id, jersey_number, base_price, sold_price, 
   auction_status, created_at, updated_at
-) ON public.players TO anon, authenticated;
+) ON public.players TO anon;
 
 -- 13. ENABLE REALTIME & REPLICA IDENTITY FULL
 ALTER TABLE public.tournaments REPLICA IDENTITY FULL;
@@ -729,62 +726,3 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.sell_player_to_team FROM anon, public;
 GRANT EXECUTE ON FUNCTION public.sell_player_to_team TO authenticated, service_role;
-
--- 18. RPC FUNCTION TO FETCH CALLER'S OWN PRIVATE PLAYER PROFILE
-CREATE OR REPLACE FUNCTION public.get_my_private_player_profile()
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_player RECORD;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  SELECT * INTO v_player 
-  FROM public.players 
-  WHERE user_id = auth.uid() 
-  LIMIT 1;
-
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-
-  RETURN to_jsonb(v_player);
-END;
-$$;
-
-REVOKE EXECUTE ON FUNCTION public.get_my_private_player_profile() FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.get_my_private_player_profile() TO authenticated, service_role;
-
--- 19. RPC FUNCTION FOR ADMINS/OWNER TO VIEW PLAYER PRIVATE DETAILS
-CREATE OR REPLACE FUNCTION public.get_player_private_details(p_player_id TEXT)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_player RECORD;
-BEGIN
-  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.players WHERE id = p_player_id AND user_id = auth.uid())) THEN
-    RAISE EXCEPTION 'Access Denied: Only administrators or the player themselves can view private contact details.';
-  END IF;
-
-  SELECT * INTO v_player 
-  FROM public.players 
-  WHERE id = p_player_id;
-
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-
-  RETURN to_jsonb(v_player);
-END;
-$$;
-
-REVOKE EXECUTE ON FUNCTION public.get_player_private_details(TEXT) FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.get_player_private_details(TEXT) TO authenticated, service_role;

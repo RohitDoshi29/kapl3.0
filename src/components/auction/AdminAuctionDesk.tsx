@@ -36,19 +36,13 @@ import {
   Radio,
   Zap,
   Trash2,
-  UserPlus,
-  FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
-import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 
 interface AdminAuctionDeskProps {
   playerPool: PlayerRecord[];
   teams: Team[];
   currentPlayer: PlayerRecord | null;
-  tournamentId?: string;
-  onAddPlayer?: (data: any) => Promise<any>;
   onSpotlightPlayer: (player: PlayerRecord) => void;
   onDecideSold: (playerId: string, teamId: string, amount: number) => Promise<void> | void;
   onDecideUnsold: (playerId: string) => Promise<void> | void;
@@ -68,8 +62,6 @@ export function AdminAuctionDesk({
   playerPool = [],
   teams = [],
   currentPlayer,
-  tournamentId = 'kapl-3-mens',
-  onAddPlayer,
   onSpotlightPlayer,
   onDecideSold,
   onDecideUnsold,
@@ -622,37 +614,13 @@ export function AdminAuctionDesk({
 
           {/* Search & Status Filters */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-white/10">
-            <div className="flex items-center gap-2 flex-1 max-w-md">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search candidates by name (e.g. Player 15)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs bg-background/60 border-white/10 rounded-xl"
-                />
-              </div>
-              <AddPlayerModal
-                tournamentId={tournamentId}
-                onAddPlayer={onAddPlayer}
-                trigger={
-                  <Button size="sm" className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-1.5 text-xs shrink-0 shadow-sm">
-                    <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                    + Add Player
-                  </Button>
-                }
-              />
-              <ExportRegistrationsDialog
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 gap-1.5 shrink-0 shadow-sm"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                    Export
-                  </Button>
-                }
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search candidates by name (e.g. Player 15)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs bg-background/60 border-white/10 rounded-xl"
               />
             </div>
 

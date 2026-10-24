@@ -1,7 +1,6 @@
 import { PlayerRecord, PlayerRole, Team, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS } from './cricketTypes';
+import { getKeptPlayers, isPlaceholderPlayer } from './registrationBackup';
 import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
-import { toast } from 'sonner';
 
 export function generateAuctionPlayers(tournamentId: string = 'kapl-3-mens'): PlayerRecord[] {
   const isWomens = tournamentId === 'kapl-3-womens';
@@ -79,7 +78,22 @@ export const MOCK_AUCTION_PLAYERS: PlayerRecord[] = generateAuctionPlayers('kapl
  */
 export async function resetTeamsAndSeed80Players(customClient = supabase, tournamentId: string = 'kapl-3-mens') {
   try {
-    const playersToSeed = generateAuctionPlayers(tournamentId);
+    // Real registered players are NEVER deleted or overwritten by a reset/seed
+    const keptRealPlayers = getKeptPlayers(tournamentId, true).filter((p) => !isPlaceholderPlayer(p));
+    let hasRealPlayers = keptRealPlayers.length > 0;
+    if (!hasRealPlayers) {
+      try {
+        const { data: realRows } = await customClient
+          .from('players')
+          .select('id')
+          .eq('tournament_id', tournamentId)
+          .not('id', 'like', 'p-%')
+          .not('id', 'like', 'wp-%')
+          .limit(1);
+        hasRealPlayers = (realRows?.length ?? 0) > 0;
+      } catch {}
+    }
+    const playersToSeed = hasRealPlayers ? keptRealPlayers : generateAuctionPlayers(tournamentId);
 
     const baseTeams = (tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_TEAMS : DEFAULT_TEAMS).map((t) => ({
       ...t,
@@ -151,11 +165,19 @@ export async function resetTeamsAndSeed80Players(customClient = supabase, tourna
       console.warn('teams empty warning:', e);
     }
 
-    // 3. Delete existing players in DB
+    // 3. Players: keep real ones (only reset their auction result); remove only generated test players
     try {
-      await customClient.from('players').delete().neq('id', '');
+      if (hasRealPlayers) {
+        await customClient
+          .from('players')
+          .update({ team_id: null, sold_price: null, auction_status: 'pending', updated_at: new Date().toISOString() })
+          .eq('tournament_id', tournamentId);
+      } else {
+        await customClient.from('players').delete().like('id', 'p-%');
+        await customClient.from('players').delete().like('id', 'wp-%');
+      }
     } catch (e) {
-      console.warn('players delete warning:', e);
+      console.warn('players reset warning:', e);
     }
 
     // 4. Insert 80 fake players in chunks of 20
@@ -175,7 +197,7 @@ export async function resetTeamsAndSeed80Players(customClient = supabase, tourna
       updated_at: new Date().toISOString(),
     }));
 
-    for (let i = 0; i < dbPayloads.length; i += 20) {
+    for (let i = 0; !hasRealPlayers && i < dbPayloads.length; i += 20) {
       const chunk = dbPayloads.slice(i, i + 20);
       const { error: insErr } = await customClient.from('players').upsert(chunk);
       if (insErr) {
@@ -437,7 +459,7 @@ export async function autoCompleteAuctionForAll80Players(
         const { error: teamErr } = await customClient
           .from('teams')
           .update({
-            players: t.players as unknown as Json,
+            players: t.players as any,
             player_count: t.playerCount,
             max_squad_size: 10,
             remaining_purse: t.remainingPurse,
@@ -462,13 +484,9 @@ export async function autoCompleteAuctionForAll80Players(
             updated_at: new Date().toISOString(),
           }
         ], { onConflict: 'id' });
-      if (stateErr) {
-        console.error('Supabase auction completion error:', stateErr);
-        toast.error(`Auction state sync failed: ${stateErr.message}`);
-      }
-    } catch (e: any) {
-      console.error('Supabase auction completion error:', e);
-      toast.error(`Auction sync error: ${e?.message || e}`);
+      if (stateErr) console.warn('Supabase auction completion notice:', stateErr);
+    } catch (e) {
+      console.warn('Supabase auction completion notice:', e);
     }
     // Dispatch local events so current tab and all store hooks update instantaneously
     if (typeof window !== 'undefined') {

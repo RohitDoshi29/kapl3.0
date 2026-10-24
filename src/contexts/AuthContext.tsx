@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { PlayerRecord, PlayerRole } from '@/lib/cricketTypes';
-import { generateAuctionPlayers } from '@/lib/mockPlayersData';
-import { saveToPlayerVault } from '@/lib/exportRegistrations';
-
-export const isValidUuid = (id?: string | null): boolean =>
-  Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+import {
+  appendRegistrationBackup,
+  flushPendingRegistrations,
+  persistPlayerToDb,
+  queuePendingRegistration,
+} from '@/lib/registrationBackup';
 
 export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecord) {
   try {
@@ -14,9 +15,6 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
     localStorage.removeItem('kapl_all_players_cleared');
     localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
     localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
-
-    // 0. Save permanently to unresettable registration vault
-    saveToPlayerVault(playerRecord);
 
     // 1. Update master kapl_registered_players
     const regRaw = localStorage.getItem('kapl_registered_players');
@@ -33,7 +31,6 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
 
     // 2. Update auction pool across BOTH tournaments so players enter both leagues
     for (const tId of targetTournaments) {
-      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tId}`) === 'true';
       const auctionRaw = localStorage.getItem(`kapl_auction_players_${tId}`);
       let auctionList: PlayerRecord[] = [];
       if (auctionRaw) {
@@ -44,13 +41,8 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
           }
         } catch {}
       }
-      if (auctionList.length === 0 && isReset) {
-        auctionList = generateAuctionPlayers(tId);
-      }
-      const tournRecordId = tId === 'kapl-3-womens' ? `${playerRecord.id}_w` : playerRecord.id;
       const tournRecord: PlayerRecord = {
         ...playerRecord,
-        id: tournRecordId,
         tournamentId: tId,
       };
       const aucIdx = auctionList.findIndex(
@@ -247,24 +239,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let dbPlayer: any = null;
     try {
-      const { data: privData } = await supabase.rpc('get_my_private_player_profile');
-      if (privData) {
-        dbPlayer = privData;
-      } else if (isValidUuid(userObj.id)) {
-        const { data } = await supabase
-          .from('players')
-          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
-          .eq('user_id', userObj.id)
-          .maybeSingle();
-        if (data) dbPlayer = data;
-      } else if (localProfile.playerId) {
-        const { data } = await supabase
-          .from('players')
-          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
-          .eq('id', localProfile.playerId)
-          .maybeSingle();
-        if (data) dbPlayer = data;
-      }
+      const { data } = await (supabase as any).rpc('get_my_player');
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) dbPlayer = row;
     } catch (e) {
       console.warn('Could not query players table for user profile:', e);
     }
@@ -325,9 +302,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      if (!isValidUuid(userId)) {
-        return 'player';
-      }
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -410,27 +384,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Sync with database players table
       try {
-        const safeUserId = isValidUuid(user.id) ? user.id : null;
-        let existingPlayer: any = null;
-        if (safeUserId) {
-          const { data } = await supabase
-            .from('players')
-            .select('id')
-            .eq('user_id', safeUserId)
-            .maybeSingle();
-          existingPlayer = data;
-        }
+        const { data: existingPlayer } = await supabase
+          .from('players')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        let targetPlayerId = current.playerId || existingPlayer?.id;
-        if (!existingPlayer && targetPlayerId) {
-          const { data } = await supabase
-            .from('players')
-            .select('id')
-            .eq('id', targetPlayerId)
-            .maybeSingle();
-          existingPlayer = data;
-        }
-
+        let targetPlayerId = current.playerId;
         if (existingPlayer) {
           targetPlayerId = existingPlayer.id;
           await supabase
@@ -449,13 +409,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', existingPlayer.id);
           updated.playerId = existingPlayer.id;
         } else {
-          const generatedId = targetPlayerId || `p_u_${user.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
+          const generatedId = `p_u_${user.id.slice(0, 8)}`;
           targetPlayerId = generatedId;
           const { error: insErr } = await supabase
             .from('players')
             .insert({
               id: generatedId,
-              user_id: safeUserId,
+              user_id: user.id,
               name: updated.name,
               photo_url: updated.photoUrl || null,
               role: updated.role,
@@ -508,7 +468,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date().toISOString(),
         };
 
-        saveToPlayerVault({ ...updatedRecord, email: user.email || '' });
         syncPlayerToAuctionAndTournament(updatedRecord);
       } catch (dbErr) {
         console.warn('Non-fatal error syncing player record with database:', dbErr);
@@ -629,6 +588,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        flushPendingRegistrations().catch(() => {});
         const cleanEmail = (session.user.email || '').toLowerCase().trim();
         if (cleanEmail === 'rohit.doshi2007@gmail.com') {
           setUserRole('admin');
@@ -680,10 +640,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Retry any registration that has not reached the database yet
+    const retryPending = () => {
+      flushPendingRegistrations().catch(() => {});
+    };
+    retryPending();
+    window.addEventListener('online', retryPending);
+    document.addEventListener('visibilitychange', retryPending);
+
     return () => {
       isMounted = false;
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
+      window.removeEventListener('online', retryPending);
+      document.removeEventListener('visibilitychange', retryPending);
     };
   }, [fetchUserRole, fetchUserProfile]);
 
@@ -863,8 +833,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Build verified active user immediately without requiring email confirmation
     const effectiveUserId = supaUser?.id || `u_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const generatedPlayerId = `p_u_${effectiveUserId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
-    const safeDbUserId = isValidUuid(supaUser?.id) ? supaUser!.id : null;
+    const generatedPlayerId = `p_u_${effectiveUserId.slice(0, 8)}`;
 
     const profileData: UserProfile = {
       name: meta.name || cleanEmail.split('@')[0],
@@ -975,7 +944,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const newPlayerRecord: PlayerRecord = {
       id: generatedPlayerId,
-      tournamentId: 'all', // Entered into both tournaments
+      tournamentId: profileData.tournamentId || 'kapl-3-mens',
       teamId: null,
       userId: supaUser?.id || activeUser.id,
       name: profileData.name,
@@ -993,55 +962,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString(),
     };
 
-    // Save permanently to unresettable player vault
-    saveToPlayerVault({
-      ...newPlayerRecord,
-      email: cleanEmail,
-      gender: profileData.gender,
-    });
+    if (effectiveAccountType === 'player' || effectiveAccountType === 'captain' || effectiveAccountType === 'user' || !effectiveAccountType) {
+      // 1. Permanent local backup first, so a registration can never be lost
+      appendRegistrationBackup(newPlayerRecord);
 
-    if (effectiveAccountType === 'player' || effectiveAccountType === 'captain' || effectiveAccountType === 'user' || effectiveAccountType === 'spectator' || !effectiveAccountType) {
-      const dualTournaments = ['kapl-3-mens', 'kapl-3-womens'];
-      for (const tId of dualTournaments) {
-        const idForTourn = tId === 'kapl-3-womens' ? `${generatedPlayerId}_w` : generatedPlayerId;
-        // 1. Try atomic database RPC (bypasses RLS with SECURITY DEFINER)
-        try {
-          await supabase.rpc('register_new_player', {
-            p_id: idForTourn,
-            p_user_id: safeDbUserId,
-            p_name: profileData.name,
-            p_role: profileData.role,
-            p_batting_style: profileData.battingStyle || 'Right-hand bat',
-            p_bowling_style: profileData.bowlingStyle || 'Right-arm medium',
-            p_jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
-            p_mobile_number: profileData.mobileNumber || null,
-            p_photo_url: profileData.photoUrl || null,
-            p_tournament_id: tId,
-            p_base_price: 100,
-          });
-        } catch (rpcErr) {
-          console.warn(`register_new_player RPC notice (${tId}):`, rpcErr);
-        }
-
-        // 2. Direct database upsert
-        try {
-          await supabase.from('players').upsert({
-            id: idForTourn,
-            user_id: safeDbUserId,
-            name: profileData.name,
-            photo_url: profileData.photoUrl || null,
-            role: profileData.role,
-            batting_style: profileData.battingStyle || null,
-            bowling_style: profileData.bowlingStyle || null,
-            jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
-            mobile_number: profileData.mobileNumber || null,
-            tournament_id: tId,
-            base_price: 100,
-            auction_status: 'pending',
-          }, { onConflict: 'id' });
-        } catch (dbErr) {
-          console.warn(`Could not insert new player into players table (${tId}):`, dbErr);
-        }
+      // 2. Save to the database and CHECK the result (no more silent failures)
+      const saveResult = await persistPlayerToDb(newPlayerRecord);
+      if (!saveResult.ok) {
+        console.error('Player registration could not be saved yet, queued for retry:', saveResult.error);
+        queuePendingRegistration(newPlayerRecord);
       }
 
       // 3. Sync player to auction and directory across all roles and tabs
@@ -1068,7 +997,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const assignUserRole = useCallback(async (userId: string, role: UserRole) => {
     if (!role) return { error: null };
-    if (!isValidUuid(userId)) return { error: null };
     try {
       const { data: existing } = await supabase
         .from('user_roles')

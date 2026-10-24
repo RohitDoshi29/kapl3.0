@@ -1,22 +1,15 @@
 // WARNING: Test script only. DO NOT run against live production database during tournaments.
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+  console.error('⛔ Refusing to run test-realtime.mjs in production environment');
+  process.exit(1);
+}
+
 import WebSocket from 'ws';
 global.WebSocket = WebSocket;
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.TEST_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.TEST_SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('⛔ Missing TEST_SUPABASE_URL/VITE_SUPABASE_URL or TEST_SUPABASE_KEY/VITE_SUPABASE_ANON_KEY environment variables.');
-  process.exit(1);
-}
-
-const isProductionTarget = SUPABASE_URL.includes('xenohljxgogwcvugisgg') || process.env.NODE_ENV === 'production' || process.env.VERCEL;
-
-if (isProductionTarget && process.env.ALLOW_TEST_ON_PROD !== 'true') {
-  console.error('⛔ Refusing to run test-realtime.mjs against production database. Set ALLOW_TEST_ON_PROD=true if explicitly intended.');
-  process.exit(1);
-}
+const SUPABASE_URL = 'https://xenohljxgogwcvugisgg.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_WR8_2naCb8qJXm0KBHkq5w_OHX4kcgZ';
 
 const scorer = createClient(SUPABASE_URL, SUPABASE_KEY);
 const viewer = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -61,3 +54,4 @@ setTimeout(() => {
   console.log('Verification finished. Viewer got update:', viewerReceivedDelta !== null);
   process.exit(viewerReceivedDelta ? 0 : 1);
 }, 5000);
+

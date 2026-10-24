@@ -5,37 +5,14 @@
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_name TEXT;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS captain_player_id TEXT;
 
--- 1b. Update is_admin() to include admin, co_admin, and franchise owner roles
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT (COALESCE(auth.jwt()->>'email', '') = 'rohit.doshi2007@gmail.com') 
-    OR public.has_role(auth.uid(), 'admin')
-    OR public.has_role(auth.uid(), 'co_admin')
-    OR public.has_role(auth.uid(), 'owner');
-$$;
-
--- 2. Update auction_state check constraint to allow 'completed' and 'paused' (dynamic drop, no swallowed errors)
+-- 2. Update auction_state check constraint to allow 'completed' and 'paused'
 DO $$
-DECLARE
-  r RECORD;
 BEGIN
-  FOR r IN (
-    SELECT conname
-    FROM pg_constraint
-    WHERE conrelid = 'public.auction_state'::regclass
-      AND contype = 'c'
-      AND pg_get_constraintdef(oid) LIKE '%status%'
-  ) LOOP
-    EXECUTE 'ALTER TABLE public.auction_state DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
-  END LOOP;
-
+  ALTER TABLE public.auction_state DROP CONSTRAINT IF EXISTS auction_state_status_check;
   ALTER TABLE public.auction_state ADD CONSTRAINT auction_state_status_check 
     CHECK (status IN ('idle', 'bidding', 'fair_warning', 'sold', 'unsold', 'completed', 'paused'));
+EXCEPTION
+  WHEN others THEN NULL;
 END $$;
 
 -- 3. Atomic Player Sale RPC
@@ -338,70 +315,10 @@ CREATE POLICY "Admins can manage auction bids" ON public.auction_bids
   USING (public.is_admin()) 
   WITH CHECK (public.is_admin());
 
--- 8. Sensitive Column Protection: Revoke mobile_number and user_id from anon and authenticated on public.players
-REVOKE SELECT ON TABLE public.players FROM anon, authenticated;
+-- 8. Sensitive Column Protection: Revoke mobile_number and user_id from anon on public.players
+REVOKE SELECT ON TABLE public.players FROM anon;
 GRANT SELECT (
   id, name, photo_url, role, batting_style, bowling_style, 
   tournament_id, team_id, jersey_number, base_price, sold_price, 
   auction_status, created_at, updated_at
-) ON public.players TO anon, authenticated;
-
--- 9. Secure RPCs for Private Profile Access (Own-row or Admin only)
-CREATE OR REPLACE FUNCTION public.get_my_private_player_profile()
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_player RECORD;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  SELECT * INTO v_player 
-  FROM public.players 
-  WHERE user_id = auth.uid() 
-  LIMIT 1;
-
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-
-  RETURN to_jsonb(v_player);
-END;
-$$;
-
-REVOKE EXECUTE ON FUNCTION public.get_my_private_player_profile() FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.get_my_private_player_profile() TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.get_player_private_details(p_player_id TEXT)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_player RECORD;
-BEGIN
-  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.players WHERE id = p_player_id AND user_id = auth.uid())) THEN
-    RAISE EXCEPTION 'Access Denied: Only administrators or the player themselves can view private contact details.';
-  END IF;
-
-  SELECT * INTO v_player 
-  FROM public.players 
-  WHERE id = p_player_id;
-
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-
-  RETURN to_jsonb(v_player);
-END;
-$$;
-
-REVOKE EXECUTE ON FUNCTION public.get_player_private_details(TEXT) FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.get_player_private_details(TEXT) TO authenticated, service_role;
-
-
+) ON public.players TO anon;

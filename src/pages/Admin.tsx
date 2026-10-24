@@ -15,6 +15,7 @@ import AdminSettingsTab from '@/components/admin/AdminSettingsTab';
 import PlayerStatsTab from '@/components/admin/PlayerStatsTab';
 import { AdminTournamentTab } from '@/components/admin/AdminTournamentTab';
 import AdminRolesGovernanceTab from '@/components/admin/AdminRolesGovernanceTab';
+import RegistrationBackupCard from '@/components/admin/RegistrationBackupCard';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -139,6 +140,7 @@ export default function Admin() {
             </TabsContent>
 
             <TabsContent value="settings">
+              <RegistrationBackupCard />
               <AdminSettingsTab />
             </TabsContent>
 

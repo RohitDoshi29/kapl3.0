@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { resetPlayersCacheKeepingEveryone } from '@/lib/registrationBackup';
 import { supabase } from '@/integrations/supabase/client';
 import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS, Ball, Over, Player, Innings, MatchType, SuperOver, DismissalType, WicketDetails, PlayerOfTheMatchData } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
@@ -36,16 +37,7 @@ const dbToTeam = (dbTeam: any): Team => {
   const tournamentId = dbTeam.tournament_id || 'kapl-3-mens';
 
   let teamPlayers = (dbTeam.players as Player[]) || [];
-  const hasVaultPlayers = typeof window !== 'undefined' && Boolean(
-    localStorage.getItem('kapl_player_vault') || localStorage.getItem('kapl_registered_players')
-  );
-  if (hasVaultPlayers) {
-    try {
-      localStorage.removeItem('kapl_all_players_cleared');
-      localStorage.removeItem(`kapl_everything_reset_${tournamentId}`);
-    } catch {}
-  }
-  const isReset = !hasVaultPlayers && typeof window !== 'undefined' && (
+  const isReset = typeof window !== 'undefined' && (
     localStorage.getItem(`kapl_auction_manually_reset_${tournamentId}`) === 'true' ||
     localStorage.getItem(`kapl_everything_reset_${tournamentId}`) === 'true' ||
     localStorage.getItem('kapl_all_players_cleared') === 'true'
@@ -318,12 +310,12 @@ if (typeof window !== 'undefined') {
       tabSyncChannel.onmessage = (event) => {
         if (event.data?.type === 'system_reset_all_players') {
           try {
-            localStorage.setItem('kapl_all_players_cleared', 'true');
-            localStorage.setItem('kapl_registered_players', JSON.stringify([]));
+            /* no 'cleared' flag: players are kept */
+            /* registered players are never wiped by a reset */
             for (const tid of ['kapl-3-mens', 'kapl-3-womens']) {
-              localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+              /* no 'reset' flag: players are kept */
               localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
-              localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+              resetPlayersCacheKeepingEveryone(tid);
               localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
               localStorage.removeItem(`kapl_auction_active_player_${tid}`);
               localStorage.removeItem(`kapl_local_match_state_${tid}`);
@@ -558,12 +550,12 @@ function initSharedRealtimeChannel() {
       { event: 'system_reset_all_players' },
       () => {
         try {
-          localStorage.setItem('kapl_all_players_cleared', 'true');
-          localStorage.setItem('kapl_registered_players', JSON.stringify([]));
+          /* no 'cleared' flag: players are kept */
+          /* registered players are never wiped by a reset */
           for (const tid of ['kapl-3-mens', 'kapl-3-womens']) {
-            localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+            /* no 'reset' flag: players are kept */
             localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
-            localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+            resetPlayersCacheKeepingEveryone(tid);
             localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
             localStorage.removeItem(`kapl_auction_active_player_${tid}`);
             localStorage.removeItem(`kapl_local_match_state_${tid}`);
@@ -809,14 +801,13 @@ export async function pollMatchStateDatabase() {
     if (error || !stateRows || stateRows.length === 0) return;
 
     for (const row of stateRows) {
-      const tId = resolveTournamentId(row.current_match, row.tournament_id || (row.id === 'womens' ? 'kapl-3-womens' : 'kapl-3-mens'));
+      const tId = resolveTournamentId(row.current_match as any, row.tournament_id || (row.id === 'womens' ? 'kapl-3-womens' : 'kapl-3-mens'));
       const rowSig = `${row.id}_${row.updated_at}_${(row.current_match as any)?.status}_${(row.current_match as any)?.innings1?.runs}_${(row.current_match as any)?.innings2?.runs}`;
       
       if (lastHeartbeatRowSignatures[row.id] !== rowSig) {
         lastHeartbeatRowSignatures[row.id] = rowSig;
 
-        const currentMatchData = row.current_match as unknown as Match | null;
-        const isDiscarded = currentMatchData?.id === '1792091739936';
+        const isDiscarded = (row.current_match as any)?.id === '1792091739936';
         if (isDiscarded) {
           notifyGlobalStateListeners({ currentMatch: null, lastAction: null }, tId);
           notifyGlobalPlayersListeners({});
@@ -829,12 +820,12 @@ export async function pollMatchStateDatabase() {
           continue;
         }
 
-        if (currentMatchData) {
-          const currentMatch: Match = {
-            ...currentMatchData,
+        if (row.current_match) {
+          const currentMatch = {
+            ...(row.current_match as any),
             tournamentId: tId,
-          };
-          const lastAction = row.last_action as MatchState['lastAction'];
+          } as Match;
+          const lastAction = row.last_action as unknown as MatchState['lastAction'];
 
           notifyGlobalStateListeners({ currentMatch, lastAction }, tId);
           if ((currentMatch as any).playingPlayers) {
@@ -894,17 +885,7 @@ function stopGlobalHeartbeat() {
 export function useCricketStore(targetTournamentId?: string) {
   const [teams, setTeams] = useState<Team[]>(() => {
     try {
-      const hasVault = typeof window !== 'undefined' && (
-        Boolean(localStorage.getItem('kapl_player_vault')) || Boolean(localStorage.getItem('kapl_registered_players'))
-      );
-      if (hasVault) {
-        try {
-          localStorage.removeItem('kapl_all_players_cleared');
-          localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
-          localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
-        } catch {}
-      }
-      const isReset = !hasVault && typeof window !== 'undefined' && (
+      const isReset = typeof window !== 'undefined' && (
         localStorage.getItem('kapl_auction_manually_reset_kapl-3-mens') === 'true' ||
         localStorage.getItem('kapl_everything_reset_kapl-3-mens') === 'true' ||
         localStorage.getItem('kapl_all_players_cleared') === 'true'
@@ -1188,17 +1169,7 @@ export function useCricketStore(targetTournamentId?: string) {
         
         if (teamsError) throw teamsError;
         let loadedTeams: Team[] = [];
-        const hasVault = typeof window !== 'undefined' && (
-          Boolean(localStorage.getItem('kapl_player_vault')) || Boolean(localStorage.getItem('kapl_registered_players'))
-        );
-        if (hasVault || (teamsData && teamsData.length > 0)) {
-          try {
-            localStorage.removeItem('kapl_all_players_cleared');
-            localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
-            localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
-          } catch {}
-        }
-        const isAllCleared = !hasVault && typeof window !== 'undefined' && localStorage.getItem('kapl_all_players_cleared') === 'true';
+        const isAllCleared = typeof window !== 'undefined' && localStorage.getItem('kapl_all_players_cleared') === 'true';
 
         if (teamsData && teamsData.length > 0) {
           loadedTeams = teamsData.map(dbToTeam);
@@ -1234,15 +1205,14 @@ export function useCricketStore(targetTournamentId?: string) {
         if (stateError) throw stateError;
         if (stateRows && stateRows.length > 0 && isMounted) {
           for (const row of stateRows) {
-            const tId = resolveTournamentId(row.current_match, row.tournament_id || (row.id === 'womens' ? 'kapl-3-womens' : 'kapl-3-mens'));
-            const currentMatchData = row.current_match as unknown as Match | null;
-            const isDiscarded = currentMatchData?.id === '1792091739936';
-            if (currentMatchData && !isDiscarded) {
-              const currentMatch: Match = {
-                ...currentMatchData,
+            const tId = resolveTournamentId(row.current_match as any, row.tournament_id || (row.id === 'womens' ? 'kapl-3-womens' : 'kapl-3-mens'));
+            const isDiscarded = (row.current_match as any)?.id === '1792091739936';
+            if (row.current_match && !isDiscarded) {
+              const currentMatch = {
+                ...(row.current_match as any),
                 tournamentId: tId,
-              };
-              const lastAction = row.last_action as MatchState['lastAction'];
+              } as Match;
+              const lastAction = row.last_action as unknown as MatchState['lastAction'];
               globalTournamentMatchStates[tId] = { currentMatch, lastAction };
               if (tId === effectiveTournamentId) {
                 setMatchState({ currentMatch, lastAction });
@@ -3029,13 +2999,13 @@ export function useCricketStore(targetTournamentId?: string) {
 
     // 1. Instantly reset LocalStorage & in-memory caches (zero-latency UI update)
     try {
-      localStorage.setItem('kapl_all_players_cleared', 'true');
-      localStorage.setItem('kapl_registered_players', JSON.stringify([]));
+      /* no 'cleared' flag: players are kept */
+      /* registered players are never wiped by a reset */
 
       tournamentIds.forEach((tid) => {
-        localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+        /* no 'reset' flag: players are kept */
         localStorage.removeItem(`kapl_auction_manually_reset_${tid}`);
-        localStorage.setItem(`kapl_auction_players_${tid}`, JSON.stringify([]));
+        resetPlayersCacheKeepingEveryone(tid);
         localStorage.setItem(`kapl_auction_sales_${tid}`, JSON.stringify([]));
         localStorage.removeItem(`kapl_auction_active_player_${tid}`);
 
@@ -3177,7 +3147,10 @@ export function useCricketStore(targetTournamentId?: string) {
     }
 
     try {
-      await supabase.from('players').delete().neq('id', '');
+      await supabase
+        .from('players')
+        .update({ team_id: null, sold_price: null, auction_status: 'pending', updated_at: new Date().toISOString() })
+        .neq('id', '');
     } catch (e) {
       console.warn('DB delete players fallback exception:', e);
     }

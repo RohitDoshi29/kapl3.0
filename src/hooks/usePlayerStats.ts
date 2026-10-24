@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { resetPlayerRecord } from '@/lib/registrationBackup';
 import { supabase } from '@/integrations/supabase/client';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { PlayerRecord, PlayerRole, Team, Match, MatchType, MATCH_TYPE_LABELS, Innings } from '@/lib/cricketTypes';
 import { MOCK_AUCTION_PLAYERS, generateAuctionPlayers } from '@/lib/mockPlayersData';
-import { saveToPlayerVault } from '@/lib/exportRegistrations';
 
 export interface PlayerCareerBatting {
   matches: number;
@@ -118,7 +118,7 @@ export function usePlayerStats(playerId: string | undefined, tournamentIdFilter?
             soldPrice: data.sold_price ? Number(data.sold_price) : null,
             auctionStatus: (data.auction_status as any) || 'pending',
             jerseyNumber: data.jersey_number,
-            mobileNumber: data.mobile_number,
+            mobileNumber: null,
           });
           setIsLoading(false);
           return;
@@ -546,7 +546,6 @@ export interface PlayerDirectoryItem {
   battingStyle?: string;
   bowlingStyle?: string;
   photoUrl?: string | null;
-  photo?: string | null;
   basePrice: number;
   soldPrice?: number | null;
   auctionStatus: 'pending' | 'sold' | 'unsold';
@@ -586,65 +585,36 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       }
     } catch {}
 
-    try {
-      const vaultRaw = localStorage.getItem('kapl_player_vault');
-      if (vaultRaw) {
-        const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
-        if (Array.isArray(vaultList)) {
-          vaultList.forEach((vp) => {
-            if (
-              vp &&
-              !regList.some(
-                (r) =>
-                  r.id === vp.id ||
-                  (r.userId && vp.userId && r.userId === vp.userId) ||
-                  (r.name && vp.name && r.name.toLowerCase() === vp.name.toLowerCase())
-              )
-            ) {
-              regList.push(vp);
-            }
-          });
-        }
-      }
-    } catch {}
-
-    if (regList.length > 0) {
-      try {
-        localStorage.removeItem('kapl_all_players_cleared');
-        localStorage.removeItem(`kapl_everything_reset_${tid}`);
-      } catch {}
-    } else if (isCleared) {
+    if (isCleared && regList.length === 0) {
       return [];
     }
 
     let baseList: PlayerRecord[] = [];
     try {
-      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tid}`) === 'true';
-      const raw = typeof window !== 'undefined' ? localStorage.getItem(`kapl_auction_players_${tid}`) : null;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && !parsed.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
-          baseList = parsed;
-        }
-      } else if (isReset) {
+      const isReset = localStorage.getItem(`kapl_auction_manually_reset_${tid}`) === 'true';
+      if (isReset) {
         baseList = generateAuctionPlayers(tid);
+      } else {
+        const raw = localStorage.getItem(`kapl_auction_players_${tid}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && !parsed.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
+            baseList = parsed;
+          }
+        }
       }
     } catch {}
 
-    // Merge registered players immediately across both tournaments
+    // Merge registered players immediately
     if (regList.length > 0) {
       regList.forEach((reg) => {
-        const idx = baseList.findIndex(
-          (p) =>
-            p.id === reg.id ||
-            (p.userId && reg.userId && p.userId === reg.userId) ||
-            (p.name && reg.name && p.name.toLowerCase() === reg.name.toLowerCase())
-        );
-        const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
-        if (idx >= 0) {
-          baseList[idx] = { ...baseList[idx], ...playerRec };
-        } else {
-          baseList.push(playerRec);
+        if (!tournamentIdFilter || tournamentIdFilter === 'all' || !reg.tournamentId || reg.tournamentId === tournamentIdFilter) {
+          const idx = baseList.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+          if (idx >= 0) {
+            baseList[idx] = { ...baseList[idx], ...reg };
+          } else {
+            baseList.push(reg);
+          }
         }
       });
     }
@@ -660,28 +630,20 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
     async function loadDbPlayers() {
       try {
-        const { data: dbData, error } = await supabase
+        let query = supabase
           .from('players')
-          .select('id, user_id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
-          .order('name');
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status');
+        if (tournamentIdFilter && tournamentIdFilter !== 'all') {
+          query = query.eq('tournament_id', tournamentIdFilter);
+        }
+        const { data: dbData, error } = await query.order('name');
         if (error) {
           console.warn('Error loading players for directory from DB:', error);
           return;
         }
 
         // Filter out any legacy dummy template players (a1-p1 to b4-p10) from remote DB
-        const cleanDbData = (dbData || []).filter((p: any) => {
-          if (!p || /^[ab][1-4]-/.test(p.id)) return false;
-          if (!tournamentIdFilter || tournamentIdFilter === 'all') return true;
-          const isUserRegistered = Boolean(p.user_id || p.id.startsWith('p_u_') || p.id.startsWith('p_c_'));
-          if (isUserRegistered) {
-            if (p.tournament_id && p.tournament_id !== tournamentIdFilter && p.tournament_id !== 'all') {
-              return false;
-            }
-            return true;
-          }
-          return !p.tournament_id || p.tournament_id === tournamentIdFilter || p.tournament_id === 'all';
-        });
+        const cleanDbData = (dbData || []).filter((p) => p && !/^[ab][1-4]-/.test(p.id));
 
         const isCleared = typeof window !== 'undefined' && (
           localStorage.getItem('kapl_all_players_cleared') === 'true' ||
@@ -696,60 +658,32 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
           }
         } catch {}
 
-        try {
-          const vaultRaw = localStorage.getItem('kapl_player_vault');
-          if (vaultRaw) {
-            const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
-            if (Array.isArray(vaultList)) {
-              vaultList.forEach((vp) => {
-                if (
-                  vp &&
-                  !regPlayers.some(
-                    (r) =>
-                      r.id === vp.id ||
-                      (r.userId && vp.userId && r.userId === vp.userId) ||
-                      (r.name && vp.name && r.name.toLowerCase() === vp.name.toLowerCase())
-                  )
-                ) {
-                  regPlayers.push(vp);
-                }
-              });
-            }
-          }
-        } catch {}
-
         let loaded: PlayerRecord[] = [];
         if (cleanDbData.length > 0) {
           try {
             localStorage.removeItem('kapl_all_players_cleared');
             localStorage.removeItem(`kapl_everything_reset_${tid}`);
           } catch {}
-          loaded = cleanDbData.map((p) => {
-            const rec: PlayerRecord = {
-              id: p.id,
-              userId: (p as any).user_id || undefined,
-              tournamentId: p.tournament_id || 'kapl-3-mens',
-              teamId: p.team_id,
-              name: p.name,
-              role: (p.role as PlayerRole) || 'all_rounder',
-              battingStyle: p.batting_style || 'Right-hand bat',
-              bowlingStyle: p.bowling_style || 'Right-arm medium',
-              photoUrl: p.photo_url,
-              basePrice: Number(p.base_price || 100),
-              soldPrice: p.sold_price ? Number(p.sold_price) : null,
-              auctionStatus: (p.auction_status as any) || 'pending',
-              jerseyNumber: p.jersey_number,
-              mobileNumber: (p as any).mobile_number || null,
-            };
-            // Cache remote DB player into local vault permanently
-            saveToPlayerVault(rec);
-            return rec;
-          });
+          loaded = cleanDbData.map((p) => ({
+            id: p.id,
+            tournamentId: p.tournament_id || 'kapl-3-mens',
+            teamId: p.team_id,
+            name: p.name,
+            role: (p.role as PlayerRole) || 'all_rounder',
+            battingStyle: p.batting_style || 'Right-hand bat',
+            bowlingStyle: p.bowling_style || 'Right-arm medium',
+            photoUrl: p.photo_url,
+            basePrice: Number(p.base_price || 100),
+            soldPrice: p.sold_price ? Number(p.sold_price) : null,
+            auctionStatus: (p.auction_status as any) || 'pending',
+            jerseyNumber: p.jersey_number,
+            mobileNumber: (p as any).mobile_number || null,
+          }));
         } else if (isCleared && regPlayers.length === 0) {
           if (isMounted) setRawPlayers([]);
           return;
         } else {
-          // If DB has no non-legacy players, check local storage cache or fallback to generator ONLY if manually reset
+          // If DB has no non-legacy players, check local storage cache
           try {
             const raw = localStorage.getItem(`kapl_auction_players_${tid}`);
             if (raw) {
@@ -759,26 +693,18 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
               }
             }
           } catch {}
-          const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tid}`) === 'true';
-          if (loaded.length === 0 && isReset) {
-            loaded = generateAuctionPlayers(tid);
-          }
         }
 
-        // Merge user-registered players across both tournaments
+        // Merge user-registered players
         if (regPlayers.length > 0) {
           regPlayers.forEach((reg) => {
-            const idx = loaded.findIndex(
-              (p) =>
-                p.id === reg.id ||
-                (p.userId && reg.userId && p.userId === reg.userId) ||
-                (p.name && reg.name && p.name.toLowerCase() === reg.name.toLowerCase())
-            );
-            const playerRec: PlayerRecord = { ...reg, tournamentId: tid };
-            if (idx >= 0) {
-              loaded[idx] = { ...loaded[idx], ...playerRec };
-            } else {
-              loaded.push(playerRec);
+            if (!tournamentIdFilter || tournamentIdFilter === 'all' || !reg.tournamentId || reg.tournamentId === tournamentIdFilter) {
+              const idx = loaded.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+              if (idx >= 0) {
+                loaded[idx] = { ...loaded[idx], ...reg };
+              } else {
+                loaded.push(reg);
+              }
             }
           });
         }
@@ -827,10 +753,10 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         } else if (payload.event === 'auction_reset' && Array.isArray(payload.players)) {
           if (isMounted) {
             try {
-              localStorage.setItem('kapl_all_players_cleared', 'true');
-              localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+              /* players are never cleared */
+              /* players are never cleared */
             } catch {}
-            setRawPlayers(payload.players);
+            setRawPlayers((prev) => (payload.players.length > 0 ? payload.players : prev.map(resetPlayerRecord)));
           }
         } else if (payload.event === 'auction_player_added' && payload.player) {
           if (isMounted) {
@@ -933,10 +859,10 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       } else if (payload.event === 'auction_reset' && Array.isArray(payload.players)) {
         if (isMounted) {
           try {
-            localStorage.setItem('kapl_all_players_cleared', 'true');
-            localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
+            /* players are never cleared */
+            /* players are never cleared */
           } catch {}
-          setRawPlayers(payload.players);
+          setRawPlayers((prev) => (payload.players.length > 0 ? payload.players : prev.map(resetPlayerRecord)));
         }
       } else if (payload.event === 'auction_player_added' && payload.player) {
         if (isMounted) {
@@ -964,16 +890,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       const { player: addedPlayer, tournamentId: targetTournamentId } = e.detail || {};
       if (addedPlayer === null) {
         if (isMounted) {
-          try {
-            localStorage.setItem('kapl_all_players_cleared', 'true');
-            localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
-          } catch {}
-          setRawPlayers([]);
+          setRawPlayers((prev) => prev.map(resetPlayerRecord));
         }
         return;
       }
       if (!addedPlayer) return;
-      if (tournamentIdFilter && tournamentIdFilter !== 'all' && targetTournamentId && targetTournamentId !== tournamentIdFilter && targetTournamentId !== 'all') {
+      if (tournamentIdFilter && tournamentIdFilter !== 'all' && targetTournamentId && targetTournamentId !== tournamentIdFilter) {
         return;
       }
       try {
@@ -1008,22 +930,11 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
         const onTabMessage = (e: MessageEvent) => {
           if (!isMounted || !e.data) return;
-          if (e.data.type === 'system_reset_all_players') {
-            try {
-              localStorage.setItem('kapl_all_players_cleared', 'true');
-              localStorage.setItem(`kapl_everything_reset_${tid}`, 'true');
-            } catch {}
-            setRawPlayers([]);
-          } else if (e.data.event === 'auction_reset') {
-            if (Array.isArray(e.data.players) && e.data.players.length > 0) {
-              setRawPlayers(e.data.players);
-            } else {
-              const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tid}`) === 'true';
-              setRawPlayers(isReset ? generateAuctionPlayers(tid) : []);
-            }
+          if (e.data.type === 'system_reset_all_players' || e.data.event === 'auction_reset') {
+            setRawPlayers((prev) => prev.map(resetPlayerRecord));
           } else if (e.data.event === 'auction_player_added' && e.data.player) {
             const addedPlayer = e.data.player;
-            if (tournamentIdFilter && tournamentIdFilter !== 'all' && e.data.tournamentId && e.data.tournamentId !== tournamentIdFilter && e.data.tournamentId !== 'all') {
+            if (tournamentIdFilter && tournamentIdFilter !== 'all' && e.data.tournamentId && e.data.tournamentId !== tournamentIdFilter) {
               return;
             }
             try {
@@ -1066,12 +977,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       localStorage.getItem('kapl_all_players_cleared') === 'true' ||
       localStorage.getItem(`kapl_everything_reset_${tid}`) === 'true'
     );
-    if (rawPlayers.length > 0) {
-      try {
-        localStorage.removeItem('kapl_all_players_cleared');
-        localStorage.removeItem(`kapl_everything_reset_${tid}`);
-      } catch {}
-    } else if (isCleared) {
+    if (isCleared && rawPlayers.length === 0) {
       return [];
     }
 
@@ -1237,7 +1143,6 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
         battingStyle: p.battingStyle,
         bowlingStyle: p.bowlingStyle,
         photoUrl: p.photoUrl,
-        photo: p.photoUrl || (p as any).photo || null,
         basePrice: p.basePrice,
         soldPrice: p.soldPrice,
         auctionStatus: p.auctionStatus,
