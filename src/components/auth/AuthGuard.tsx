@@ -81,8 +81,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
       navigate('/auth', {
         state: {
           from: location,
-          prefillEmail: 'rohit.doshi2007@gmail.com',
-          message: 'Sign in with Main Administrator credentials',
+          message: 'Sign in with Administrator credentials',
         },
       });
     };
@@ -152,21 +151,21 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Shield className="w-3.5 h-3.5 text-primary" />
-                  Main Admin:
+                  Privilege Level:
                 </span>
                 <span className="font-mono text-primary font-medium">
-                  rohit.doshi2007@gmail.com
+                  Administrator
                 </span>
               </div>
             </div>
 
-            {/* Switch to Main Admin Action */}
+            {/* Switch to Administrator Action */}
             <Button
               onClick={handleSwitchToMainAdmin}
               className="w-full h-11 gap-2 font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-95 shadow-md shadow-primary/20 text-primary-foreground"
             >
               <UserCheck className="w-4 h-4" />
-              Sign In as Main Admin (rohit.doshi2007@gmail.com)
+              Sign In with Admin Account
             </Button>
 
             {/* Ground Organizer Emergency Passcode Form */}

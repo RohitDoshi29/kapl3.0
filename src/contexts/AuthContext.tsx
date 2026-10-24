@@ -26,6 +26,7 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
 
     // 2. Update auction pool across BOTH tournaments so players enter both leagues
     for (const tId of targetTournaments) {
+      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tId}`) === 'true';
       const auctionRaw = localStorage.getItem(`kapl_auction_players_${tId}`);
       let auctionList: PlayerRecord[] = [];
       if (auctionRaw) {
@@ -36,11 +37,13 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
           }
         } catch {}
       }
-      if (auctionList.length === 0) {
+      if (auctionList.length === 0 && isReset) {
         auctionList = generateAuctionPlayers(tId);
       }
+      const tournRecordId = tId === 'kapl-3-womens' ? `${playerRecord.id}_w` : playerRecord.id;
       const tournRecord: PlayerRecord = {
         ...playerRecord,
+        id: tournRecordId,
         tournamentId: tId,
       };
       const aucIdx = auctionList.findIndex(
@@ -958,43 +961,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (effectiveAccountType === 'player' || effectiveAccountType === 'captain' || effectiveAccountType === 'user' || !effectiveAccountType) {
-      // 1. Try atomic database RPC (bypasses RLS with SECURITY DEFINER)
-      try {
-        await supabase.rpc('register_new_player', {
-          p_id: generatedPlayerId,
-          p_user_id: supaUser?.id || null,
-          p_name: profileData.name,
-          p_role: profileData.role,
-          p_batting_style: profileData.battingStyle || 'Right-hand bat',
-          p_bowling_style: profileData.bowlingStyle || 'Right-arm medium',
-          p_jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
-          p_mobile_number: profileData.mobileNumber || null,
-          p_photo_url: profileData.photoUrl || null,
-          p_tournament_id: profileData.tournamentId || 'kapl-3-mens',
-          p_base_price: 100,
-        });
-      } catch (rpcErr) {
-        console.warn('register_new_player RPC notice (trying direct upsert):', rpcErr);
-      }
+      const dualTournaments = ['kapl-3-mens', 'kapl-3-womens'];
+      for (const tId of dualTournaments) {
+        const idForTourn = tId === 'kapl-3-womens' ? `${generatedPlayerId}_w` : generatedPlayerId;
+        // 1. Try atomic database RPC (bypasses RLS with SECURITY DEFINER)
+        try {
+          await supabase.rpc('register_new_player', {
+            p_id: idForTourn,
+            p_user_id: supaUser?.id || null,
+            p_name: profileData.name,
+            p_role: profileData.role,
+            p_batting_style: profileData.battingStyle || 'Right-hand bat',
+            p_bowling_style: profileData.bowlingStyle || 'Right-arm medium',
+            p_jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
+            p_mobile_number: profileData.mobileNumber || null,
+            p_photo_url: profileData.photoUrl || null,
+            p_tournament_id: tId,
+            p_base_price: 100,
+          });
+        } catch (rpcErr) {
+          console.warn(`register_new_player RPC notice (${tId}):`, rpcErr);
+        }
 
-      // 2. Direct database upsert
-      try {
-        await supabase.from('players').upsert({
-          id: generatedPlayerId,
-          user_id: supaUser?.id || null,
-          name: profileData.name,
-          photo_url: profileData.photoUrl || null,
-          role: profileData.role,
-          batting_style: profileData.battingStyle || null,
-          bowling_style: profileData.bowlingStyle || null,
-          jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
-          mobile_number: profileData.mobileNumber || null,
-          tournament_id: profileData.tournamentId || 'kapl-3-mens',
-          base_price: 100,
-          auction_status: 'pending',
-        }, { onConflict: 'id' });
-      } catch (dbErr) {
-        console.warn('Could not insert new player into players table:', dbErr);
+        // 2. Direct database upsert
+        try {
+          await supabase.from('players').upsert({
+            id: idForTourn,
+            user_id: supaUser?.id || null,
+            name: profileData.name,
+            photo_url: profileData.photoUrl || null,
+            role: profileData.role,
+            batting_style: profileData.battingStyle || null,
+            bowling_style: profileData.bowlingStyle || null,
+            jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
+            mobile_number: profileData.mobileNumber || null,
+            tournament_id: tId,
+            base_price: 100,
+            auction_status: 'pending',
+          }, { onConflict: 'id' });
+        } catch (dbErr) {
+          console.warn(`Could not insert new player into players table (${tId}):`, dbErr);
+        }
       }
 
       // 3. Sync player to auction and directory across all roles and tabs

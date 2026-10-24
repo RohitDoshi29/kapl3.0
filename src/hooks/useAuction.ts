@@ -64,14 +64,14 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       }
 
       let baseList: PlayerRecord[] = [];
-      const raw = localStorage.getItem(`kapl_auction_players_${initialTournamentId}`);
+      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${initialTournamentId}`) === 'true';
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(`kapl_auction_players_${initialTournamentId}`) : null;
       if (raw) {
         const parsed: PlayerRecord[] = JSON.parse(raw);
         if (Array.isArray(parsed) && !parsed.some((p: any) => /^[ab][1-4]-/.test(p.id))) {
           baseList = parsed;
         }
-      }
-      if (baseList.length === 0) {
+      } else if (isReset) {
         baseList = generateAuctionPlayers(initialTournamentId);
       }
 
@@ -90,7 +90,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
       return baseList;
     } catch {}
-    return generateAuctionPlayers(initialTournamentId);
+    return [];
   });
 
   const [currentPlayer, setCurrentPlayer] = useState<PlayerRecord | null>(() => {
@@ -111,16 +111,16 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         return null;
       }
 
-      const activeId = localStorage.getItem(`kapl_auction_active_player_${initialTournamentId}`);
-      const raw = localStorage.getItem(`kapl_auction_players_${initialTournamentId}`);
+      const activeId = typeof window !== 'undefined' ? localStorage.getItem(`kapl_auction_active_player_${initialTournamentId}`) : null;
+      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${initialTournamentId}`) === 'true';
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(`kapl_auction_players_${initialTournamentId}`) : null;
       let list: PlayerRecord[] = [];
       if (raw) {
         const parsed: PlayerRecord[] = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           list = parsed.filter((p: any) => p && !/^[ab][1-4]-/.test(p.id));
         }
-      }
-      if (list.length === 0) {
+      } else if (isReset) {
         list = generateAuctionPlayers(initialTournamentId);
       }
       if (regList.length > 0) {
@@ -137,8 +137,9 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         if (found) return found;
       }
       if (list.length > 0) {
-        return list.find((p) => p.auctionStatus === 'pending') || list[0];
+        return list.find((p) => p.auctionStatus === 'pending') || list[0] || null;
       }
+      return null;
     } catch {}
     return null;
   });
@@ -234,7 +235,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       // 2. Fetch non-legacy players from Supabase (public safe columns)
       const { data: allPlayers, error: playersError } = await supabase
         .from('players')
-        .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
+        .select('id, user_id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
         .order('name');
 
       if (playersError) throw playersError;
@@ -242,13 +243,19 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       let mappedPlayers: PlayerRecord[] = (allPlayers || [])
         .filter((p: any) => {
           if (!p || /^[ab][1-4]-/.test(p.id)) return false;
-          // Registered user players enter both tournament auction pools!
+          // Registered user players enter tournament auction pools unless specific to another
           const isUserRegistered = Boolean(p.user_id || p.id.startsWith('p_u_'));
-          if (isUserRegistered) return true;
+          if (isUserRegistered) {
+            if (p.tournament_id && p.tournament_id !== tournamentId) {
+              return false;
+            }
+            return true;
+          }
           return !p.tournament_id || p.tournament_id === tournamentId;
         })
         .map((p: any) => ({
           id: p.id,
+          userId: p.user_id || undefined,
           tournamentId: tournamentId,
           teamId: p.team_id,
           name: p.name,
@@ -307,6 +314,8 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         return;
       }
 
+      const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tournamentId}`) === 'true';
+
       if (mappedPlayers.length === 0) {
         let cachedPlayers: PlayerRecord[] = [];
         try {
@@ -321,12 +330,13 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
         if (cachedPlayers.length > 0) {
           mappedPlayers = cachedPlayers;
-        } else {
-          // Never leave auction pool empty; always provide official 80 auction players
+        } else if (isReset) {
           mappedPlayers = generateAuctionPlayers(tournamentId);
           try {
             localStorage.setItem(`kapl_auction_players_${tournamentId}`, JSON.stringify(mappedPlayers));
           } catch {}
+        } else {
+          mappedPlayers = [];
         }
       } else {
         try {
@@ -335,22 +345,20 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       }
 
       // Merge all user-registered players from kapl_registered_players into mappedPlayers
-      try {
-        const regRaw = localStorage.getItem('kapl_registered_players');
-        if (regRaw) {
-          const registeredList: PlayerRecord[] = JSON.parse(regRaw);
-          registeredList.forEach((reg) => {
-            const existingIdx = mappedPlayers.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
-            const playerRecord: PlayerRecord = { ...reg, tournamentId: tournamentId };
-            if (existingIdx >= 0) {
-              mappedPlayers[existingIdx] = { ...mappedPlayers[existingIdx], ...playerRecord };
-            } else {
-              mappedPlayers.push(playerRecord);
-            }
-          });
+      if (regList.length > 0) {
+        regList.forEach((reg) => {
+          const existingIdx = mappedPlayers.findIndex((p) => p.id === reg.id || (p.userId && reg.userId && p.userId === reg.userId));
+          const playerRecord: PlayerRecord = { ...reg, tournamentId: tournamentId };
+          if (existingIdx >= 0) {
+            mappedPlayers[existingIdx] = { ...mappedPlayers[existingIdx], ...playerRecord };
+          } else {
+            mappedPlayers.push(playerRecord);
+          }
+        });
+        try {
           localStorage.setItem(`kapl_auction_players_${tournamentId}`, JSON.stringify(mappedPlayers));
-        }
-      } catch {}
+        } catch {}
+      }
 
       if (mappedPlayers.length >= 80 && mappedPlayers.every((p) => p.auctionStatus === 'sold')) {
         setAuctionState((prev) => ({
@@ -367,38 +375,26 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         }));
       }
 
-      setPlayerPool(mappedPlayers);
-
-      // Check local cached active player ID if DB is empty or points to legacy player
-      let targetActivePlayerId = activePlayerId;
-      if (!targetActivePlayerId || /^[ab][1-4]-/.test(targetActivePlayerId) || !mappedPlayers.some((p) => p.id === targetActivePlayerId)) {
-        try {
-          const localActive = localStorage.getItem(`kapl_auction_active_player_${tournamentId}`);
-          if (localActive && mappedPlayers.some((p) => p.id === localActive)) {
-            targetActivePlayerId = localActive;
-          } else {
-            // Find first pending player, or fallback to first player
-            const firstPending = mappedPlayers.find((p) => p.auctionStatus === 'pending');
-            targetActivePlayerId = firstPending?.id || mappedPlayers[0]?.id || null;
+      if (mappedPlayers.length === 0) {
+        setPlayerPool([]);
+        setCurrentPlayer(null);
+      } else {
+        setPlayerPool(mappedPlayers);
+        let targetActivePlayer: PlayerRecord | null = null;
+        if (activePlayerId) {
+          targetActivePlayer = mappedPlayers.find((p) => p.id === activePlayerId) || null;
+        }
+        if (!targetActivePlayer) {
+          const localActive = typeof window !== 'undefined' ? localStorage.getItem(`kapl_auction_active_player_${tournamentId}`) : null;
+          if (localActive) {
+            targetActivePlayer = mappedPlayers.find((p) => p.id === localActive) || null;
           }
-        } catch {
-          targetActivePlayerId = mappedPlayers[0]?.id || null;
         }
-      }
-
-      // Set current player from DB/cache or default to first pending candidate
-      if (targetActivePlayerId) {
-        const found = mappedPlayers.find((p) => p.id === targetActivePlayerId);
-        if (found) {
-          setCurrentPlayer(found);
-        } else if (mappedPlayers.length > 0) {
+        if (!targetActivePlayer) {
           const firstPending = mappedPlayers.find((p) => p.auctionStatus === 'pending');
-          setCurrentPlayer(firstPending || mappedPlayers[0]);
+          targetActivePlayer = firstPending || mappedPlayers[0] || null;
         }
-      } else if (mappedPlayers.length > 0) {
-        const firstPending = mappedPlayers.find((p) => p.auctionStatus === 'pending');
-        setCurrentPlayer(firstPending || mappedPlayers[0]);
-        setCurrentPlayer(mappedPlayers[mappedPlayers.length - 1]);
+        setCurrentPlayer(targetActivePlayer);
       }
 
       // 3. Fetch teams for this tournament
@@ -600,7 +596,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       console.error('Error fetching auction data:', err);
       setIsLoading(false);
     }
-  }, [tournamentId, currentPlayer]);
+  }, [tournamentId]);
 
   useEffect(() => {
     fetchData();
@@ -739,7 +735,8 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           players: [],
           playerCount: 0,
         }));
-        const resetPlayers: PlayerRecord[] = Array.isArray(envelope.players) ? envelope.players : generateAuctionPlayers(tournamentId);
+        const isReset = typeof window !== 'undefined' && localStorage.getItem(`kapl_auction_manually_reset_${tournamentId}`) === 'true';
+        const resetPlayers: PlayerRecord[] = Array.isArray(envelope.players) ? envelope.players : (isReset ? generateAuctionPlayers(tournamentId) : []);
         const resetCurrent = envelope.currentPlayer || resetPlayers[0] || null;
 
         setTeams(resetTeams);
