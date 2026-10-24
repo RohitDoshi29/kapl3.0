@@ -585,6 +585,20 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       }
     } catch {}
 
+    try {
+      const vaultRaw = localStorage.getItem('kapl_player_vault');
+      if (vaultRaw) {
+        const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
+        if (Array.isArray(vaultList)) {
+          vaultList.forEach((vp) => {
+            if (vp && !regList.some((r) => r.id === vp.id || (r.userId && vp.userId && r.userId === vp.userId))) {
+              regList.push(vp);
+            }
+          });
+        }
+      }
+    } catch {}
+
     if (isCleared && regList.length === 0) {
       return [];
     }
@@ -642,12 +656,12 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
           if (!tournamentIdFilter || tournamentIdFilter === 'all') return true;
           const isUserRegistered = Boolean(p.user_id || p.id.startsWith('p_u_'));
           if (isUserRegistered) {
-            if (p.tournament_id && p.tournament_id !== tournamentIdFilter) {
+            if (p.tournament_id && p.tournament_id !== tournamentIdFilter && p.tournament_id !== 'all') {
               return false;
             }
             return true;
           }
-          return !p.tournament_id || p.tournament_id === tournamentIdFilter;
+          return !p.tournament_id || p.tournament_id === tournamentIdFilter || p.tournament_id === 'all';
         });
 
         const isCleared = typeof window !== 'undefined' && (
@@ -660,6 +674,20 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
           const regRaw = localStorage.getItem('kapl_registered_players');
           if (regRaw) {
             regPlayers = JSON.parse(regRaw);
+          }
+        } catch {}
+
+        try {
+          const vaultRaw = localStorage.getItem('kapl_player_vault');
+          if (vaultRaw) {
+            const vaultList: PlayerRecord[] = JSON.parse(vaultRaw);
+            if (Array.isArray(vaultList)) {
+              vaultList.forEach((vp) => {
+                if (vp && !regPlayers.some((r) => r.id === vp.id || (r.userId && vp.userId && r.userId === vp.userId))) {
+                  regPlayers.push(vp);
+                }
+              });
+            }
           }
         } catch {}
 

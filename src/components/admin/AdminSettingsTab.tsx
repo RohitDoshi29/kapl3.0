@@ -14,10 +14,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { RefreshCcw, Trash2, Database, History, Gavel, Sparkles, CheckCircle2 } from 'lucide-react';
+import { RefreshCcw, Trash2, Database, History, Gavel, Sparkles, CheckCircle2, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { resetTeamsAndSeed80Players, autoCompleteAuctionForAll80Players } from '@/lib/mockPlayersData';
 import { useTournament } from '@/contexts/TournamentContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 
 export default function AdminSettingsTab() {
   const { matchHistory, resetSeason, resetEverything, teams } = useCricketStore();
@@ -105,6 +106,35 @@ export default function AdminSettingsTab() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold">Settings & Data</h2>
+
+      {/* Player Registration Vault & Excel Backup */}
+      <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-md">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-emerald-400">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+              Player Registration Vault & Backup
+            </CardTitle>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" />
+              PROTECTED
+            </span>
+          </div>
+          <CardDescription>
+            Export all registered players to Excel spreadsheet (.xlsx) or formatted text/CSV. Player registrations in the vault are permanently retained and will never be deleted.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ExportRegistrationsDialog
+            trigger={
+              <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2 text-xs sm:text-sm h-10 rounded-xl shadow-md">
+                <FileSpreadsheet className="w-4 h-4" />
+                Open Registration Vault (Excel & Text Export)
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
 
       {/* Storage Info */}
       <Card>

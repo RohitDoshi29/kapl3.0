@@ -9,6 +9,7 @@ import { useTournament } from '@/contexts/TournamentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayersDirectory, PlayerDirectoryItem } from '@/hooks/usePlayerStats';
 import { PlayerRole } from '@/lib/cricketTypes';
+import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ import {
   Shield,
   Zap,
   Trash2,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<PlayerRole, { label: string; icon: string; badgeClass: string }> = {
@@ -233,7 +235,19 @@ export default function PlayersDirectory() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <ExportRegistrationsDialog
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-3 rounded-xl border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs gap-1.5 shadow-sm touch-manipulation"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <span>Export to Excel / Text</span>
+                </Button>
+              }
+            />
             <TournamentSwitcher />
           </div>
         </div>

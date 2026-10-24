@@ -3,6 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { PlayerRecord, PlayerRole } from '@/lib/cricketTypes';
 import { generateAuctionPlayers } from '@/lib/mockPlayersData';
+import { saveToPlayerVault } from '@/lib/exportRegistrations';
+
+export const isValidUuid = (id?: string | null): boolean =>
+  Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
 export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecord) {
   try {
@@ -10,6 +14,9 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
     localStorage.removeItem('kapl_all_players_cleared');
     localStorage.removeItem('kapl_everything_reset_kapl-3-mens');
     localStorage.removeItem('kapl_everything_reset_kapl-3-womens');
+
+    // 0. Save permanently to unresettable registration vault
+    saveToPlayerVault(playerRecord);
 
     // 1. Update master kapl_registered_players
     const regRaw = localStorage.getItem('kapl_registered_players');
@@ -243,11 +250,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: privData } = await supabase.rpc('get_my_private_player_profile');
       if (privData) {
         dbPlayer = privData;
-      } else {
+      } else if (isValidUuid(userObj.id)) {
         const { data } = await supabase
           .from('players')
           .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
           .eq('user_id', userObj.id)
+          .maybeSingle();
+        if (data) dbPlayer = data;
+      } else if (localProfile.playerId) {
+        const { data } = await supabase
+          .from('players')
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
+          .eq('id', localProfile.playerId)
           .maybeSingle();
         if (data) dbPlayer = data;
       }
@@ -311,6 +325,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      if (!isValidUuid(userId)) {
+        return 'player';
+      }
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -393,13 +410,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Sync with database players table
       try {
-        const { data: existingPlayer } = await supabase
-          .from('players')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const safeUserId = isValidUuid(user.id) ? user.id : null;
+        let existingPlayer: any = null;
+        if (safeUserId) {
+          const { data } = await supabase
+            .from('players')
+            .select('id')
+            .eq('user_id', safeUserId)
+            .maybeSingle();
+          existingPlayer = data;
+        }
 
-        let targetPlayerId = current.playerId;
+        let targetPlayerId = current.playerId || existingPlayer?.id;
+        if (!existingPlayer && targetPlayerId) {
+          const { data } = await supabase
+            .from('players')
+            .select('id')
+            .eq('id', targetPlayerId)
+            .maybeSingle();
+          existingPlayer = data;
+        }
+
         if (existingPlayer) {
           targetPlayerId = existingPlayer.id;
           await supabase
@@ -418,13 +449,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', existingPlayer.id);
           updated.playerId = existingPlayer.id;
         } else {
-          const generatedId = `p_u_${user.id.slice(0, 8)}`;
+          const generatedId = targetPlayerId || `p_u_${user.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
           targetPlayerId = generatedId;
           const { error: insErr } = await supabase
             .from('players')
             .insert({
               id: generatedId,
-              user_id: user.id,
+              user_id: safeUserId,
               name: updated.name,
               photo_url: updated.photoUrl || null,
               role: updated.role,
@@ -477,6 +508,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date().toISOString(),
         };
 
+        saveToPlayerVault({ ...updatedRecord, email: user.email || '' });
         syncPlayerToAuctionAndTournament(updatedRecord);
       } catch (dbErr) {
         console.warn('Non-fatal error syncing player record with database:', dbErr);
@@ -831,7 +863,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Build verified active user immediately without requiring email confirmation
     const effectiveUserId = supaUser?.id || `u_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const generatedPlayerId = `p_u_${effectiveUserId.slice(0, 8)}`;
+    const generatedPlayerId = `p_u_${effectiveUserId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
+    const safeDbUserId = isValidUuid(supaUser?.id) ? supaUser!.id : null;
 
     const profileData: UserProfile = {
       name: meta.name || cleanEmail.split('@')[0],
@@ -960,7 +993,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString(),
     };
 
-    if (effectiveAccountType === 'player' || effectiveAccountType === 'captain' || effectiveAccountType === 'user' || !effectiveAccountType) {
+    // Save permanently to unresettable player vault
+    saveToPlayerVault({
+      ...newPlayerRecord,
+      email: cleanEmail,
+      gender: profileData.gender,
+    });
+
+    if (effectiveAccountType === 'player' || effectiveAccountType === 'captain' || effectiveAccountType === 'user' || effectiveAccountType === 'spectator' || !effectiveAccountType) {
       const dualTournaments = ['kapl-3-mens', 'kapl-3-womens'];
       for (const tId of dualTournaments) {
         const idForTourn = tId === 'kapl-3-womens' ? `${generatedPlayerId}_w` : generatedPlayerId;
@@ -968,7 +1008,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await supabase.rpc('register_new_player', {
             p_id: idForTourn,
-            p_user_id: supaUser?.id || null,
+            p_user_id: safeDbUserId,
             p_name: profileData.name,
             p_role: profileData.role,
             p_batting_style: profileData.battingStyle || 'Right-hand bat',
@@ -987,7 +1027,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await supabase.from('players').upsert({
             id: idForTourn,
-            user_id: supaUser?.id || null,
+            user_id: safeDbUserId,
             name: profileData.name,
             photo_url: profileData.photoUrl || null,
             role: profileData.role,
@@ -1028,6 +1068,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const assignUserRole = useCallback(async (userId: string, role: UserRole) => {
     if (!role) return { error: null };
+    if (!isValidUuid(userId)) return { error: null };
     try {
       const { data: existing } = await supabase
         .from('user_roles')
