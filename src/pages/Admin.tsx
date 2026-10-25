@@ -72,9 +72,8 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-full overflow-x-auto">
-                <TabsList className={`inline-grid gap-1 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md min-w-max ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
+            <div className="flex items-center justify-center mb-2 overflow-x-auto">
+              <TabsList className={`inline-grid gap-1 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
                 <TabsTrigger value="scorer" className="gap-2">
                   <Shield className="w-4 h-4" />
                   <span className="hidden sm:inline">Scorer</span>
@@ -112,10 +111,9 @@ export default function Admin() {
                     <span className="hidden sm:inline">Roles</span>
                   </TabsTrigger>
                 )}
-                </TabsList>
-              </div>
+              </TabsList>
               {isAdmin && (
-                <Badge variant="outline" className="ml-2 hidden md:flex font-semibold border-amber-500/40 text-foreground shrink-0">
+                <Badge variant="outline" className="ml-2 hidden md:flex font-semibold border-amber-500/40 text-foreground shrink-0 whitespace-nowrap">
                   {user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com'
                     ? '👑 Main Admin'
                     : isCoAdmin
