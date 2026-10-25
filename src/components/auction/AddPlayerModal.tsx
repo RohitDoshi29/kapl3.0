@@ -24,6 +24,9 @@ import { PlayerRecord, PlayerRole } from '@/lib/cricketTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { saveToPlayerVault } from '@/lib/exportRegistrations';
 import { syncPlayerToAuctionAndTournament } from '@/contexts/AuthContext';
+import { validatePlayerInput } from '@/lib/schemas';
+import { useRequestQueue } from '@/hooks/useRequestQueue';
+import { logger } from '@/lib/logger';
 
 interface AddPlayerModalProps {
   tournamentId?: string;
@@ -69,6 +72,7 @@ export function AddPlayerModal({
   const [targetTourn, setTargetTourn] = useState<string>('all');
   const [photoUrl, setPhotoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isPending, executeRequest } = useRequestQueue();
 
   const resetForm = () => {
     setName('');
@@ -85,100 +89,105 @@ export function AddPlayerModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = name.trim();
-    if (!cleanName || cleanName.length < 2) {
-      toast.error('Please enter a valid player name (at least 2 characters)');
+
+    if (isPending('add-player')) {
+      toast.error('Player is already being added. Please wait...');
       return;
     }
 
+    const cleanName = name.trim();
     const jerseyNum = jerseyNumber.trim() ? parseInt(jerseyNumber.trim(), 10) : null;
-    if (jerseyNum !== null && (isNaN(jerseyNum) || jerseyNum < 0 || jerseyNum > 99)) {
-      toast.error('Jersey number must be between 0 and 99');
+
+    const payload = {
+      name: cleanName,
+      role,
+      battingStyle,
+      bowlingStyle,
+      basePrice: Number(basePrice) || 100,
+      jerseyNumber: jerseyNum,
+      mobileNumber: mobileNumber.trim() || null,
+      gender,
+      tournamentId: targetTourn,
+      photoUrl: photoUrl.trim() || null,
+    };
+
+    const validation = validatePlayerInput(payload);
+    if (!validation.success) {
+      toast.error(validation.error);
+      logger.warn('Player validation failed', { error: validation.error, payload });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        name: cleanName,
-        role,
-        battingStyle,
-        bowlingStyle,
-        basePrice: Number(basePrice) || 100,
-        jerseyNumber: jerseyNum,
-        mobileNumber: mobileNumber.trim() || null,
-        gender,
-        tournamentId: targetTourn,
-        photoUrl: photoUrl.trim() || null,
-      };
-
-      if (onAddPlayer) {
-        const res = await onAddPlayer(payload);
-        if (res && res.success === false) {
-          toast.error(res.error || 'Failed to add player');
-          setIsSubmitting(false);
-          return;
-        }
-      } else {
-        // Direct autonomous fallback: save to DB, persistent vault, and localStorage across both leagues
-        const generatedId = `p_c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const dualTournaments = targetTourn === 'all'
-          ? ['kapl-3-mens', 'kapl-3-womens']
-          : [targetTourn];
-
-        for (const tId of dualTournaments) {
-          const idForTourn = tId === 'kapl-3-womens' ? `${generatedId}_w` : generatedId;
-          try {
-            await supabase.from('players').upsert({
-              id: idForTourn,
-              name: cleanName,
-              photo_url: photoUrl.trim() || null,
-              role: role,
-              batting_style: battingStyle || null,
-              bowling_style: bowlingStyle || null,
-              jersey_number: jerseyNum,
-              mobile_number: mobileNumber.trim() || null,
-              tournament_id: tId,
-              base_price: Number(basePrice) || 100,
-              auction_status: 'pending',
-            }, { onConflict: 'id' });
-          } catch (e) {
-            console.warn('Direct player insert notice:', e);
+      await executeRequest('add-player', async () => {
+        if (onAddPlayer) {
+          const res = await onAddPlayer(validation.data as any);
+          if (res && res.success === false) {
+            throw new Error(res.error || 'Failed to add player');
           }
+        } else {
+          const generatedId = `p_c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const dualTournaments = targetTourn === 'all'
+            ? ['kapl-3-mens', 'kapl-3-womens']
+            : [targetTourn];
+
+          for (const tId of dualTournaments) {
+            const idForTourn = tId === 'kapl-3-womens' ? `${generatedId}_w` : generatedId;
+            try {
+              await supabase.from('players').upsert({
+                id: idForTourn,
+                name: cleanName,
+                photo_url: photoUrl.trim() || null,
+                role: role,
+                batting_style: battingStyle || null,
+                bowling_style: bowlingStyle || null,
+                jersey_number: jerseyNum,
+                mobile_number: mobileNumber.trim() || null,
+                tournament_id: tId,
+                base_price: Number(basePrice) || 100,
+                auction_status: 'pending',
+              }, { onConflict: 'id' });
+            } catch (e) {
+              logger.warn('Direct player insert failed', { error: e, tournament: tId });
+            }
+          }
+
+          const masterRecord: PlayerRecord = {
+            id: generatedId,
+            name: cleanName,
+            role: role,
+            battingStyle: battingStyle,
+            bowlingStyle: bowlingStyle,
+            basePrice: Number(basePrice) || 100,
+            soldPrice: null,
+            auctionStatus: 'pending',
+            tournamentId: targetTourn,
+            jerseyNumber: jerseyNum,
+            mobileNumber: mobileNumber.trim() || null,
+            photoUrl: photoUrl.trim() || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          saveToPlayerVault({
+            ...masterRecord,
+            gender,
+          });
+
+          await syncPlayerToAuctionAndTournament(masterRecord);
         }
+      });
 
-        const masterRecord: PlayerRecord = {
-          id: generatedId,
-          name: cleanName,
-          role: role,
-          battingStyle: battingStyle,
-          bowlingStyle: bowlingStyle,
-          basePrice: Number(basePrice) || 100,
-          soldPrice: null,
-          auctionStatus: 'pending',
-          tournamentId: targetTourn,
-          jerseyNumber: jerseyNum,
-          mobileNumber: mobileNumber.trim() || null,
-          photoUrl: photoUrl.trim() || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        saveToPlayerVault({
-          ...masterRecord,
-          gender,
-        });
-
-        await syncPlayerToAuctionAndTournament(masterRecord);
-      }
-
-      onPlayerAdded?.(payload);
+      onPlayerAdded?.(validation.data as any);
       toast.success(`🎉 ${cleanName} added to the Live Auction pool!`);
+      logger.info('Player added successfully', { playerName: cleanName, tournamentId: targetTourn });
       resetForm();
       setIsOpen(false);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       toast.error('Failed to create player: ' + errorMessage);
+      logger.error('Failed to add player', err, { playerName: cleanName });
     } finally {
       setIsSubmitting(false);
     }

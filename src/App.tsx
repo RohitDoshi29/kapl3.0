@@ -51,6 +51,8 @@ function PageLoadingFallback() {
   );
 }
 
+const HealthCheckRoute = lazy(() => import('./pages/Health'));
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -62,6 +64,9 @@ const App = () => (
             <ErrorBoundary>
               <Suspense fallback={<PageLoadingFallback />}>
                 <Routes>
+                  {/* Health check endpoint */}
+                  <Route path="/health" element={<HealthCheckRoute />} />
+
                   {/* Public Auth & Tournament Spectator Routes */}
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/" element={<Index />} />
