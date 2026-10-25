@@ -8,7 +8,7 @@ import { SinglePlayerAuctionStage } from '@/components/auction/SinglePlayerAucti
 import { CategoryPlayerGrid } from '@/components/auction/CategoryPlayerGrid';
 import { TeamPurseList } from '@/components/auction/TeamPurseList';
 import { AdminAuctionDesk } from '@/components/auction/AdminAuctionDesk';
-const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal').then(m => ({ default: m.AddPlayerModal })));
+const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal'));
 import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
