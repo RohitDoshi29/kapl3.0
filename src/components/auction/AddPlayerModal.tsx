@@ -30,8 +30,19 @@ interface AddPlayerModalProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onPlayerAdded?: (player: any) => void;
-  onAddPlayer?: (data: any) => Promise<any>;
+  onPlayerAdded?: (player: PlayerRecord) => void;
+  onAddPlayer?: (data: {
+    name: string;
+    role: PlayerRole;
+    battingStyle?: string;
+    bowlingStyle?: string;
+    basePrice?: number;
+    jerseyNumber?: number | null;
+    mobileNumber?: string | null;
+    photoUrl?: string | null;
+    gender?: 'male' | 'female';
+    tournamentId?: string;
+  }) => Promise<{ success: boolean; player?: PlayerRecord; error?: string }>;
 }
 
 export function AddPlayerModal({
@@ -165,8 +176,9 @@ export function AddPlayerModal({
       toast.success(`🎉 ${cleanName} added to the Live Auction pool!`);
       resetForm();
       setIsOpen(false);
-    } catch (err: any) {
-      toast.error('Failed to create player: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Failed to create player: ' + errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -244,7 +256,7 @@ export function AddPlayerModal({
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-foreground">Gender</Label>
-              <Select value={gender} onValueChange={(val) => setGender(val as any)}>
+              <Select value={gender} onValueChange={(val) => setGender(val === 'male' || val === 'female' ? val : 'male')}>
                 <SelectTrigger className="h-10 text-xs sm:text-sm bg-white/[0.04] border-white/10 rounded-xl">
                   <SelectValue placeholder="Select Gender" />
                 </SelectTrigger>

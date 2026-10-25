@@ -48,7 +48,18 @@ interface AdminAuctionDeskProps {
   teams: Team[];
   currentPlayer: PlayerRecord | null;
   tournamentId?: string;
-  onAddPlayer?: (data: any) => Promise<any>;
+  onAddPlayer?: (data: {
+    name: string;
+    role: PlayerRole;
+    battingStyle?: string;
+    bowlingStyle?: string;
+    basePrice?: number;
+    jerseyNumber?: number | null;
+    mobileNumber?: string | null;
+    photoUrl?: string | null;
+    gender?: 'male' | 'female';
+    tournamentId?: string;
+  }) => Promise<{ success: boolean; player?: PlayerRecord; error?: string }>;
   onSpotlightPlayer: (player: PlayerRecord) => void;
   onDecideSold: (playerId: string, teamId: string, amount: number) => Promise<void> | void;
   onDecideUnsold: (playerId: string) => Promise<void> | void;

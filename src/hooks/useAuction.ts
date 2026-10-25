@@ -34,12 +34,25 @@ export interface AuctionSaleLog {
 let sharedAuctionBroadcastChannel: any = null;
 let sharedAuctionTabSync: BroadcastChannel | null = null;
 let sharedSharedTabSync: BroadcastChannel | null = null;
-if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+let broadcastChannelSupported = false;
+
+function initializeBroadcastChannels() {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
+    return false;
+  }
+
   try {
     sharedAuctionTabSync = new BroadcastChannel('kapl_auction_tab_sync');
     sharedSharedTabSync = new BroadcastChannel('kapl-shared-tab-channel');
-  } catch {}
+    broadcastChannelSupported = true;
+    return true;
+  } catch (err) {
+    console.warn('BroadcastChannel initialization failed, cross-tab sync disabled:', err);
+    return false;
+  }
 }
+
+initializeBroadcastChannels();
 
 export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
   const { user, userRole, isAdmin } = useAuth();
@@ -251,6 +264,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     return [];
   });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchDataDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-advance celebration countdown state & refs
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null);
@@ -264,9 +278,21 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     setAutoAdvanceCountdown(null);
   }, []);
 
+  const setTournamentIdAndReset = useCallback(async (newTournamentId: string) => {
+    if (newTournamentId === tournamentId) return;
+
+    setTournamentId(newTournamentId);
+    if (fetchDataDebounceRef.current) {
+      clearTimeout(fetchDataDebounceRef.current);
+    }
+    await fetchData();
+  }, [tournamentId, fetchData]);
+
   useEffect(() => {
-    setTournamentId(initialTournamentId);
-  }, [initialTournamentId]);
+    if (initialTournamentId !== tournamentId) {
+      setTournamentId(initialTournamentId);
+    }
+  }, [initialTournamentId, tournamentId]);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -718,10 +744,31 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
   // Network recovery: automatically re-synchronize when connection is restored
   useEffect(() => {
-    const handleOnline = () => {
+    let recoveryAttempt = 0;
+    const maxRetries = 3;
+
+    const handleOnline = async () => {
+      recoveryAttempt = 0;
       toast.success('🌐 Connection restored! Re-synchronizing live auction...');
-      fetchData();
+
+      const attemptRecovery = async () => {
+        try {
+          await fetchData();
+          toast.success('✅ Live auction data synchronized.');
+        } catch (err) {
+          recoveryAttempt++;
+          if (recoveryAttempt < maxRetries) {
+            toast.warning(`Retry ${recoveryAttempt}/${maxRetries}...`);
+            setTimeout(attemptRecovery, 1000 * recoveryAttempt);
+          } else {
+            toast.error('Unable to sync. Please refresh the page.');
+          }
+        }
+      };
+
+      attemptRecovery();
     };
+
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, [fetchData]);
@@ -1012,6 +1059,16 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       }
     };
 
+    const debouncedFetchData = () => {
+      if (fetchDataDebounceRef.current) {
+        clearTimeout(fetchDataDebounceRef.current);
+      }
+      fetchDataDebounceRef.current = setTimeout(() => {
+        fetchData();
+        fetchDataDebounceRef.current = null;
+      }, 300);
+    };
+
     const channel = supabase
       .channel(`auction-room-${tournamentId}`, {
         config: { broadcast: { self: true } },
@@ -1023,21 +1080,21 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'auction_state', filter: `tournament_id=eq.${tournamentId}` },
         () => {
-          fetchData();
+          debouncedFetchData();
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'players' },
         () => {
-          fetchData();
+          debouncedFetchData();
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'teams', filter: `tournament_id=eq.${tournamentId}` },
         () => {
-          fetchData();
+          debouncedFetchData();
         }
       )
       .subscribe();
@@ -1109,6 +1166,9 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     return () => {
       supabase.removeChannel(channel);
       sharedAuctionBroadcastChannel = null;
+      if (fetchDataDebounceRef.current) {
+        clearTimeout(fetchDataDebounceRef.current);
+      }
       if (sharedAuctionTabSync) {
         sharedAuctionTabSync.removeEventListener('message', handleTabMessage);
       }
@@ -1121,23 +1181,40 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     };
   }, [tournamentId, fetchData]);
 
-  // Broadcast helper
+  // Broadcast helper with fallback for failed channels
   const broadcastAuctionEvent = useCallback((event: string, data: any) => {
     const envelope = { event, ...data, tournamentId };
+
     if (sharedAuctionBroadcastChannel) {
       sharedAuctionBroadcastChannel
         .send({ type: 'broadcast', event: 'auction_sync', payload: envelope })
-        .catch(() => {});
+        .catch(() => {
+          console.warn('Supabase broadcast channel send failed, falling back to local events');
+        });
     }
-    try {
-      sharedAuctionTabSync?.postMessage(envelope);
-    } catch {}
+
+    if (broadcastChannelSupported) {
+      try {
+        if (sharedAuctionTabSync) {
+          sharedAuctionTabSync.postMessage(envelope);
+        }
+        if (sharedSharedTabSync) {
+          sharedSharedTabSync.postMessage(envelope);
+        }
+      } catch (err) {
+        console.warn('BroadcastChannel postMessage failed:', err);
+        if (!broadcastChannelSupported) {
+          initializeBroadcastChannels();
+        }
+      }
+    }
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('kapl-auction-local-update', { detail: envelope }));
     }
   }, [tournamentId]);
 
-  // Countdown timer handler
+  // Countdown timer handler with server-time sync
   useEffect(() => {
     if (!auctionState?.timerEndsAt || auctionState.status === 'idle' || auctionState.status === 'sold' || auctionState.status === 'unsold') {
       setTimeLeft(0);
@@ -1149,7 +1226,14 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       const end = new Date(auctionState.timerEndsAt!).getTime();
       const now = Date.now();
       const diff = Math.max(0, Math.ceil((end - now) / 1000));
-      setTimeLeft(diff);
+
+      if (diff <= 0 && auctionState.status === 'active') {
+        setTimeLeft(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        toast.warning('⏰ Auction timer expired. Admin action required.');
+      } else {
+        setTimeLeft(diff);
+      }
     };
 
     updateTimer();
@@ -1271,12 +1355,36 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
       if (rpcError) {
         console.error('Auction sale failed via RPC:', rpcError);
-        toast.error(`❌ Auction sale failed: ${rpcError.message}`);
+        const errorMsg = rpcError.message || 'Unknown error';
+
+        if (errorMsg.includes('lock') || errorMsg.includes('conflict')) {
+          toast.error(`⚠️ Player is already being auctioned by another admin. Please retry.`);
+        } else if (errorMsg.includes('purse') || errorMsg.includes('insufficient')) {
+          toast.error(`⛔ Insufficient team purse or invalid team state.`);
+        } else {
+          toast.error(`❌ Auction sale failed: ${errorMsg}`);
+        }
+        return;
+      }
+
+      if (!rpcData) {
+        console.error('RPC returned null data unexpectedly');
+        toast.warning('⚠️ Sale recorded but response missing. Refreshing data...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        fetchData();
         return;
       }
     } catch (rpcErr: any) {
       console.error('Auction sale RPC invocation error:', rpcErr);
-      toast.error(`❌ Auction sale failed: ${rpcErr?.message || 'Network error'}`);
+      const errorMsg = rpcErr?.message || 'Network error';
+
+      if (errorMsg.includes('timeout') || errorMsg.includes('network')) {
+        toast.error(`❌ Network error: ${errorMsg}. Retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return;
+      }
+
+      toast.error(`❌ Auction sale failed: ${errorMsg}`);
       return;
     }
 
@@ -1671,28 +1779,11 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           createdForCurrent = playerRecord;
         }
 
-        // 1. Direct database upsert
-        try {
-          await supabase.from('players').upsert({
-            id: idForTourn,
-            name: cleanName,
-            photo_url: playerInput.photoUrl || null,
-            role: playerInput.role || 'all_rounder',
-            batting_style: playerInput.battingStyle || null,
-            bowling_style: playerInput.bowlingStyle || null,
-            jersey_number: playerInput.jerseyNumber ? Number(playerInput.jerseyNumber) : null,
-            mobile_number: playerInput.mobileNumber || null,
-            tournament_id: tId,
-            base_price: basePrice,
-            auction_status: 'pending',
-          }, { onConflict: 'id' });
-        } catch (dbErr) {
-          console.warn(`Could not insert player into players table (${tId}):`, dbErr);
-        }
+        let dbSuccess = false;
 
-        // 2. Also try RPC
+        // 1. Primary: RPC for atomic insertion with validation
         try {
-          await supabase.rpc('register_new_player', {
+          const { data, error: rpcError } = await supabase.rpc('register_new_player', {
             p_id: idForTourn,
             p_name: cleanName,
             p_role: playerInput.role || 'all_rounder',
@@ -1704,7 +1795,46 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
             p_tournament_id: tId,
             p_base_price: basePrice,
           });
-        } catch {}
+
+          if (!rpcError) {
+            dbSuccess = true;
+          } else {
+            console.warn(`RPC register_new_player failed for ${idForTourn}:`, rpcError);
+          }
+        } catch (rpcErr) {
+          console.warn(`RPC register_new_player exception for ${idForTourn}:`, rpcErr);
+        }
+
+        // 2. Fallback: Direct upsert if RPC fails
+        if (!dbSuccess) {
+          try {
+            const { error: upsertError } = await supabase.from('players').upsert({
+              id: idForTourn,
+              name: cleanName,
+              photo_url: playerInput.photoUrl || null,
+              role: playerInput.role || 'all_rounder',
+              batting_style: playerInput.battingStyle || null,
+              bowling_style: playerInput.bowlingStyle || null,
+              jersey_number: playerInput.jerseyNumber ? Number(playerInput.jerseyNumber) : null,
+              mobile_number: playerInput.mobileNumber || null,
+              tournament_id: tId,
+              base_price: basePrice,
+              auction_status: 'pending',
+            }, { onConflict: 'id' });
+
+            if (!upsertError) {
+              dbSuccess = true;
+            } else {
+              console.warn(`Could not insert player via upsert (${tId}):`, upsertError);
+            }
+          } catch (dbErr) {
+            console.warn(`Upsert exception for ${idForTourn}:`, dbErr);
+          }
+        }
+
+        if (!dbSuccess && tId === tournamentId) {
+          throw new Error(`Failed to persist player ${idForTourn} to database after retries`);
+        }
       }
 
       const masterRecord: PlayerRecord = {
@@ -1789,7 +1919,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
 
   return {
     tournamentId,
-    setTournamentId,
+    setTournamentId: setTournamentIdAndReset,
     auctionState,
     currentPlayer,
     setCurrentPlayer,
