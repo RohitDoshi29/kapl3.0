@@ -3,7 +3,7 @@ import { AdminPasswordGate } from '@/components/cricket/AdminPasswordGate';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3, Trophy, Crown } from 'lucide-react';
+import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3, Trophy, Crown, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -15,6 +15,7 @@ import AdminSettingsTab from '@/components/admin/AdminSettingsTab';
 import PlayerStatsTab from '@/components/admin/PlayerStatsTab';
 import { AdminTournamentTab } from '@/components/admin/AdminTournamentTab';
 import AdminRolesGovernanceTab from '@/components/admin/AdminRolesGovernanceTab';
+import MatchSchedulerTab from '@/components/admin/MatchSchedulerTab';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +73,7 @@ export default function Admin() {
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <TabsList className={`grid w-full max-w-4xl mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
+              <TabsList className={`grid w-full max-w-5xl mx-auto bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
                 <TabsTrigger value="scorer" className="gap-2">
                   <Shield className="w-4 h-4" />
                   <span className="hidden sm:inline">Scorer</span>
@@ -80,6 +81,10 @@ export default function Admin() {
                 <TabsTrigger value="setup" className="gap-2">
                   <PlayCircle className="w-4 h-4" />
                   <span className="hidden sm:inline">Setup</span>
+                </TabsTrigger>
+                <TabsTrigger value="scheduler" className="gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="hidden sm:inline">Schedule</span>
                 </TabsTrigger>
                 <TabsTrigger value="teams" className="gap-2">
                   <Users className="w-4 h-4" />
@@ -124,6 +129,10 @@ export default function Admin() {
 
             <TabsContent value="setup">
               <AdminMatchSetupTab onNavigateToScorer={() => setActiveTab('scorer')} />
+            </TabsContent>
+
+            <TabsContent value="scheduler">
+              <MatchSchedulerTab />
             </TabsContent>
 
             <TabsContent value="teams">
