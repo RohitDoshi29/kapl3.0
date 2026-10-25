@@ -133,6 +133,12 @@ export default function MatchSchedulerTab({}: MatchSchedulerTabProps) {
 
       saveStoredFixtures(activeTournamentId, updatedFixtures);
       setFixtures(updatedFixtures);
+
+      // Broadcast change to all pages
+      window.dispatchEvent(new CustomEvent('kapl-fixtures-updated', {
+        detail: { tournamentId: activeTournamentId, fixtures: updatedFixtures }
+      }));
+
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -161,6 +167,12 @@ export default function MatchSchedulerTab({}: MatchSchedulerTabProps) {
       const updatedFixtures = fixtures.filter((f) => f.id !== fixtureId);
       saveStoredFixtures(activeTournamentId, updatedFixtures);
       setFixtures(updatedFixtures);
+
+      // Broadcast change to all pages
+      window.dispatchEvent(new CustomEvent('kapl-fixtures-updated', {
+        detail: { tournamentId: activeTournamentId, fixtures: updatedFixtures }
+      }));
+
       toast.success('Match deleted');
       logger.info('Match deleted', { matchId: fixtureId });
     } catch (error) {

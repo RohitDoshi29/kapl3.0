@@ -55,7 +55,7 @@ export default function Auction() {
     salesHistory,
     initializeAuctionData,
     autoCompleteAuction,
-  } = useAuction(activeTournamentId);
+  } = useAuction(activeTournamentId || 'kapl-3-mens');
 
   const handleResetAuctionData = async () => {
     setIsResetting(true);

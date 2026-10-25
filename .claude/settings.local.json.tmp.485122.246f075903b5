@@ -21,7 +21,8 @@
       "Bash(git rebase *)",
       "Bash(git restore *)",
       "Bash(git checkout *)",
-      "Bash(git commit -m 'fix\\(admin\\): center tabs and improve layout *)"
+      "Bash(git commit -m 'fix\\(admin\\): center tabs and improve layout *)",
+      "Bash(git commit -m 'fix\\(auction,scheduler\\): resolve Q initialization and sync fixtures across pages *)"
     ]
   }
 }
