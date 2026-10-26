@@ -4,7 +4,7 @@ import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3, Trophy, Crown, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useScorerRole } from '@/hooks/useScorerRole';
@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { MatchFixture } from '@/lib/cricketTypes';
 
 export default function Admin() {
+  const navigate = useNavigate();
   const { signOut, user, isAdmin, isCoAdmin } = useAdminAuth();
   const { scorerRole } = useScorerRole();
   const [activeTab, setActiveTab] = useState('scorer');
@@ -64,6 +65,7 @@ export default function Admin() {
                   toast.error('Failed to sign out');
                 } else {
                   toast.success('Signed out successfully');
+                  navigate('/');
                 }
               }}
               className="gap-1.5 h-8.5 rounded-xl text-xs font-bold border-red-500/30 text-red-400 hover:bg-red-500/10"

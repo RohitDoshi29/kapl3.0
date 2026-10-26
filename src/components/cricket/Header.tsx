@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSunlightMode } from '@/hooks/useSunlightMode';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { TournamentSwitcher } from './TournamentSwitcher';
 
 export function Header({ className }: { className?: string }) {
+  const navigate = useNavigate();
   const { user, userRole, signOut, isAuthenticated, profile } = useAuth();
   const { isSunlightMode, toggleSunlightMode } = useSunlightMode();
   const [soundOn, setSoundOn] = useState<boolean>(true);
@@ -53,6 +54,8 @@ export function Header({ className }: { className?: string }) {
       toast.error('Failed to sign out');
     } else {
       toast.success('Signed out successfully');
+      // Redirect to home page after sign out
+      navigate('/');
     }
   };
 
