@@ -120,7 +120,7 @@ export function PlayerRegistrationHero({ tournamentName = 'KAPL 3.0', onOpenPopu
           ) : (
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Button
-                onClick={() => navigate('/auth?tab=signup&role=player')}
+                onClick={() => navigate('/register')}
                 className="h-13 px-8 text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-500/25 hover:from-amber-600 hover:to-yellow-600 hover:scale-[1.02] active:scale-[0.98] transition-all gap-2"
               >
                 <UserPlus className="w-5 h-5" />

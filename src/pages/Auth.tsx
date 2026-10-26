@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, KaplExperienceLevel } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -80,6 +80,9 @@ export default function Auth() {
   const [jerseyNumber, setJerseyNumber] = useState('');
   const [tournamentId, setTournamentId] = useState('kapl-3-mens');
   const [bio, setBio] = useState('');
+  const [experience, setExperience] = useState<KaplExperienceLevel>('new');
+  const [previousTeam, setPreviousTeam] = useState('');
+  const [pastAchievements, setPastAchievements] = useState('');
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,6 +202,9 @@ export default function Auth() {
         jerseyNumber: jerseyNumber.trim() ? Number(jerseyNumber) : null,
         tournamentId,
         gender,
+        experience,
+        previousTeam: experience !== 'new' ? previousTeam.trim() : undefined,
+        pastAchievements: experience !== 'new' ? pastAchievements.trim() : undefined,
         bio: bio.trim() || undefined,
       });
 
@@ -222,17 +228,39 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 py-8 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 py-8 relative overflow-hidden">
       {/* Decorative Stadium Glows */}
       <div className="absolute top-1/4 -left-20 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <Card
-        className={cn(
-          'w-full shadow-2xl border border-white/[0.1] backdrop-blur-2xl bg-card/90 relative z-10 rounded-3xl transition-all duration-300',
-          activeTab === 'signup' ? 'max-w-2xl' : 'max-w-md'
-        )}
-      >
+      <div className={cn("w-full relative z-10 space-y-4", activeTab === 'signup' ? 'max-w-2xl' : 'max-w-md')}>
+        {/* Dedicated Player Registration Banner */}
+        <div className="p-3.5 sm:p-4 rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg shadow-amber-500/10">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 text-xl">
+              🏏
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-black text-foreground">
+                Looking for Dedicated Player Registration?
+              </p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
+                Register with prior KAPL history, cricket role styles & live trading card preview.
+              </p>
+            </div>
+          </div>
+          <Link to="/register" className="w-full sm:w-auto shrink-0">
+            <Button size="sm" className="w-full sm:w-auto h-9 font-bold bg-amber-500 text-black hover:bg-amber-400 gap-1.5 shadow-sm">
+              <UserPlus className="w-3.5 h-3.5" />
+              Go to /register
+              <ArrowRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+
+        <Card
+          className="w-full shadow-2xl border border-white/[0.1] backdrop-blur-2xl bg-card/90 relative z-10 rounded-3xl transition-all duration-300"
+        >
         <CardHeader className="text-center space-y-2 pb-4">
           <div className="mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/30 text-black">
             <Trophy className="w-8 h-8 text-black animate-bounce" />
@@ -623,6 +651,54 @@ export default function Auth() {
                         className="text-xs resize-none"
                       />
                     </div>
+
+                    {/* KAPL Tournament Experience / Prior History */}
+                    <div className="space-y-2 pt-2 border-t border-white/5">
+                      <Label className="text-xs font-bold flex items-center gap-1.5 text-amber-300">
+                        <Award className="w-3.5 h-3.5 text-amber-400" />
+                        Prior KAPL Tournament History
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'new', label: '🌟 New Player', sub: 'KAPL 3.0 Debut' },
+                          { id: 'season_2', label: '🥈 Season 2', sub: 'Played Last Year' },
+                          { id: 'season_1', label: '🥉 Season 1', sub: 'Played 2024' },
+                          { id: 'veteran', label: '🏆 Veteran', sub: 'Played S1 & S2' },
+                        ].map((expItem) => (
+                          <button
+                            key={expItem.id}
+                            type="button"
+                            onClick={() => setExperience(expItem.id as KaplExperienceLevel)}
+                            className={cn(
+                              "p-2 rounded-xl border text-left text-xs transition-all",
+                              experience === expItem.id
+                                ? "bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold shadow-xs"
+                                : "bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.06]"
+                            )}
+                          >
+                            <span className="block font-bold">{expItem.label}</span>
+                            <span className="text-[10px] text-muted-foreground block">{expItem.sub}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {experience !== 'new' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 animate-in fade-in duration-200">
+                          <Input
+                            placeholder="Previous Team Name"
+                            value={previousTeam}
+                            onChange={(e) => setPreviousTeam(e.target.value)}
+                            className="text-xs h-9"
+                          />
+                          <Input
+                            placeholder="Past achievements (e.g. 120 runs, 5 wkts)"
+                            value={pastAchievements}
+                            onChange={(e) => setPastAchievements(e.target.value)}
+                            className="text-xs h-9"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -724,6 +800,7 @@ export default function Auth() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

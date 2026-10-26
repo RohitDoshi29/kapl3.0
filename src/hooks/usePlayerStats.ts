@@ -662,7 +662,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       try {
         const { data: dbData, error } = await supabase
           .from('players')
-          .select('id, user_id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
+          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
           .order('name');
         if (error) {
           console.warn('Error loading players for directory from DB:', error);

@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Shield, Trophy, GitBranch, Users, Gavel, BarChart3, User } from 'lucide-react';
+import { Home, Shield, Trophy, GitBranch, Users, Gavel, BarChart3, User, UserPlus } from 'lucide-react';
 
 const desktopNavItems: { path: string; label: string; icon: any; requiresAuth?: boolean }[] = [
   { path: '/', label: 'Live', icon: Home },
+  { path: '/register', label: 'Register', icon: UserPlus },
   { path: '/auction', label: 'Auction', icon: Gavel },
   { path: '/players', label: 'Players', icon: Users },
   { path: '/points', label: 'Points', icon: Trophy },
@@ -16,6 +17,7 @@ const desktopNavItems: { path: string; label: string; icon: any; requiresAuth?: 
 
 const mobileNavItems: { path: string; label: string; icon: any; alternatePaths?: string[]; requiresAuth?: boolean }[] = [
   { path: '/', label: 'Live', icon: Home },
+  { path: '/register', label: 'Register', icon: UserPlus },
   { path: '/auction', label: 'Auction', icon: Gavel },
   { path: '/players', label: 'Players', icon: Users },
   { path: '/points', label: 'Standings', icon: Trophy, alternatePaths: ['/points', '/bracket', '/stats'] },

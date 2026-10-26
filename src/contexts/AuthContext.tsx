@@ -167,6 +167,8 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
 
 export type UserRole = 'admin' | 'co_admin' | 'primary_scorer' | 'secondary_scorer' | 'owner' | 'captain' | 'player' | 'user' | null;
 
+export type KaplExperienceLevel = 'new' | 'season_2' | 'season_1' | 'veteran';
+
 export interface SignUpMetadata {
   name: string;
   mobileNumber?: string;
@@ -179,6 +181,9 @@ export interface SignUpMetadata {
   accountType?: 'player' | 'owner' | 'captain' | 'spectator' | 'user';
   photoUrl?: string;
   gender?: 'male' | 'female';
+  experience?: KaplExperienceLevel;
+  previousTeam?: string;
+  pastAchievements?: string;
 }
 
 export interface UserProfile {
@@ -194,6 +199,9 @@ export interface UserProfile {
   tournamentId?: string;
   playerId?: string | null;
   gender?: 'male' | 'female';
+  experience?: KaplExperienceLevel;
+  previousTeam?: string;
+  pastAchievements?: string;
 }
 
 interface AuthContextType {
@@ -258,13 +266,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: privData } = await supabase.rpc('get_my_private_player_profile');
       if (privData) {
         dbPlayer = privData;
-      } else if (isValidUuid(userObj.id)) {
-        const { data } = await supabase
-          .from('players')
-          .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status, created_at, updated_at')
-          .eq('user_id', userObj.id)
-          .maybeSingle();
-        if (data) dbPlayer = data;
       } else if (localProfile.playerId) {
         const { data } = await supabase
           .from('players')
@@ -275,6 +276,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.warn('Could not query players table for user profile:', e);
+    }
+
+    // If authenticated user does not have a database player record, create it now!
+    if (!dbPlayer && isValidUuid(userObj.id)) {
+      try {
+        const genId = localProfile.playerId || `p_u_${userObj.id.replace(/-/g, '').slice(0, 10)}`;
+        const pTournament = localProfile.tournamentId || meta.tournament_id || 'kapl-3-mens';
+        const pRole = localProfile.role || meta.role || 'all_rounder';
+        const pName = localProfile.name || defaultName;
+        
+        const { error: insErr } = await supabase.from('players').insert({
+          id: genId,
+          user_id: userObj.id,
+          name: pName,
+          photo_url: localProfile.photoUrl || defaultPhoto || null,
+          role: pRole,
+          batting_style: localProfile.battingStyle || meta.batting_style || 'Right-hand bat',
+          bowling_style: localProfile.bowlingStyle || meta.bowling_style || 'Right-arm medium',
+          jersey_number: localProfile.jerseyNumber ? Number(localProfile.jerseyNumber) : (meta.jersey_number ? Number(meta.jersey_number) : null),
+          mobile_number: localProfile.mobileNumber || meta.phone || null,
+          tournament_id: pTournament,
+          base_price: 100,
+          auction_status: 'pending',
+        });
+
+        if (insErr && (insErr.message?.toLowerCase().includes('foreign key') || insErr.code === '23503')) {
+          await supabase.from('players').insert({
+            id: genId,
+            user_id: null,
+            name: pName,
+            photo_url: localProfile.photoUrl || defaultPhoto || null,
+            role: pRole,
+            batting_style: localProfile.battingStyle || meta.batting_style || 'Right-hand bat',
+            bowling_style: localProfile.bowlingStyle || meta.bowling_style || 'Right-arm medium',
+            jersey_number: localProfile.jerseyNumber ? Number(localProfile.jerseyNumber) : (meta.jersey_number ? Number(meta.jersey_number) : null),
+            mobile_number: localProfile.mobileNumber || meta.phone || null,
+            tournament_id: pTournament,
+            base_price: 100,
+            auction_status: 'pending',
+          });
+        }
+      } catch (e) {
+        console.warn('Auto player sync on fetchUserProfile exception:', e);
+      }
     }
 
     const merged: UserProfile = {
@@ -289,6 +334,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bio: localProfile.bio || meta.bio || '',
       tournamentId: dbPlayer?.tournament_id || localProfile.tournamentId || meta.tournament_id || 'kapl-3-mens',
       playerId: dbPlayer?.id || localProfile.playerId || null,
+      gender: localProfile.gender || meta.gender || (meta.tournament_id === 'kapl-3-womens' ? 'female' : 'male'),
+      experience: localProfile.experience || meta.experience || 'new',
+      previousTeam: localProfile.previousTeam || meta.previous_team || '',
+      pastAchievements: localProfile.pastAchievements || meta.past_achievements || '',
     };
 
     return merged;
@@ -420,17 +469,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const safeUserId = isValidUuid(user.id) ? user.id : null;
         let existingPlayer: any = null;
-        if (safeUserId) {
-          const { data } = await supabase
-            .from('players')
-            .select('id')
-            .eq('user_id', safeUserId)
-            .maybeSingle();
-          existingPlayer = data;
-        }
+        const targetPlayerId = current.playerId || (user.id ? `p_u_${user.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}` : null);
 
-        let targetPlayerId = current.playerId || existingPlayer?.id;
-        if (!existingPlayer && targetPlayerId) {
+        if (targetPlayerId) {
           const { data } = await supabase
             .from('players')
             .select('id')
@@ -440,7 +481,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (existingPlayer) {
-          targetPlayerId = existingPlayer.id;
           await supabase
             .from('players')
             .update({
@@ -456,13 +496,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             })
             .eq('id', existingPlayer.id);
           updated.playerId = existingPlayer.id;
-        } else {
-          const generatedId = targetPlayerId || `p_u_${user.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
-          targetPlayerId = generatedId;
+        } else if (targetPlayerId) {
           const { error: insErr } = await supabase
             .from('players')
             .insert({
-              id: generatedId,
+              id: targetPlayerId,
               user_id: safeUserId,
               name: updated.name,
               photo_url: updated.photoUrl || null,
@@ -475,9 +513,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               base_price: 100,
               auction_status: 'pending',
             });
-          if (!insErr) {
-            updated.playerId = generatedId;
+          if (insErr && (insErr.message?.toLowerCase().includes('foreign key') || insErr.code === '23503')) {
+            await supabase
+              .from('players')
+              .insert({
+                id: targetPlayerId,
+                user_id: null,
+                name: updated.name,
+                photo_url: updated.photoUrl || null,
+                role: updated.role,
+                batting_style: updated.battingStyle || null,
+                bowling_style: updated.bowlingStyle || null,
+                jersey_number: updated.jerseyNumber ? Number(updated.jerseyNumber) : null,
+                mobile_number: updated.mobileNumber || null,
+                tournament_id: updated.tournamentId || 'kapl-3-mens',
+                base_price: 100,
+                auction_status: 'pending',
+              });
           }
+          updated.playerId = targetPlayerId;
         }
 
         // Look up existing player record in kapl_registered_players to preserve team/sold states
@@ -846,6 +900,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             jersey_number: meta.jerseyNumber ?? null,
             tournament_id: meta.tournamentId || 'kapl-3-mens',
             gender: meta.gender || (meta.tournamentId === 'kapl-3-womens' ? 'female' : 'male'),
+            experience: meta.experience || 'new',
+            previous_team: meta.previousTeam || '',
+            past_achievements: meta.pastAchievements || '',
             bio: meta.bio || '',
           },
         },
@@ -887,6 +944,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tournamentId: meta.tournamentId || 'kapl-3-mens',
       playerId: generatedPlayerId,
       gender: meta.gender || (meta.tournamentId === 'kapl-3-womens' ? 'female' : 'male'),
+      experience: meta.experience || 'new',
+      previousTeam: meta.previousTeam,
+      pastAchievements: meta.pastAchievements,
     };
 
     const activeUser: User = supaUser
@@ -910,6 +970,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             jersey_number: meta.jerseyNumber ?? null,
             tournament_id: meta.tournamentId || 'kapl-3-mens',
             gender: meta.gender || (meta.tournamentId === 'kapl-3-womens' ? 'female' : 'male'),
+            experience: meta.experience || 'new',
+            previous_team: meta.previousTeam || '',
+            past_achievements: meta.pastAchievements || '',
             bio: meta.bio || '',
           },
           aud: 'authenticated',
@@ -997,6 +1060,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       jerseyNumber: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
       mobileNumber: profileData.mobileNumber || null,
       gender: profileData.gender || 'male',
+      experience: meta.experience || 'new',
+      previousTeam: meta.previousTeam,
+      pastAchievements: meta.pastAchievements,
+      bio: meta.bio,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -1031,9 +1098,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn(`register_new_player RPC notice (${tId}):`, rpcErr);
         }
 
-        // 2. Direct database upsert
+        // 2. Direct database insert with resilient fallback
         try {
-          await supabase.from('players').upsert({
+          const { error: insErr } = await supabase.from('players').insert({
             id: idForTourn,
             user_id: safeDbUserId,
             name: profileData.name,
@@ -1046,7 +1113,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             tournament_id: tId,
             base_price: 100,
             auction_status: 'pending',
-          }, { onConflict: 'id' });
+          });
+
+          if (insErr) {
+            if (insErr.message?.toLowerCase().includes('foreign key') || insErr.code === '23503') {
+              await supabase.from('players').insert({
+                id: idForTourn,
+                user_id: null,
+                name: profileData.name,
+                photo_url: profileData.photoUrl || null,
+                role: profileData.role,
+                batting_style: profileData.battingStyle || null,
+                bowling_style: profileData.bowlingStyle || null,
+                jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
+                mobile_number: profileData.mobileNumber || null,
+                tournament_id: tId,
+                base_price: 100,
+                auction_status: 'pending',
+              });
+            } else if (insErr.code === '23505') {
+              await supabase.from('players').update({
+                name: profileData.name,
+                photo_url: profileData.photoUrl || null,
+                role: profileData.role,
+                batting_style: profileData.battingStyle || null,
+                bowling_style: profileData.bowlingStyle || null,
+                jersey_number: profileData.jerseyNumber ? Number(profileData.jerseyNumber) : null,
+                mobile_number: profileData.mobileNumber || null,
+                tournament_id: tId,
+              }).eq('id', idForTourn);
+            }
+          }
         } catch (dbErr) {
           console.warn(`Could not insert new player into players table (${tId}):`, dbErr);
         }

@@ -22,11 +22,9 @@ export default function Health() {
         let realtimeAvailable = false;
 
         try {
-          const { data, error: queryError } = await supabase
+          const { error: queryError } = await supabase
             .from('players')
-            .select('count')
-            .limit(1)
-            .single();
+            .select('id', { count: 'exact', head: true });
 
           if (queryError) {
             dbStatus = 'error';

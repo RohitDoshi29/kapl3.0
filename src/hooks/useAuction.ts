@@ -317,7 +317,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       // 2. Fetch non-legacy players from Supabase (public safe columns)
       const { data: allPlayers, error: playersError } = await supabase
         .from('players')
-        .select('id, user_id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
+        .select('id, name, photo_url, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status')
         .order('name');
 
       if (playersError) throw playersError;
@@ -1827,10 +1827,10 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
           console.warn(`RPC register_new_player exception for ${idForTourn}:`, rpcErr);
         }
 
-        // 2. Fallback: Direct upsert if RPC fails
+        // 2. Direct insert with update fallback
         if (!dbSuccess) {
           try {
-            const { error: upsertError } = await supabase.from('players').upsert({
+            const { error: insError } = await supabase.from('players').insert({
               id: idForTourn,
               name: cleanName,
               photo_url: playerInput.photoUrl || null,
@@ -1842,15 +1842,30 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
               tournament_id: tId,
               base_price: basePrice,
               auction_status: 'pending',
-            }, { onConflict: 'id' });
+            });
 
-            if (!upsertError) {
+            if (!insError) {
               dbSuccess = true;
+            } else if (insError.code === '23505') {
+              const { error: updateErr } = await supabase.from('players').update({
+                name: cleanName,
+                photo_url: playerInput.photoUrl || null,
+                role: playerInput.role || 'all_rounder',
+                batting_style: playerInput.battingStyle || null,
+                bowling_style: playerInput.bowlingStyle || null,
+                jersey_number: playerInput.jerseyNumber ? Number(playerInput.jerseyNumber) : null,
+                mobile_number: playerInput.mobileNumber || null,
+                tournament_id: tId,
+                base_price: basePrice,
+              }).eq('id', idForTourn);
+              if (!updateErr) {
+                dbSuccess = true;
+              }
             } else {
-              console.warn(`Could not insert player via upsert (${tId}):`, upsertError);
+              console.warn(`Could not insert player via direct insert (${tId}):`, insError);
             }
           } catch (dbErr) {
-            console.warn(`Upsert exception for ${idForTourn}:`, dbErr);
+            console.warn(`Insert exception for ${idForTourn}:`, dbErr);
           }
         }
 

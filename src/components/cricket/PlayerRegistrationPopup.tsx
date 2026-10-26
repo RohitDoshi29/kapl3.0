@@ -48,7 +48,7 @@ export function PlayerRegistrationPopup({ forceOpen, onClose }: PlayerRegistrati
     sessionStorage.setItem('kapl_registration_popup_dismissed', 'true');
     setIsOpen(false);
     onClose?.();
-    navigate('/auth?tab=signup&role=player');
+    navigate('/register');
   };
 
   const handleSignInClick = () => {

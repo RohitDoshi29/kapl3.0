@@ -291,7 +291,7 @@ export async function getAllStoredRegistrations(): Promise<RegistrationExportRow
   try {
     const { data: dbPlayers } = await supabase
       .from('players')
-      .select('id, name, role, batting_style, bowling_style, jersey_number, mobile_number, tournament_id, team_id, base_price, sold_price, auction_status, created_at');
+      .select('id, name, role, batting_style, bowling_style, jersey_number, tournament_id, team_id, base_price, sold_price, auction_status, created_at');
 
     if (dbPlayers && Array.isArray(dbPlayers)) {
       dbPlayers.forEach((p) => addOrUpdate(p, 'database'));

@@ -90,6 +90,10 @@ export interface PlayerRecord {
   jerseyNumber?: number | null;
   mobileNumber?: string | null;
   gender?: 'male' | 'female' | string;
+  experience?: 'new' | 'season_2' | 'season_1' | 'veteran';
+  previousTeam?: string;
+  pastAchievements?: string;
+  bio?: string;
   createdAt?: string;
   updatedAt?: string;
 }

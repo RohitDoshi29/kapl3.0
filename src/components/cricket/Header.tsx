@@ -204,12 +204,12 @@ export function Header({ className }: { className?: string }) {
                     Sign In
                   </Button>
                 </Link>
-                <Link to="/auth" state={{ tab: 'signup' }}>
+                <Link to="/register">
                   <Button
                     size="sm"
                     className="h-8 rounded-xl text-xs font-black shadow-md shadow-amber-500/20 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black hover:opacity-95 px-2.5 sm:px-3 touch-manipulation"
                   >
-                    Join
+                    Register
                   </Button>
                 </Link>
               </div>

@@ -135,7 +135,7 @@ export function AddPlayerModal({
           for (const tId of dualTournaments) {
             const idForTourn = tId === 'kapl-3-womens' ? `${generatedId}_w` : generatedId;
             try {
-              await supabase.from('players').upsert({
+              const { error: insErr } = await supabase.from('players').insert({
                 id: idForTourn,
                 name: cleanName,
                 photo_url: photoUrl.trim() || null,
@@ -147,7 +147,20 @@ export function AddPlayerModal({
                 tournament_id: tId,
                 base_price: Number(basePrice) || 100,
                 auction_status: 'pending',
-              }, { onConflict: 'id' });
+              });
+              if (insErr && insErr.code === '23505') {
+                await supabase.from('players').update({
+                  name: cleanName,
+                  photo_url: photoUrl.trim() || null,
+                  role: role,
+                  batting_style: battingStyle || null,
+                  bowling_style: bowlingStyle || null,
+                  jersey_number: jerseyNum,
+                  mobile_number: mobileNumber.trim() || null,
+                  tournament_id: tId,
+                  base_price: Number(basePrice) || 100,
+                }).eq('id', idForTourn);
+              }
             } catch (e) {
               logger.warn('Direct player insert failed', { error: e, tournament: tId });
             }
