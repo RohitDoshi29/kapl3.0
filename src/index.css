@@ -196,6 +196,14 @@
     color: transparent;
   }
 
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-gradient-emerald {
     background-image: linear-gradient(135deg, #10b981 0%, #34d399 50%, #059669 100%);
     -webkit-background-clip: text;

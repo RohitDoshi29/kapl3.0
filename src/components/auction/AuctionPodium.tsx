@@ -290,7 +290,7 @@ export function AuctionPodium({
               <History className="w-3.5 h-3.5" />
               Live Bid Ticker
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {auctionState.bidHistory.slice(0, 8).map((bid, i) => (
                 <Badge
                   key={i}

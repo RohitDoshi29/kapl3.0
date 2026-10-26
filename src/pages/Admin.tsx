@@ -74,46 +74,48 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <div className="flex items-center justify-center mb-2 overflow-x-auto">
-              <TabsList className={`inline-grid gap-1 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md ${isAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
-                <TabsTrigger value="scorer" className="gap-2">
-                  <Shield className="w-4 h-4" />
-                  <span className="hidden sm:inline">Scorer</span>
-                </TabsTrigger>
-                <TabsTrigger value="setup" className="gap-2">
-                  <PlayCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Setup</span>
-                </TabsTrigger>
-                <TabsTrigger value="scheduler" className="gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span className="hidden sm:inline">Schedule</span>
-                </TabsTrigger>
-                <TabsTrigger value="teams" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Teams</span>
-                </TabsTrigger>
-                <TabsTrigger value="stats" className="gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Stats</span>
-                </TabsTrigger>
-                <TabsTrigger value="tournament" className="gap-2">
-                  <Trophy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Bracket</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Settings</span>
-                </TabsTrigger>
-                {isAdmin && (
-                  <TabsTrigger
-                    value="governance"
-                    className="gap-1.5 font-bold text-amber-600 dark:text-amber-400 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-500"
-                  >
-                    <Crown className="w-4 h-4 text-amber-500" />
-                    <span className="hidden sm:inline">Roles</span>
+            <div className="flex items-center justify-center mb-2">
+              <div className="overflow-x-auto max-w-full scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+                <TabsList className="inline-flex gap-1 bg-white/[0.04] border border-white/10 rounded-2xl p-1 backdrop-blur-md w-max">
+                  <TabsTrigger value="scorer" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <Shield className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Scorer</span>
                   </TabsTrigger>
-                )}
-              </TabsList>
+                  <TabsTrigger value="setup" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <PlayCircle className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Setup</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="scheduler" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <Calendar className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Schedule</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="teams" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Teams</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="stats" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <BarChart3 className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Stats</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="tournament" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <Trophy className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Bracket</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="settings" className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation">
+                    <Settings className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Settings</span>
+                  </TabsTrigger>
+                  {isAdmin && (
+                    <TabsTrigger
+                      value="governance"
+                      className="gap-1.5 min-h-[44px] px-3 sm:px-4 touch-manipulation font-bold text-amber-600 dark:text-amber-400 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-500"
+                    >
+                      <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span className="hidden sm:inline">Roles</span>
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+              </div>
               {isAdmin && (
                 <Badge variant="outline" className="ml-2 hidden md:flex font-semibold border-amber-500/40 text-foreground shrink-0 whitespace-nowrap">
                   {user?.email?.toLowerCase() === 'rohit.doshi2007@gmail.com'

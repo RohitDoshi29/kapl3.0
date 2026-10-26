@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePlayersDirectory, PlayerDirectoryItem } from '@/hooks/usePlayerStats';
 import { PlayerRole } from '@/lib/cricketTypes';
 import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
-import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
+const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal'));
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -238,18 +238,25 @@ export default function PlayersDirectory() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <AddPlayerModal
-              tournamentId={filterTournamentId}
-              trigger={
-                <Button
-                  size="sm"
-                  className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm touch-manipulation"
-                >
-                  <UserPlus className="w-4 h-4 text-slate-950" />
-                  <span>+ Add Player</span>
-                </Button>
-              }
-            />
+            <Suspense fallback={
+              <Button size="sm" disabled className="h-9 px-3 rounded-xl bg-gray-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm">
+                <UserPlus className="w-4 h-4 text-slate-950" />
+                <span>+ Add Player</span>
+              </Button>
+            }>
+              <AddPlayerModal
+                tournamentId={filterTournamentId}
+                trigger={
+                  <Button
+                    size="sm"
+                    className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm touch-manipulation"
+                  >
+                    <UserPlus className="w-4 h-4 text-slate-950" />
+                    <span>+ Add Player</span>
+                  </Button>
+                }
+              />
+            </Suspense>
 
             <ExportRegistrationsDialog
               trigger={
@@ -476,11 +483,11 @@ export default function PlayersDirectory() {
 
             {/* Auction Status Pills */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium mr-1">Auction:</span>
+              <span className="text-[11px] font-medium mr-1 hidden sm:inline">Auction:</span>
               <button
                 type="button"
                 onClick={() => setSelectedStatus(selectedStatus === 'sold' ? 'all' : 'sold')}
-                className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 min-h-[36px] rounded-lg text-[11px] font-medium transition-all touch-manipulation ${
                   selectedStatus === 'sold'
                     ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
@@ -491,7 +498,7 @@ export default function PlayersDirectory() {
               <button
                 type="button"
                 onClick={() => setSelectedStatus(selectedStatus === 'unsold' ? 'all' : 'unsold')}
-                className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 min-h-[36px] rounded-lg text-[11px] font-medium transition-all touch-manipulation ${
                   selectedStatus === 'unsold'
                     ? 'bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
@@ -502,7 +509,7 @@ export default function PlayersDirectory() {
               <button
                 type="button"
                 onClick={() => setSelectedStatus(selectedStatus === 'pending' ? 'all' : 'pending')}
-                className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                className={`px-2.5 py-1.5 min-h-[36px] rounded-lg text-[11px] font-medium transition-all touch-manipulation ${
                   selectedStatus === 'pending'
                     ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
@@ -740,16 +747,16 @@ export default function PlayersDirectory() {
               <table className="w-full text-xs text-left">
                 <thead className="bg-muted/60 text-muted-foreground font-semibold border-b border-border">
                   <tr>
-                    <th className="py-3 px-4">Player</th>
-                    <th className="py-3 px-3">Role</th>
-                    <th className="py-3 px-3">Team</th>
-                    <th className="py-3 px-3 text-right">Price</th>
-                    <th className="py-3 px-3 text-center">Mat</th>
-                    <th className="py-3 px-3 text-right">Runs</th>
-                    <th className="py-3 px-3 text-right">HS</th>
-                    <th className="py-3 px-3 text-right">SR</th>
-                    <th className="py-3 px-3 text-right">Wkts</th>
-                    <th className="py-3 px-3 text-right">Econ</th>
+                    <th className="py-3 px-3 sm:px-4">Player</th>
+                    <th className="py-3 px-2 sm:px-3 hidden sm:table-cell">Role</th>
+                    <th className="py-3 px-2 sm:px-3 hidden md:table-cell">Team</th>
+                    <th className="py-3 px-2 sm:px-3 text-right">Price</th>
+                    <th className="py-3 px-2 sm:px-3 text-center hidden sm:table-cell">Mat</th>
+                    <th className="py-3 px-2 sm:px-3 text-right">Runs</th>
+                    <th className="py-3 px-2 sm:px-3 text-right hidden sm:table-cell">HS</th>
+                    <th className="py-3 px-2 sm:px-3 text-right hidden md:table-cell">SR</th>
+                    <th className="py-3 px-2 sm:px-3 text-right">Wkts</th>
+                    <th className="py-3 px-2 sm:px-3 text-right hidden md:table-cell">Econ</th>
                     <th className="py-3 px-3 text-right">Action</th>
                   </tr>
                 </thead>
@@ -763,10 +770,10 @@ export default function PlayersDirectory() {
                         key={player.id}
                         className="hover:bg-muted/40 transition-colors"
                       >
-                        <td className="py-2.5 px-4">
+                        <td className="py-2.5 px-3 sm:px-4">
                           <Link
                             to={`/players/${player.id}`}
-                            className="flex items-center gap-2.5 group font-bold text-foreground hover:text-primary"
+                            className="flex items-center gap-2 sm:gap-2.5 group font-bold text-foreground hover:text-primary"
                           >
                             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-xs flex-shrink-0">
                               {player.photoUrl ? (
@@ -779,24 +786,27 @@ export default function PlayersDirectory() {
                                 player.name[0]
                               )}
                             </div>
-                            <span className="truncate max-w-[180px]">{player.name}</span>
+                            <div className="min-w-0">
+                              <span className="truncate max-w-[120px] sm:max-w-[180px] block">{player.name}</span>
+                              <span className="sm:hidden text-[10px] font-normal text-muted-foreground">{roleMeta.icon} {roleMeta.label}</span>
+                            </div>
                           </Link>
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2.5 px-2 sm:px-3 hidden sm:table-cell">
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${roleMeta.badgeClass}`}
                           >
                             {roleMeta.icon} {roleMeta.label}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-muted-foreground">
+                        <td className="py-2.5 px-2 sm:px-3 text-muted-foreground hidden md:table-cell">
                           {player.teamName ? (
                             <span className="font-medium text-foreground">{player.teamName}</span>
                           ) : (
                             <span className="italic">Unassigned</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-medium">
+                        <td className="py-2.5 px-2 sm:px-3 text-right font-medium">
                           {isSold ? (
                             <span className="text-emerald-500 font-bold">
                               ₹{player.soldPrice ? player.soldPrice.toLocaleString() : player.basePrice}
@@ -805,22 +815,22 @@ export default function PlayersDirectory() {
                             <span className="text-muted-foreground">₹{player.basePrice}</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-center text-muted-foreground">
+                        <td className="py-2.5 px-2 sm:px-3 text-center text-muted-foreground hidden sm:table-cell">
                           {player.matchesPlayed}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-foreground">
+                        <td className="py-2.5 px-2 sm:px-3 text-right font-bold text-foreground">
                           {player.runs}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-muted-foreground font-mono">
+                        <td className="py-2.5 px-2 sm:px-3 text-right text-muted-foreground font-mono hidden sm:table-cell">
                           {player.highestScore}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
+                        <td className="py-2.5 px-2 sm:px-3 text-right font-mono hidden md:table-cell">
                           {player.strikeRate > 0 ? player.strikeRate.toFixed(1) : '-'}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-foreground">
+                        <td className="py-2.5 px-2 sm:px-3 text-right font-bold text-foreground">
                           {player.wickets}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
+                        <td className="py-2.5 px-2 sm:px-3 text-right font-mono hidden md:table-cell">
                           {player.overs > 0 ? player.economy.toFixed(2) : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right">

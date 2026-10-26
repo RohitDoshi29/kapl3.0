@@ -172,14 +172,14 @@ export function MatchFixturesCalendar({
         </div>
 
         {/* Tab filters */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-3">
           {/* Stage Tabs */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.08] overflow-x-auto max-w-full scrollbar-hide">
             <Button
               variant={activeGroupTab === 'all' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveGroupTab('all')}
-              className="h-7 text-xs px-2.5 rounded-lg font-bold"
+              className="h-8 text-xs px-2.5 rounded-lg font-bold shrink-0 touch-manipulation"
             >
               All Matches ({fixtures.length})
             </Button>
@@ -187,7 +187,7 @@ export function MatchFixturesCalendar({
               variant={activeGroupTab === 'A' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveGroupTab('A')}
-              className="h-7 text-xs px-2.5 rounded-lg font-bold"
+              className="h-8 text-xs px-2.5 rounded-lg font-bold shrink-0 touch-manipulation"
             >
               Group A ({fixtures.filter(f => f.group === 'A').length})
             </Button>
@@ -195,7 +195,7 @@ export function MatchFixturesCalendar({
               variant={activeGroupTab === 'B' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveGroupTab('B')}
-              className="h-7 text-xs px-2.5 rounded-lg font-bold"
+              className="h-8 text-xs px-2.5 rounded-lg font-bold shrink-0 touch-manipulation"
             >
               Group B ({fixtures.filter(f => f.group === 'B').length})
             </Button>
@@ -203,7 +203,7 @@ export function MatchFixturesCalendar({
               variant={activeGroupTab === 'knockout' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveGroupTab('knockout')}
-              className="h-7 text-xs px-2.5 rounded-lg font-bold gap-1"
+              className="h-8 text-xs px-2.5 rounded-lg font-bold gap-1 shrink-0 touch-manipulation"
             >
               <Trophy className="w-3 h-3 text-amber-400" />
               Knockouts ({fixtures.filter(f => f.matchType !== 'group').length})
@@ -212,14 +212,14 @@ export function MatchFixturesCalendar({
 
           {/* Day Filter */}
           {availableDays.length > 1 && (
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-muted-foreground font-medium hidden sm:inline">Day:</span>
+            <div className="flex items-center gap-1 text-xs overflow-x-auto max-w-full scrollbar-hide">
+              <span className="text-muted-foreground font-medium hidden sm:inline shrink-0">Day:</span>
               <div className="flex items-center gap-1">
                 <Button
                   variant={activeDayFilter === 'all' ? 'secondary' : 'outline'}
                   size="sm"
                   onClick={() => setActiveDayFilter('all')}
-                  className="h-6 text-[11px] px-2 rounded-md"
+                  className="h-8 text-[11px] px-2.5 rounded-lg touch-manipulation"
                 >
                   All Days
                 </Button>
@@ -229,7 +229,7 @@ export function MatchFixturesCalendar({
                     variant={activeDayFilter === d ? 'secondary' : 'outline'}
                     size="sm"
                     onClick={() => setActiveDayFilter(d)}
-                    className="h-6 text-[11px] px-2 rounded-md"
+                    className="h-8 text-[11px] px-2.5 rounded-lg touch-manipulation"
                   >
                     {d.split(' ')[0]}
                   </Button>

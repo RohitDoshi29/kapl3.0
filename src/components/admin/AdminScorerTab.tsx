@@ -418,48 +418,51 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             {matchHistory.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">No completed matches yet</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Match</TableHead>
-                    <TableHead className="text-center">Score</TableHead>
-                    <TableHead className="text-center">Winner</TableHead>
-                    <TableHead className="text-center">Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {matchHistory.filter(m => m.status === 'completed').slice(-5).reverse().map((m) => {
-                    const t1 = getTeam(m.team1Id);
-                    const t2 = getTeam(m.team2Id);
-                    const winnerTeam = m.winner ? getTeam(m.winner) : null;
-                    return (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-medium">
-                          {t1?.name} vs {t2?.name}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {m.innings1?.runs}/{m.innings1?.wickets} - {m.innings2?.runs}/{m.innings2?.wickets}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-primary font-medium">{winnerTeam?.name || 'Tie'}</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedMatch(m);
-                              setDetailsOpen(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Match</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Score</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Winner</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matchHistory.filter(m => m.status === 'completed').slice(-5).reverse().map((m) => {
+                      const t1 = getTeam(m.team1Id);
+                      const t2 = getTeam(m.team2Id);
+                      const winnerTeam = m.winner ? getTeam(m.winner) : null;
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium whitespace-nowrap text-xs sm:text-sm">
+                            {t1?.name} vs {t2?.name}
+                          </TableCell>
+                          <TableCell className="text-center text-xs sm:text-sm whitespace-nowrap">
+                            {m.innings1?.runs}/{m.innings1?.wickets} - {m.innings2?.runs}/{m.innings2?.wickets}
+                          </TableCell>
+                          <TableCell className="text-center whitespace-nowrap">
+                            <span className="text-primary font-medium text-xs sm:text-sm">{winnerTeam?.name || 'Tie'}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-[44px] min-w-[44px] touch-manipulation"
+                              onClick={() => {
+                                setSelectedMatch(m);
+                                setDetailsOpen(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

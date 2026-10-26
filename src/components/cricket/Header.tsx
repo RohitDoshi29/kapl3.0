@@ -121,7 +121,7 @@ export function Header({ className }: { className?: string }) {
               variant="outline"
               size="icon"
               onClick={handleSoundToggle}
-              className="h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08] shadow-xs touch-manipulation"
+              className="h-9 w-9 sm:h-8.5 sm:w-8.5 rounded-xl border-white/10 bg-white/[0.04] hover:bg-white/[0.08] shadow-xs touch-manipulation"
               title={soundOn ? 'Mute Sound Effects' : 'Enable Sound Effects'}
             >
               {soundOn ? (
@@ -137,7 +137,7 @@ export function Header({ className }: { className?: string }) {
               size="icon"
               onClick={handleSunlightToggle}
               className={cn(
-                'h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-xl shadow-xs transition-all touch-manipulation',
+                'h-9 w-9 sm:h-8.5 sm:w-8.5 rounded-xl shadow-xs transition-all touch-manipulation',
                 isSunlightMode
                   ? 'bg-amber-500 text-black border-amber-600 hover:bg-amber-400'
                   : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
@@ -187,7 +187,7 @@ export function Header({ className }: { className?: string }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 sm:h-7 sm:w-7 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/10 touch-manipulation"
+                  className="h-8 w-8 sm:h-7 sm:w-7 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-500/10 touch-manipulation"
                   onClick={handleSignOut}
                   title="Sign Out"
                 >

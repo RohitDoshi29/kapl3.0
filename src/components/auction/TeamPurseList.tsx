@@ -86,7 +86,7 @@ export function TeamPurseList({ teams, playerPool }: TeamPurseListProps) {
               </div>
 
               {/* Acquired Players Mini-List */}
-              <div className="space-y-1 pt-1 max-h-36 overflow-y-auto scrollbar-none">
+              <div className="space-y-1 pt-1 max-h-36 overflow-y-auto scrollbar-hide">
                 {teamPlayers.length === 0 ? (
                   <p className="text-[11px] text-muted-foreground italic text-center py-2">
                     No players signed yet

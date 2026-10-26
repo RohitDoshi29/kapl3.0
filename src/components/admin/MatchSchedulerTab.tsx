@@ -516,7 +516,7 @@ export default function MatchSchedulerTab({ onNavigateToSetup }: MatchSchedulerT
           </div>
 
           {/* Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-4">
+          <div className="flex flex-wrap items-center gap-1.5 pt-4 overflow-x-auto scrollbar-hide">
             <Button
               variant={activeFilter === 'all' ? 'default' : 'ghost'}
               size="sm"
@@ -650,29 +650,30 @@ export default function MatchSchedulerTab({ onNavigateToSetup }: MatchSchedulerT
                           variant="glow"
                           size="sm"
                           onClick={() => onNavigateToSetup(fixture)}
-                          className="gap-1.5 h-8.5 rounded-xl text-xs font-bold shadow-sm"
+                          className="gap-1.5 h-10 sm:h-8.5 min-w-[44px] rounded-xl text-xs font-bold shadow-sm touch-manipulation"
                         >
-                          <PlayCircle className="w-3.5 h-3.5" />
-                          Launch in Setup
+                          <PlayCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                          <span className="hidden sm:inline">Launch in Setup</span>
+                          <span className="sm:hidden">Launch</span>
                         </Button>
                       )}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditMatch(fixture)}
-                        className="gap-1 h-8.5 rounded-xl border-white/10"
+                        className="gap-1 h-10 w-10 sm:h-8.5 sm:w-auto rounded-xl border-white/10 touch-manipulation"
                         title="Edit match"
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        <Edit className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteMatch(fixture.id)}
-                        className="gap-1 h-8.5 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        className="gap-1 h-10 w-10 sm:h-8.5 sm:w-auto rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10 touch-manipulation"
                         title="Delete match"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                       </Button>
                     </div>
                   </div>

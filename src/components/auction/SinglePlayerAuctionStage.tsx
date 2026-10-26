@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { PlayerRecord, Team, PlayerRole } from '@/lib/cricketTypes';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuctionSaleLog } from '@/hooks/useAuction';
-import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
+const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal'));
 
 interface SinglePlayerAuctionStageProps {
   player: PlayerRecord | null;
@@ -253,16 +253,23 @@ export function SinglePlayerAuctionStage({
             : 'Select any candidate from the queue below to start the spotlight auction.'}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2.5">
-          <AddPlayerModal
-            tournamentId={tournamentId}
-            onAddPlayer={onAddPlayer}
-            trigger={
-              <Button className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-2 text-xs shadow-md">
-                <UserPlus className="w-4 h-4 text-slate-950" />
-                Add Player to Auction
-              </Button>
-            }
-          />
+          <Suspense fallback={
+            <Button disabled className="h-9 bg-gray-600 text-slate-950 font-black gap-2 text-xs shadow-md">
+              <UserPlus className="w-4 h-4 text-slate-950" />
+              Add Player to Auction
+            </Button>
+          }>
+            <AddPlayerModal
+              tournamentId={tournamentId}
+              onAddPlayer={onAddPlayer}
+              trigger={
+                <Button className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-2 text-xs shadow-md touch-manipulation">
+                  <UserPlus className="w-4 h-4 text-slate-950" />
+                  Add Player to Auction
+                </Button>
+              }
+            />
+          </Suspense>
           {isAdmin && onResetAuction && (
             <Button
               variant="outline"
@@ -319,12 +326,22 @@ export function SinglePlayerAuctionStage({
       )}
 
       {/* 1. TOP STAGE BAR */}
-      <div className="flex items-center justify-between bg-card/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 px-4 shadow-sm">
-        <Button variant="ghost" size="sm" onClick={onPrev} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="w-4 h-4" /> Previous Candidate
-        </Button>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-card/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 px-3 sm:px-4 shadow-sm gap-2">
+        <div className="flex items-center justify-between sm:justify-start gap-1">
+          <Button variant="ghost" size="sm" onClick={onPrev} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground min-h-[44px] touch-manipulation">
+            <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
+          </Button>
 
-        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-muted-foreground uppercase tracking-wider sm:hidden">
+            Podium
+          </span>
+
+          <Button variant="ghost" size="sm" onClick={onNext} className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground sm:hidden min-h-[44px] touch-manipulation">
+            Next <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2">
           <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
             Spotlight Podium
           </span>
@@ -336,7 +353,16 @@ export function SinglePlayerAuctionStage({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        {userOwnedTeam && (
+          <div className="flex sm:hidden items-center justify-center">
+            <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-black gap-1">
+              <Crown className="w-3 h-3 text-amber-400" />
+              {userOwnedTeam.name} — {formatMoney(userOwnedTeam.remainingPurse ?? 10000)}
+            </Badge>
+          </div>
+        )}
+
+        <div className="hidden sm:flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -355,7 +381,7 @@ export function SinglePlayerAuctionStage({
 
       {/* RECENT SALES TICKER */}
       {salesHistory && salesHistory.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto py-2 px-3 bg-white/[0.02] border border-white/5 rounded-2xl text-xs scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto py-2 px-3 bg-white/[0.02] border border-white/5 rounded-2xl text-xs scrollbar-hide">
           <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider shrink-0 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-amber-400" /> Recent Drafts:
           </span>
@@ -541,7 +567,7 @@ export function SinglePlayerAuctionStage({
                               setSelectedTeamId(t.id);
                               setActiveOwnerTeamId(t.id);
                             }}
-                            className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${
+                            className={`flex flex-col items-center justify-center p-2.5 min-h-[56px] rounded-xl border text-center transition-all touch-manipulation ${
                               isSelected
                                 ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400 text-amber-300 font-bold shadow-sm'
                                 : isFull
@@ -584,14 +610,14 @@ export function SinglePlayerAuctionStage({
                       </div>
 
                       {/* Quick Increments */}
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         {[50, 100, 250, 500, 1000].map((inc) => (
                           <Button
                             key={inc}
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-11 px-2.5 font-bold text-xs rounded-xl"
+                            className="h-10 sm:h-11 px-2 sm:px-2.5 font-bold text-xs rounded-xl flex-1 min-w-[52px] touch-manipulation"
                             onClick={() => setSoldAmount((prev) => prev + inc)}
                           >
                             +{inc}

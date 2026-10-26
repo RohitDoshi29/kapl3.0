@@ -574,22 +574,22 @@ export default function PlayerProfile() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-xs text-left min-w-[480px] sm:min-w-0">
                   <thead className="bg-muted/50 text-muted-foreground font-semibold border-b border-border">
                     <tr>
-                      <th className="py-3 px-4">Match / Opponent</th>
-                      <th className="py-3 px-3">Stage</th>
-                      <th className="py-3 px-4">Batting Performance</th>
-                      <th className="py-3 px-3">Dismissal</th>
-                      <th className="py-3 px-4">Bowling Figures</th>
-                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 sm:px-4">Match / Opponent</th>
+                      <th className="py-3 px-2 sm:px-3 hidden sm:table-cell">Stage</th>
+                      <th className="py-3 px-3 sm:px-4">Batting</th>
+                      <th className="py-3 px-2 sm:px-3 hidden sm:table-cell">Dismissal</th>
+                      <th className="py-3 px-3 sm:px-4">Bowling</th>
+                      <th className="py-3 px-2 sm:px-3">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {matchLogs.map(log => (
                       <tr key={log.matchId} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-3 sm:px-4">
                           <div className="font-bold text-foreground">
                             vs {log.opponentTeam?.name || 'Opponent'}
                           </div>
@@ -598,13 +598,18 @@ export default function PlayerProfile() {
                               For {log.playerTeam.name}
                             </span>
                           )}
+                          <div className="sm:hidden mt-0.5">
+                            <Badge variant="outline" className="text-[9px]">
+                              {log.matchTypeLabel}
+                            </Badge>
+                          </div>
                         </td>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-2 sm:px-3 hidden sm:table-cell">
                           <Badge variant="outline" className="text-[10px]">
                             {log.matchTypeLabel}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-3 sm:px-4">
                           {log.didBat ? (
                             <div className="space-y-0.5">
                               <span className="font-mono font-bold text-foreground text-sm">
@@ -616,12 +621,21 @@ export default function PlayerProfile() {
                               <div className="text-[10px] text-muted-foreground">
                                 {log.fours}×4, {log.sixes}×6 • SR {log.strikeRate.toFixed(1)}
                               </div>
+                              <div className="sm:hidden text-[10px] text-muted-foreground mt-0.5">
+                                {log.isOut ? (
+                                  <span className="text-foreground/90 font-medium">
+                                    {log.dismissalDescription || log.dismissalType || 'out'}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-500 font-bold">not out</span>
+                                )}
+                              </div>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground italic">Did not bat</span>
+                            <span className="text-muted-foreground italic">DNB</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-muted-foreground max-w-[160px]">
+                        <td className="py-3 px-2 sm:px-3 text-muted-foreground max-w-[160px] hidden sm:table-cell">
                           {log.didBat ? (
                             log.isOut ? (
                               <span className="text-foreground/90 font-medium">
@@ -634,7 +648,7 @@ export default function PlayerProfile() {
                             '-'
                           )}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-3 sm:px-4">
                           {log.didBowl ? (
                             <div className="space-y-0.5">
                               <span className="font-mono font-bold text-emerald-500 text-sm">
@@ -648,10 +662,10 @@ export default function PlayerProfile() {
                               </div>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground italic">Did not bowl</span>
+                            <span className="text-muted-foreground italic">DNB</span>
                           )}
                         </td>
-                        <td className="py-3 px-3">
+                        <td className="py-3 px-2 sm:px-3">
                           {log.isLive ? (
                             <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-[10px] animate-pulse">
                               LIVE
