@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import { useAuction } from '@/hooks/useAuction';
 import { useTournament } from '@/contexts/TournamentContext';
 import { Navigation } from '@/components/cricket/Navigation';
@@ -8,7 +8,6 @@ import { SinglePlayerAuctionStage } from '@/components/auction/SinglePlayerAucti
 import { CategoryPlayerGrid } from '@/components/auction/CategoryPlayerGrid';
 import { TeamPurseList } from '@/components/auction/TeamPurseList';
 import { AdminAuctionDesk } from '@/components/auction/AdminAuctionDesk';
-const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal'));
 import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -123,30 +122,6 @@ export default function Auction() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-            <Suspense fallback={
-              <Button
-                size="sm"
-                disabled
-                className="h-8 text-xs font-black bg-gray-600 text-slate-950 gap-1.5 shadow-sm"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                + Add Player
-              </Button>
-            }>
-              <AddPlayerModal
-                tournamentId={activeTournamentId}
-                onAddPlayer={addPlayerToAuction}
-                trigger={
-                  <Button
-                    size="sm"
-                    className="h-8 text-xs font-black bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 gap-1.5 shadow-sm touch-manipulation"
-                  >
-                    <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                    + Add Player
-                  </Button>
-                }
-              />
-            </Suspense>
 
             <ExportRegistrationsDialog
               trigger={

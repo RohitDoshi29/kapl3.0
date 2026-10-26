@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { PlayerRecord, Team, PlayerRole } from '@/lib/cricketTypes';
 import { AUCTION_CATEGORIES, AuctionSaleLog } from '@/hooks/useAuction';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -40,7 +40,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { AddPlayerModal } from '@/components/auction/AddPlayerModal';
+const AddPlayerModal = lazy(() => import('@/components/auction/AddPlayerModal'));
 import { ExportRegistrationsDialog } from '@/components/cricket/ExportRegistrationsDialog';
 
 interface AdminAuctionDeskProps {
@@ -643,16 +643,23 @@ export function AdminAuctionDesk({
                   className="pl-9 h-9 text-xs bg-background/60 border-white/10 rounded-xl"
                 />
               </div>
-              <AddPlayerModal
-                tournamentId={tournamentId}
-                onAddPlayer={onAddPlayer}
-                trigger={
-                  <Button size="sm" className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-1.5 text-xs shrink-0 shadow-sm">
-                    <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                    + Add Player
-                  </Button>
-                }
-              />
+              <Suspense fallback={
+                <Button size="sm" disabled className="h-9 bg-gray-600 text-slate-950 font-black gap-1.5 text-xs shrink-0 shadow-sm">
+                  <UserPlus className="w-3.5 h-3.5 text-slate-950" />
+                  + Add Player
+                </Button>
+              }>
+                <AddPlayerModal
+                  tournamentId={tournamentId}
+                  onAddPlayer={onAddPlayer}
+                  trigger={
+                    <Button size="sm" className="h-9 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black gap-1.5 text-xs shrink-0 shadow-sm">
+                      <UserPlus className="w-3.5 h-3.5 text-slate-950" />
+                      + Add Player
+                    </Button>
+                  }
+                />
+              </Suspense>
               <ExportRegistrationsDialog
                 trigger={
                   <Button
