@@ -278,16 +278,6 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     setAutoAdvanceCountdown(null);
   }, []);
 
-  const setTournamentIdAndReset = useCallback(async (newTournamentId: string) => {
-    if (newTournamentId === tournamentId) return;
-
-    setTournamentId(newTournamentId);
-    if (fetchDataDebounceRef.current) {
-      clearTimeout(fetchDataDebounceRef.current);
-    }
-    await fetchData();
-  }, [tournamentId, fetchData]);
-
   useEffect(() => {
     if (initialTournamentId !== tournamentId) {
       setTournamentId(initialTournamentId);
@@ -737,6 +727,16 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       setIsLoading(false);
     }
   }, [tournamentId]);
+
+  const setTournamentIdAndReset = useCallback(async (newTournamentId: string) => {
+    if (newTournamentId === tournamentId) return;
+
+    setTournamentId(newTournamentId);
+    if (fetchDataDebounceRef.current) {
+      clearTimeout(fetchDataDebounceRef.current);
+    }
+    await fetchData();
+  }, [tournamentId, fetchData]);
 
   useEffect(() => {
     fetchData();

@@ -43,7 +43,7 @@ async function runVerification() {
   const { data: teams, error: teamsErr } = await supabase.from('teams').select('*');
   assert(!teamsErr && teams && teams.length >= 8, `Teams table verified (${teams?.length || 0} teams registered)`);
 
-  const { data: players, error: pErr } = await supabase.from('players').select('*');
+  const { data: players, error: pErr } = await supabase.from('players').select('id, name, role, batting_style, bowling_style, tournament_id, team_id, jersey_number, base_price, sold_price, auction_status');
   assert(!pErr, `Players table online and queryable (${players?.length || 0} active tournament players)`);
 
   // 2. Auction Engine Verification
