@@ -309,13 +309,13 @@ export default function TeamStats() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs md:text-sm">Player</TableHead>
-                        <TableHead className="text-xs md:text-sm">Team</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">M</TableHead>
+                        <TableHead className="text-xs md:text-sm hidden sm:table-cell">Team</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden sm:table-cell">M</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">Runs</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">Balls</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">HS</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">4s</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">6s</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden md:table-cell">Balls</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden sm:table-cell">HS</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden md:table-cell">4s</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden md:table-cell">6s</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">Avg</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">SR</TableHead>
                       </TableRow>
@@ -336,15 +336,15 @@ export default function TeamStats() {
                                 <span className="font-medium text-xs md:text-sm">{player.playerName}</span>
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               {team && <TeamBadge team={team} size="sm" showName={false} />}
                             </TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.matchesPlayed}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden sm:table-cell">{player.matchesPlayed}</TableCell>
                             <TableCell className="text-center font-bold text-xs md:text-sm">{player.runs}</TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.ballsFaced}</TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.highestScore}</TableCell>
-                            <TableCell className="text-center text-amber-600 text-xs md:text-sm">{player.fours}</TableCell>
-                            <TableCell className="text-center text-purple-600 text-xs md:text-sm">{player.sixes}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden md:table-cell">{player.ballsFaced}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden sm:table-cell">{player.highestScore}</TableCell>
+                            <TableCell className="text-center text-amber-600 text-xs md:text-sm hidden md:table-cell">{player.fours}</TableCell>
+                            <TableCell className="text-center text-purple-600 text-xs md:text-sm hidden md:table-cell">{player.sixes}</TableCell>
                             <TableCell className="text-center text-xs md:text-sm">{getBattingAvg(player.runs, player.timesOut)}</TableCell>
                             <TableCell className="text-center text-xs md:text-sm">{getStrikeRate(player.runs, player.ballsFaced)}</TableCell>
                           </TableRow>
@@ -370,13 +370,13 @@ export default function TeamStats() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs md:text-sm">Player</TableHead>
-                        <TableHead className="text-xs md:text-sm">Team</TableHead>
+                        <TableHead className="text-xs md:text-sm hidden sm:table-cell">Team</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">O</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">R</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden sm:table-cell">R</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">W</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">BB</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">Wd</TableHead>
-                        <TableHead className="text-center text-xs md:text-sm">NB</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden sm:table-cell">BB</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden md:table-cell">Wd</TableHead>
+                        <TableHead className="text-center text-xs md:text-sm hidden md:table-cell">NB</TableHead>
                         <TableHead className="text-center text-xs md:text-sm">Econ</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -396,17 +396,17 @@ export default function TeamStats() {
                                 <span className="font-medium text-xs md:text-sm">{player.playerName}</span>
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               {team && <TeamBadge team={team} size="sm" showName={false} />}
                             </TableCell>
                             <TableCell className="text-center text-xs md:text-sm">{formatOvers(player.overs, player.balls)}</TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.runsConceded}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden sm:table-cell">{player.runsConceded}</TableCell>
                             <TableCell className="text-center font-bold text-xs md:text-sm">{player.wickets}</TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">
+                            <TableCell className="text-center text-xs md:text-sm hidden sm:table-cell">
                               {player.bestBowling.wickets}/{player.bestBowling.runs}
                             </TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.wides}</TableCell>
-                            <TableCell className="text-center text-xs md:text-sm">{player.noBalls}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden md:table-cell">{player.wides}</TableCell>
+                            <TableCell className="text-center text-xs md:text-sm hidden md:table-cell">{player.noBalls}</TableCell>
                             <TableCell className="text-center text-xs md:text-sm">
                               {getEconomy(player.runsConceded, player.overs, player.balls)}
                             </TableCell>

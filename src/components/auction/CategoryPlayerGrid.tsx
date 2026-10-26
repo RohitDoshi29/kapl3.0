@@ -73,7 +73,7 @@ export function CategoryPlayerGrid({
               key={cat.id}
               type="button"
               onClick={() => onSelectCategory(cat.id)}
-              className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between touch-manipulation ${
                 isSelected
                   ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 shadow-md shadow-amber-500/15'
                   : 'border-white/10 bg-card/85 backdrop-blur-md hover:bg-white/[0.06] hover:border-white/20'
@@ -139,7 +139,7 @@ export function CategoryPlayerGrid({
                     key={st}
                     type="button"
                     onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all capitalize whitespace-nowrap ${
+                    className={`px-3 py-1.5 min-h-[36px] rounded-xl text-xs font-bold transition-all capitalize whitespace-nowrap touch-manipulation ${
                       statusFilter === st
                         ? 'bg-amber-500 text-slate-950 shadow-sm'
                         : 'bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground'

@@ -49,7 +49,7 @@ export function MultiMatchLiveBar() {
         <Button
           size="sm"
           variant="default"
-          className="h-7 text-xs font-extrabold gap-1 px-3 shadow-md bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto justify-center touch-manipulation"
+          className="h-9 sm:h-7 text-xs font-extrabold gap-1 px-3 shadow-md bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto justify-center touch-manipulation"
           onClick={() => {
             setActiveTournamentId(matchTournamentId);
             window.scrollTo({ top: 0, behavior: 'smooth' });

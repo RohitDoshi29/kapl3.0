@@ -1001,6 +1001,20 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
 
     let crossTabChannel: BroadcastChannel | null = null;
     let aucTabChannel: BroadcastChannel | null = null;
+    // Listen for localStorage changes (cross-tab sync)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!isMounted) return;
+      if (e.key === 'kapl_registered_players' || e.key === `kapl_auction_players_${tid}`) {
+        try {
+          const updated = e.newValue ? JSON.parse(e.newValue) : [];
+          if (Array.isArray(updated) && updated.length > 0) {
+            setRawPlayers(updated);
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
         crossTabChannel = new BroadcastChannel('kapl-shared-tab-channel');
@@ -1051,6 +1065,7 @@ export function usePlayersDirectory(tournamentIdFilter?: string) {
       window.removeEventListener('kapl-auction-local-update', handleLocalAuctionUpdate);
       window.removeEventListener('kapl_player_added', handlePlayerAdded);
       window.removeEventListener('kapl_player_removed', handlePlayerRemoved);
+      window.removeEventListener('storage', handleStorageChange);
       crossTabChannel?.close();
       aucTabChannel?.close();
       try {

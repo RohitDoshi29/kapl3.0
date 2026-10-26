@@ -71,21 +71,29 @@ export async function syncPlayerToAuctionAndTournament(playerRecord: PlayerRecor
     }
 
     // 3. Dispatch window events for instantaneous in-tab reactiveness
+    // Dispatch for each tournament separately so filters work correctly
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('kapl_player_added', {
-          detail: { player: playerRecord, tournamentId: 'all' },
-        })
-      );
-      window.dispatchEvent(
-        new CustomEvent('kapl-auction-local-update', {
-          detail: {
-            event: 'auction_player_added',
-            player: playerRecord,
-            tournamentId: 'all',
-          },
-        })
-      );
+      const tournamentsToDispatch = playerRecord.tournamentId === 'all'
+        ? ['kapl-3-mens', 'kapl-3-womens']
+        : [playerRecord.tournamentId || 'kapl-3-mens'];
+
+      for (const tId of tournamentsToDispatch) {
+        const dispatchRecord = { ...playerRecord, tournamentId: tId };
+        window.dispatchEvent(
+          new CustomEvent('kapl_player_added', {
+            detail: { player: dispatchRecord, tournamentId: tId },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('kapl-auction-local-update', {
+            detail: {
+              event: 'auction_player_added',
+              player: dispatchRecord,
+              tournamentId: tId,
+            },
+          })
+        );
+      }
     }
 
     // 4. Cross-tab synchronization via BroadcastChannel

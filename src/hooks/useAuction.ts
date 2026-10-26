@@ -1118,6 +1118,27 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
     };
     window.addEventListener('kapl-auction-local-update', handleLocalEvent);
 
+    // Listen for localStorage changes from other tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `kapl_auction_players_${tournamentId}` || e.key === 'kapl_registered_players') {
+        try {
+          const updated = e.newValue ? JSON.parse(e.newValue) : [];
+          if (Array.isArray(updated) && updated.length > 0) {
+            setPlayerPool(updated);
+            // Reload from localStorage to ensure fresh state
+            const aucRaw = localStorage.getItem(`kapl_auction_players_${tournamentId}`);
+            if (aucRaw) {
+              const parsed = JSON.parse(aucRaw);
+              if (Array.isArray(parsed)) {
+                setPlayerPool(parsed);
+              }
+            }
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     // Local window event for newly registered player or reset
     const handlePlayerAdded = (e: any) => {
       const { player: addedPlayer, tournamentId: targetTournamentId } = e.detail || {};
@@ -1178,6 +1199,7 @@ export function useAuction(initialTournamentId: string = 'kapl-3-mens') {
       window.removeEventListener('kapl-auction-local-update', handleLocalEvent);
       window.removeEventListener('kapl_player_added', handlePlayerAdded);
       window.removeEventListener('kapl_player_removed', handlePlayerRemoved);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [tournamentId, fetchData]);
 

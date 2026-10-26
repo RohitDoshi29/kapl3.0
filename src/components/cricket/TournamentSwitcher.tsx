@@ -24,8 +24,8 @@ export function TournamentSwitcher({ className, size = 'md' }: TournamentSwitche
         type="button"
         onClick={() => setActiveTournamentId('kapl-3-mens')}
         className={cn(
-          'relative flex items-center justify-center gap-1.5 rounded-full font-extrabold transition-all duration-300 touch-manipulation min-h-[36px]',
-          isSmall ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs sm:text-sm sm:px-3.5',
+          'relative flex items-center justify-center gap-1.5 rounded-full font-extrabold transition-all duration-300 touch-manipulation min-h-[40px]',
+          isSmall ? 'px-3 py-1.5 text-xs' : 'px-3.5 py-2 text-xs sm:text-sm sm:px-4',
           isMens
             ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-md scale-105'
             : 'text-muted-foreground hover:text-foreground active:bg-white/10'
@@ -41,8 +41,8 @@ export function TournamentSwitcher({ className, size = 'md' }: TournamentSwitche
         type="button"
         onClick={() => setActiveTournamentId('kapl-3-womens')}
         className={cn(
-          'relative flex items-center justify-center gap-1.5 rounded-full font-extrabold transition-all duration-300 touch-manipulation min-h-[36px]',
-          isSmall ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs sm:text-sm sm:px-3.5',
+          'relative flex items-center justify-center gap-1.5 rounded-full font-extrabold transition-all duration-300 touch-manipulation min-h-[40px]',
+          isSmall ? 'px-3 py-1.5 text-xs' : 'px-3.5 py-2 text-xs sm:text-sm sm:px-4',
           isWomens
             ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md scale-105'
             : 'text-muted-foreground hover:text-foreground active:bg-white/10'
