@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { TournamentSwitcher } from '@/components/cricket/TournamentSwitcher';
@@ -35,11 +35,18 @@ import {
 
 interface AdminMatchSetupTabProps {
   onNavigateToScorer: () => void;
+  preselectedFixture?: MatchFixture | null;
+  onClearPreselectedFixture?: () => void;
 }
 
-export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSetupTabProps) {
+export default function AdminMatchSetupTab({ 
+  onNavigateToScorer,
+  preselectedFixture,
+  onClearPreselectedFixture
+}: AdminMatchSetupTabProps) {
   const { activeTournamentId, currentTournament } = useTournament();
   const { getTeamsByGroup, getTeam, startMatch, abandonMatch, matchState, teams } = useCricketStore(activeTournamentId);
+  const [selectedFixture, setSelectedFixture] = useState<MatchFixture | null>(preselectedFixture || null);
   const [selectedGroup, setSelectedGroup] = useState<'A' | 'B'>('A');
   const [team1Id, setTeam1Id] = useState<string>('');
   const [team2Id, setTeam2Id] = useState<string>('');
@@ -66,6 +73,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   const knockoutTeam2 = knockoutTeam2Id ? getTeam(knockoutTeam2Id) : null;
 
   const handleSelectFixture = (fixture: MatchFixture) => {
+    setSelectedFixture(fixture);
     const t1 = getTeam(fixture.team1Id);
     const t2 = getTeam(fixture.team2Id);
 
@@ -95,6 +103,12 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       elem.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    if (preselectedFixture) {
+      handleSelectFixture(preselectedFixture);
+    }
+  }, [preselectedFixture]);
 
   const handleGroupChange = (group: 'A' | 'B') => {
     setSelectedGroup(group);
@@ -207,8 +221,10 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       [team1Id]: team1PlayingPlayers,
       [team2Id]: team2PlayingPlayers,
     };
-    await startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group', playingPlayers, activeTournamentId);
+    await startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group', playingPlayers, activeTournamentId, selectedFixture?.id);
     toast.success('Group match started!');
+    setSelectedFixture(null);
+    onClearPreselectedFixture?.();
     onNavigateToScorer();
   };
 
@@ -239,8 +255,10 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       [knockoutTeam2Id]: knockoutTeam2PlayingPlayers,
     };
     // Use 'A' as default group for knockout matches
-    await startMatch('A', battingTeamId, bowlingTeamId, knockoutType, playingPlayers, activeTournamentId);
+    await startMatch('A', battingTeamId, bowlingTeamId, knockoutType, playingPlayers, activeTournamentId, selectedFixture?.id);
     toast.success(`${MATCH_TYPE_LABELS[knockoutType]} started!`);
+    setSelectedFixture(null);
+    onClearPreselectedFixture?.();
     onNavigateToScorer();
   };
 
@@ -383,6 +401,27 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
             <Badge variant="outline">{MATCH_CONSTANTS.MAX_OVERS} Overs | {MATCH_CONSTANTS.MAX_WICKETS} Wickets</Badge>
           </CardTitle>
         </CardHeader>
+        {selectedFixture && (
+          <div className="mx-6 mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-black text-amber-400">🎯 Linked Fixture:</span>
+              <span className="font-bold text-foreground">
+                Match {selectedFixture.matchNumber || ''} • {team1?.name || selectedFixture.team1Id} vs {team2?.name || selectedFixture.team2Id}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedFixture(null);
+                onClearPreselectedFixture?.();
+              }}
+              className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          </div>
+        )}
         <CardContent className="space-y-6">
           <Tabs value={matchType} onValueChange={(v) => setMatchType(v as 'group' | 'knockout')}>
             <TabsList className="grid w-full grid-cols-2">

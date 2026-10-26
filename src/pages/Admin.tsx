@@ -19,11 +19,13 @@ import MatchSchedulerTab from '@/components/admin/MatchSchedulerTab';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { MatchFixture } from '@/lib/cricketTypes';
 
 export default function Admin() {
   const { signOut, user, isAdmin, isCoAdmin } = useAdminAuth();
   const { scorerRole } = useScorerRole();
   const [activeTab, setActiveTab] = useState('scorer');
+  const [selectedFixtureForSetup, setSelectedFixtureForSetup] = useState<MatchFixture | null>(null);
 
   return (
     <ErrorBoundary fallbackTitle="KAPL Admin Console Error" fallbackDescription="An unexpected error occurred while loading the Admin interface.">
@@ -128,11 +130,20 @@ export default function Admin() {
             </TabsContent>
 
             <TabsContent value="setup">
-              <AdminMatchSetupTab onNavigateToScorer={() => setActiveTab('scorer')} />
+              <AdminMatchSetupTab 
+                onNavigateToScorer={() => setActiveTab('scorer')} 
+                preselectedFixture={selectedFixtureForSetup}
+                onClearPreselectedFixture={() => setSelectedFixtureForSetup(null)}
+              />
             </TabsContent>
 
             <TabsContent value="scheduler">
-              <MatchSchedulerTab />
+              <MatchSchedulerTab 
+                onNavigateToSetup={(fixture) => {
+                  setSelectedFixtureForSetup(fixture);
+                  setActiveTab('setup');
+                }} 
+              />
             </TabsContent>
 
             <TabsContent value="teams">

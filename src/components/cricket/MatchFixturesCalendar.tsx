@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MatchFixture, Team, MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
-import { getStoredFixtures, resetToDefaultFixtures } from '@/lib/fixturesData';
+import { getStoredFixtures, resetToDefaultFixtures, fetchTournamentFixtures } from '@/lib/fixturesData';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { useTournament } from '@/contexts/TournamentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TeamBadge } from './TeamBadge';
-import { Calendar, Clock, MapPin, Play, Trophy, RotateCcw, Filter, CheckCircle2, Radio } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Play, Trophy, RotateCcw, Radio, CheckCircle2, Flame } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -23,16 +23,21 @@ export function MatchFixturesCalendar({
   isAdminView = false,
   className,
 }: MatchFixturesCalendarProps) {
-  const { teams, getTeam, matchState } = useCricketStore();
   const { activeTournamentId, currentTournament } = useTournament();
+  const { teams, getTeam, matchState, matchHistory, formatOvers } = useCricketStore(activeTournamentId);
   const [fixtures, setFixtures] = useState<MatchFixture[]>([]);
   const [activeGroupTab, setActiveGroupTab] = useState<'all' | 'A' | 'B' | 'knockout'>('all');
   const [activeDayFilter, setActiveDayFilter] = useState<string>('all');
-  const navigate = useNavigate();
 
-  // Load fixtures
+  // Load fixtures from DB and localStorage
   useEffect(() => {
+    // 1. Initial fast local load
     setFixtures(getStoredFixtures(activeTournamentId));
+
+    // 2. Fetch latest from Supabase cloud
+    fetchTournamentFixtures(activeTournamentId).then((dbFixtures) => {
+      setFixtures(dbFixtures);
+    });
 
     const handleUpdate = (e: any) => {
       if (e.detail?.tournamentId === activeTournamentId) {
@@ -64,22 +69,35 @@ export function MatchFixturesCalendar({
     });
   }, [fixtures, activeGroupTab, activeDayFilter]);
 
-  const handleReset = () => {
-    const defaults = resetToDefaultFixtures(activeTournamentId);
+  const handleReset = async () => {
+    const defaults = await resetToDefaultFixtures(activeTournamentId);
     setFixtures(defaults);
-    toast.success('Fixtures reset to official schedule');
+    toast.success('Fixtures reset to official tournament schedule');
+  };
+
+  const currentMatch = matchState.currentMatch;
+  const isMatchLive = (fixture: MatchFixture) => {
+    return Boolean(
+      currentMatch &&
+      (currentMatch.status === 'live' || currentMatch.status === 'super_over') &&
+      ((currentMatch as any).fixtureId === fixture.id ||
+        ((currentMatch.team1Id === fixture.team1Id && currentMatch.team2Id === fixture.team2Id) ||
+         (currentMatch.team1Id === fixture.team2Id && currentMatch.team2Id === fixture.team1Id)))
+    );
+  };
+
+  const getCompletedMatch = (fixture: MatchFixture) => {
+    return (matchHistory || []).find((m) =>
+      m.status === 'completed' &&
+      (((m as any).fixtureId && (m as any).fixtureId === fixture.id) ||
+        ((m.team1Id === fixture.team1Id && m.team2Id === fixture.team2Id) ||
+         (m.team1Id === fixture.team2Id && m.team2Id === fixture.team1Id)))
+    );
   };
 
   const getStatusBadge = (fixture: MatchFixture) => {
-    // Check if currently active match matches this fixture
-    const currentMatch = matchState.currentMatch;
-    const isActuallyLive =
-      currentMatch &&
-      currentMatch.status === 'live' &&
-      ((currentMatch.team1Id === fixture.team1Id && currentMatch.team2Id === fixture.team2Id) ||
-        (currentMatch.team1Id === fixture.team2Id && currentMatch.team2Id === fixture.team1Id));
-
-    if (isActuallyLive || fixture.status === 'live') {
+    const isLive = isMatchLive(fixture) || fixture.status === 'live';
+    if (isLive) {
       return (
         <Badge className="bg-rose-600 text-white font-black text-xs gap-1.5 animate-pulse border border-rose-400/50 shadow-md shadow-rose-600/30">
           <Radio className="w-3 h-3 animate-ping" /> LIVE NOW
@@ -87,7 +105,8 @@ export function MatchFixturesCalendar({
       );
     }
 
-    if (fixture.status === 'completed') {
+    const completed = getCompletedMatch(fixture);
+    if (fixture.status === 'completed' || completed) {
       return (
         <Badge variant="outline" className="bg-emerald-500/15 text-emerald-400 font-bold text-xs gap-1 border-emerald-500/30">
           <CheckCircle2 className="w-3 h-3" /> COMPLETED
@@ -95,12 +114,22 @@ export function MatchFixturesCalendar({
       );
     }
 
+    if (fixture.scheduledDate || fixture.scheduledTime) {
+      return (
+        <Badge variant="outline" className="bg-blue-500/15 text-blue-300 font-bold text-xs border-blue-500/30">
+          SCHEDULED
+        </Badge>
+      );
+    }
+
     return (
       <Badge variant="outline" className="bg-amber-500/10 text-amber-300 font-bold text-xs border-amber-500/30">
-        TO BE DECIDED (TBD)
+        TBD
       </Badge>
     );
   };
+
+  const hasLiveMatchOverall = Boolean(currentMatch && (currentMatch.status === 'live' || currentMatch.status === 'super_over'));
 
   return (
     <Card className={cn('overflow-hidden rounded-2xl border-white/[0.08] bg-card/90 backdrop-blur-md shadow-xl', className)}>
@@ -113,15 +142,17 @@ export function MatchFixturesCalendar({
             <div>
               <CardTitle className="text-base md:text-lg font-bold flex flex-wrap items-center gap-2">
                 Tournament Fixtures & Schedule
-                <Badge variant="outline" className="bg-amber-500/15 border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
-                  ⏳ TO BE DECIDED (TBD)
-                </Badge>
+                {hasLiveMatchOverall && (
+                  <Badge className="bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
+                    ● MATCH IN PROGRESS
+                  </Badge>
+                )}
                 <Badge variant="gold" className="text-[10px]">
                   {currentTournament?.name || 'KAPL 3.0'}
                 </Badge>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Match schedule, timings, and team matchups are To Be Decided following the Mega Player Auction
+                Official fixtures, match timings, results, and quick launch setup
               </p>
             </div>
           </div>
@@ -158,7 +189,7 @@ export function MatchFixturesCalendar({
               onClick={() => setActiveGroupTab('A')}
               className="h-7 text-xs px-2.5 rounded-lg font-bold"
             >
-              Group A
+              Group A ({fixtures.filter(f => f.group === 'A').length})
             </Button>
             <Button
               variant={activeGroupTab === 'B' ? 'default' : 'ghost'}
@@ -166,7 +197,7 @@ export function MatchFixturesCalendar({
               onClick={() => setActiveGroupTab('B')}
               className="h-7 text-xs px-2.5 rounded-lg font-bold"
             >
-              Group B
+              Group B ({fixtures.filter(f => f.group === 'B').length})
             </Button>
             <Button
               variant={activeGroupTab === 'knockout' ? 'default' : 'ghost'}
@@ -175,7 +206,7 @@ export function MatchFixturesCalendar({
               className="h-7 text-xs px-2.5 rounded-lg font-bold gap-1"
             >
               <Trophy className="w-3 h-3 text-amber-400" />
-              Knockouts
+              Knockouts ({fixtures.filter(f => f.matchType !== 'group').length})
             </Button>
           </div>
 
@@ -210,23 +241,56 @@ export function MatchFixturesCalendar({
       </CardHeader>
 
       <CardContent className="p-3 md:p-6 space-y-4">
-        {/* TBD Notice Banner */}
-        <div className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 text-xs">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-md">
-            <Clock className="w-5 h-5 text-amber-400" />
-          </div>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2 font-bold text-amber-300">
-              <span className="text-sm font-black">Official Schedule: To Be Decided (TBD)</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-200">
-                Pending Mega Auction & Group Draws
-              </span>
+        {/* Active Schedule Header Banner */}
+        {hasLiveMatchOverall ? (
+          <div className="flex items-start sm:items-center gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-rose-500/15 via-red-500/10 to-transparent border border-rose-500/30 text-xs">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-300 flex items-center justify-center shrink-0 border border-rose-500/30">
+              <Flame className="w-5 h-5 text-rose-400 animate-pulse" />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Official match dates, timings, venues, and team fixtures are currently being finalized and will be confirmed after the Mega Player Auction. Below is the provisional tournament draft structure.
-            </p>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 font-black text-rose-300">
+                <span>Match In Progress on Ground 1</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-500/20 text-rose-200">
+                  Live Action
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Follow real-time ball-by-ball scoring, strike rotation, and commentary above.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : fixtures.length > 0 ? (
+          <div className="flex items-start sm:items-center gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/20 text-xs">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30">
+              <Clock className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 font-bold text-amber-300">
+                <span className="text-sm font-black">Official Tournament Schedule</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-200">
+                  {fixtures.length} Matches Planned
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Matches are scheduled across Group A, Group B, and Knockouts. When a match starts, live scores appear below automatically.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start sm:items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border border-amber-500/30 text-xs">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30 shadow-md">
+              <Clock className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2 font-bold text-amber-300">
+                <span className="text-sm font-black">Official Schedule: Pending Draws</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Official tournament fixtures will appear here once finalized by tournament committee.
+              </p>
+            </div>
+          </div>
+        )}
 
         {filteredFixtures.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
@@ -237,15 +301,27 @@ export function MatchFixturesCalendar({
             {filteredFixtures.map((fixture) => {
               const team1 = getTeam(fixture.team1Id);
               const team2 = getTeam(fixture.team2Id);
-
               const isKnockout = fixture.matchType !== 'group';
+              const isLive = isMatchLive(fixture) || fixture.status === 'live';
+              const completedMatch = getCompletedMatch(fixture);
+              const isCompleted = fixture.status === 'completed' || Boolean(completedMatch);
+
+              // Live score if active
+              const liveInnings = isLive && currentMatch ? (
+                currentMatch.currentInnings === 1 ? currentMatch.innings1 : currentMatch.innings2
+              ) : null;
+              const liveBattingTeam = isLive && currentMatch ? getTeam(
+                currentMatch.currentInnings === 1 ? currentMatch.team1Id : currentMatch.team2Id
+              ) : null;
 
               return (
                 <div
                   key={fixture.id}
                   className={cn(
                     'p-4 rounded-2xl border transition-all hover:border-white/[0.18] relative flex flex-col justify-between gap-3 shadow-md',
-                    isKnockout
+                    isLive
+                      ? 'bg-rose-950/20 border-rose-500/40 ring-1 ring-rose-500/20'
+                      : isKnockout
                       ? 'bg-gradient-to-br from-amber-500/[0.08] via-card to-card border-amber-500/30'
                       : 'bg-card/70 border-white/[0.08]'
                   )}
@@ -254,7 +330,7 @@ export function MatchFixturesCalendar({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black tracking-wider uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                        {isKnockout ? MATCH_TYPE_LABELS[fixture.matchType] : `Match ${fixture.matchNumber}`}
+                        {isKnockout ? MATCH_TYPE_LABELS[fixture.matchType] : `Match ${fixture.matchNumber || '?'}`}
                       </span>
                       {fixture.group && (
                         <span className="text-[11px] text-muted-foreground font-semibold">
@@ -275,7 +351,7 @@ export function MatchFixturesCalendar({
                           {team1 ? (team1.shortName || team1.name) : fixture.team1Id}
                         </div>
                         <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">
-                          Team 1
+                          {fixture.team1Score ? `Score: ${fixture.team1Score}` : 'Team 1'}
                         </div>
                       </div>
                     </div>
@@ -292,23 +368,40 @@ export function MatchFixturesCalendar({
                           {team2 ? (team2.shortName || team2.name) : fixture.team2Id}
                         </div>
                         <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">
-                          Team 2
+                          {fixture.team2Score ? `Score: ${fixture.team2Score}` : 'Team 2'}
                         </div>
                       </div>
                       {team2 && <TeamBadge team={team2} size="sm" showName={false} className="shrink-0" />}
                     </div>
                   </div>
 
+                  {/* Live in-match ticker */}
+                  {isLive && liveInnings && (
+                    <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs text-rose-300 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                        <span>{liveBattingTeam?.name || 'Batting'}:</span>
+                        <span className="text-white text-sm">{liveInnings.runs}/{liveInnings.wickets}</span>
+                        <span className="text-muted-foreground text-[11px]">
+                          ({formatOvers(liveInnings.currentOver, liveInnings.currentBall)} ov)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase text-rose-400 tracking-wider">
+                        Innings {currentMatch?.currentInnings || 1}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Summary / Notes */}
-                  {fixture.notes && (
+                  {fixture.notes && !isLive && (
                     <div className="text-xs text-amber-300/80 bg-amber-500/5 px-2.5 py-1 rounded-lg border border-amber-500/10 italic">
                       ✨ {fixture.notes}
                     </div>
                   )}
 
-                  {fixture.summary && (
+                  {(fixture.summary || completedMatch) && (
                     <div className="text-xs text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 font-semibold">
-                      🏆 {fixture.summary}
+                      🏆 {fixture.summary || (completedMatch?.winner ? `${getTeam(completedMatch.winner)?.name || completedMatch.winner} won` : 'Match Completed')}
                     </div>
                   )}
 
@@ -317,12 +410,17 @@ export function MatchFixturesCalendar({
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5 font-medium text-slate-300">
                         <Clock className="w-3.5 h-3.5 text-amber-400" />
-                        <span>To Be Decided (TBD) • Post Auction</span>
+                        <span>
+                          {fixture.scheduledDate || 'Date TBD'}
+                          {fixture.scheduledTime ? ` • ${fixture.scheduledTime}` : ''}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1 text-[11px]">
-                        <MapPin className="w-3 h-3 text-slate-400" />
-                        <span>{fixture.venue}</span>
-                      </div>
+                      {fixture.venue && (
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span>{fixture.venue}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}
@@ -335,9 +433,9 @@ export function MatchFixturesCalendar({
                       >
                         <Play className="w-3 h-3" /> Launch Match
                       </Button>
-                    ) : fixture.status === 'live' ? (
+                    ) : isLive ? (
                       <Link to="/">
-                        <Button variant="destructive" size="sm" className="h-8 text-xs font-bold gap-1">
+                        <Button variant="destructive" size="sm" className="h-8 text-xs font-bold gap-1.5 shadow-md animate-pulse">
                           <Radio className="w-3 h-3" /> Watch Live
                         </Button>
                       </Link>
@@ -352,4 +450,3 @@ export function MatchFixturesCalendar({
     </Card>
   );
 }
-

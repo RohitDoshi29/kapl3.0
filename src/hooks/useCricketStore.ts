@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, DEFAULT_WOMENS_TEAMS, Ball, Over, Player, Innings, MatchType, SuperOver, DismissalType, WicketDetails, PlayerOfTheMatchData } from '@/lib/cricketTypes';
+import { getStoredFixtures, saveStoredFixtures } from '@/lib/fixturesData';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -1575,7 +1576,8 @@ export function useCricketStore(targetTournamentId?: string) {
     team2Id: string, 
     matchType: MatchType = 'group',
     selectedPlayingPlayers?: Record<string, string[]>,
-    tournamentId?: string
+    tournamentId?: string,
+    fixtureId?: string
   ) => {
     const t1 = (teams || []).find(t => t.id === team1Id) || DEFAULT_TEAMS.find(t => t.id === team1Id) || DEFAULT_WOMENS_TEAMS.find(t => t.id === team1Id);
     const resolvedTournamentId = tournamentId || t1?.tournamentId || 'kapl-3-mens';
@@ -1583,6 +1585,7 @@ export function useCricketStore(targetTournamentId?: string) {
     const newMatch: Match = {
       id: Date.now().toString(),
       tournamentId: resolvedTournamentId,
+      fixtureId,
       group,
       team1Id,
       team2Id,
@@ -1627,6 +1630,23 @@ export function useCricketStore(targetTournamentId?: string) {
       }
     } catch (e) {
       console.warn('Network error in startMatch:', e);
+    }
+
+    // 3. Mark the corresponding fixture in the schedule as 'live'
+    try {
+      const currentFixtures = getStoredFixtures(resolvedTournamentId);
+      const updatedFixtures = currentFixtures.map(f => {
+        const matchesFixture = (fixtureId && f.id === fixtureId) ||
+          ((f.team1Id === team1Id && f.team2Id === team2Id) ||
+           (f.team1Id === team2Id && f.team2Id === team1Id));
+        if (matchesFixture) {
+          return { ...f, status: 'live' as const, matchId: newMatch.id };
+        }
+        return f;
+      });
+      await saveStoredFixtures(resolvedTournamentId, updatedFixtures);
+    } catch (e) {
+      console.warn('Failed to update fixture status to live:', e);
     }
 
     // Reset secondary scorer state so it cannot carry over a previous match
@@ -2508,6 +2528,39 @@ export function useCricketStore(targetTournamentId?: string) {
     
     // Update local history
     setMatchHistory(prev => [...prev, match]);
+
+    // Synchronize scheduled fixture status to completed with score summary
+    try {
+      const currentFixtures = getStoredFixtures(matchTournId);
+      const winnerTeam = match.winner ? ((teams || []).find(t => t.id === match.winner) || DEFAULT_TEAMS.find(t => t.id === match.winner) || DEFAULT_WOMENS_TEAMS.find(t => t.id === match.winner)) : null;
+      const t1Runs = match.innings1?.runs || 0;
+      const t1Wkts = match.innings1?.wickets || 0;
+      const t2Runs = match.innings2?.runs || 0;
+      const t2Wkts = match.innings2?.wickets || 0;
+      const summaryText = winnerTeam ? `${winnerTeam.name} won` : 'Match Tied';
+
+      const updated = currentFixtures.map(f => {
+        const matchesFixture = (match.fixtureId && f.id === match.fixtureId) ||
+          ((f.team1Id === match.team1Id && f.team2Id === match.team2Id) ||
+           (f.team1Id === match.team2Id && f.team2Id === match.team1Id));
+        if (matchesFixture) {
+          return {
+            ...f,
+            status: 'completed' as const,
+            winner: match.winner || undefined,
+            winnerTeamId: match.winner || undefined,
+            team1Score: `${t1Runs}/${t1Wkts}`,
+            team2Score: `${t2Runs}/${t2Wkts}`,
+            summary: summaryText,
+            matchId: match.id,
+          };
+        }
+        return f;
+      });
+      await saveStoredFixtures(matchTournId, updated);
+    } catch (e) {
+      console.warn('Error syncing completed fixture in endMatch:', e);
+    }
   }, [matchState, saveMatchState, effectiveTournamentId]);
 
   // Update or assign Player of the Match for a completed match
@@ -2582,6 +2635,16 @@ export function useCricketStore(targetTournamentId?: string) {
             localStorage.removeItem('kapl_local_match_state');
           }
         } catch {}
+      }
+    } catch (e) {}
+
+    // Reset any fixture marked live back to scheduled
+    try {
+      const currentFixtures = getStoredFixtures(tId);
+      const hasLiveFixture = currentFixtures.some(f => f.status === 'live');
+      if (hasLiveFixture) {
+        const updated = currentFixtures.map(f => f.status === 'live' ? { ...f, status: 'scheduled' as const } : f);
+        await saveStoredFixtures(tId, updated);
       }
     } catch (e) {}
 

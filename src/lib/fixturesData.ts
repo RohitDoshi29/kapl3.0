@@ -1,4 +1,5 @@
 import { MatchFixture } from './cricketTypes';
+import { supabase } from '@/integrations/supabase/client';
 
 export const DEFAULT_MENS_FIXTURES: MatchFixture[] = [
   // Group A - Day 1
@@ -251,7 +252,12 @@ export const DEFAULT_WOMENS_FIXTURES: MatchFixture[] = [
 ];
 
 const FIXTURES_STORAGE_KEY_PREFIX = 'kapl_fixtures_';
+const FIXTURES_CUSTOMIZED_KEY_PREFIX = 'kapl_fixtures_customized_';
 
+/**
+ * Synchronous local reader with localStorage cache.
+ * Respects empty arrays [] when the user has deleted all matches.
+ */
 export function getStoredFixtures(tournamentId: string): MatchFixture[] {
   if (typeof window === 'undefined') {
     return tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_FIXTURES : DEFAULT_MENS_FIXTURES;
@@ -259,9 +265,9 @@ export function getStoredFixtures(tournamentId: string): MatchFixture[] {
 
   try {
     const raw = localStorage.getItem(`${FIXTURES_STORAGE_KEY_PREFIX}${tournamentId}`);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
@@ -275,26 +281,103 @@ export function getStoredFixtures(tournamentId: string): MatchFixture[] {
   return defaults;
 }
 
-export function saveStoredFixtures(tournamentId: string, fixtures: MatchFixture[]): void {
-  if (typeof window === 'undefined') return;
+/**
+ * Asynchronously fetch tournament fixtures from Supabase tournaments.rules.fixtures.
+ * Falls back to localStorage if network is offline.
+ */
+export async function fetchTournamentFixtures(tournamentId: string): Promise<MatchFixture[]> {
   try {
-    localStorage.setItem(`${FIXTURES_STORAGE_KEY_PREFIX}${tournamentId}`, JSON.stringify(fixtures));
-    window.dispatchEvent(new CustomEvent('kapl-fixtures-updated', { detail: { tournamentId, fixtures } }));
-  } catch (e) {
-    console.error('Error saving fixtures:', e);
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('rules')
+      .eq('id', tournamentId)
+      .maybeSingle();
+
+    if (!error && data?.rules && typeof data.rules === 'object') {
+      const dbFixtures = (data.rules as any).fixtures;
+      if (Array.isArray(dbFixtures)) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`${FIXTURES_STORAGE_KEY_PREFIX}${tournamentId}`, JSON.stringify(dbFixtures));
+          localStorage.setItem(`${FIXTURES_CUSTOMIZED_KEY_PREFIX}${tournamentId}`, 'true');
+          window.dispatchEvent(new CustomEvent('kapl-fixtures-updated', {
+            detail: { tournamentId, fixtures: dbFixtures }
+          }));
+        }
+        return dbFixtures;
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching fixtures from Supabase:', err);
+  }
+
+  return getStoredFixtures(tournamentId);
+}
+
+/**
+ * Persist fixtures locally and to Supabase tournaments table.
+ */
+export async function saveStoredFixtures(tournamentId: string, fixtures: MatchFixture[]): Promise<boolean> {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`${FIXTURES_STORAGE_KEY_PREFIX}${tournamentId}`, JSON.stringify(fixtures));
+      localStorage.setItem(`${FIXTURES_CUSTOMIZED_KEY_PREFIX}${tournamentId}`, 'true');
+      window.dispatchEvent(new CustomEvent('kapl-fixtures-updated', {
+        detail: { tournamentId, fixtures }
+      }));
+    } catch (e) {
+      console.error('Error saving fixtures to localStorage:', e);
+    }
+  }
+
+  try {
+    const { data: tourn } = await supabase
+      .from('tournaments')
+      .select('rules')
+      .eq('id', tournamentId)
+      .maybeSingle();
+
+    const currentRules = (tourn?.rules as Record<string, any>) || {};
+    const updatedRules = {
+      ...currentRules,
+      fixtures,
+    };
+
+    const { error } = await supabase
+      .from('tournaments')
+      .update({
+        rules: updatedRules,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', tournamentId);
+
+    if (error) {
+      console.warn('Failed to sync fixtures to Supabase (saved locally):', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Network error syncing fixtures to cloud:', err);
+    return false;
   }
 }
 
-export function resetToDefaultFixtures(tournamentId: string): MatchFixture[] {
+/**
+ * Reset fixtures to default schedule and persist.
+ */
+export async function resetToDefaultFixtures(tournamentId: string): Promise<MatchFixture[]> {
   const defaults = tournamentId === 'kapl-3-womens' ? DEFAULT_WOMENS_FIXTURES : DEFAULT_MENS_FIXTURES;
-  saveStoredFixtures(tournamentId, defaults);
+  await saveStoredFixtures(tournamentId, defaults);
   return defaults;
 }
 
-export function updateFixture(tournamentId: string, updatedFixture: MatchFixture): MatchFixture[] {
+/**
+ * Update a single fixture.
+ */
+export async function updateFixture(tournamentId: string, updatedFixture: MatchFixture): Promise<MatchFixture[]> {
   const current = getStoredFixtures(tournamentId);
   const next = current.map((f) => (f.id === updatedFixture.id ? updatedFixture : f));
-  saveStoredFixtures(tournamentId, next);
+  await saveStoredFixtures(tournamentId, next);
   return next;
 }
+
 

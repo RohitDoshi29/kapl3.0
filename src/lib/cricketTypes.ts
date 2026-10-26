@@ -28,6 +28,7 @@ export interface TournamentRules {
   max_overs_per_bowler: number;
   max_wickets: number;
   negative_runs_enabled: boolean;
+  fixtures?: MatchFixture[];
 }
 
 export interface Tournament {
@@ -207,17 +208,21 @@ export type MatchType = 'group' | 'semi_final_1' | 'semi_final_2' | 'final';
 
 export interface MatchFixture {
   id: string;
-  tournamentId: string;
-  matchNumber: number;
+  tournamentId?: string;
+  matchNumber?: number;
   team1Id: string;
   team2Id: string;
   group?: 'A' | 'B';
   matchType: MatchType;
-  scheduledTime: string; // e.g. "09:30 AM"
-  scheduledDate: string; // e.g. "Day 1 - Morning" or "Today"
-  venue: string; // e.g. "Ground 1 (Pavilion End)"
+  scheduledTime?: string; // e.g. "09:30 AM"
+  scheduledDate?: string; // e.g. "Day 1 - Morning" or "Today"
+  venue?: string; // e.g. "Ground 1 (Pavilion End)"
   status: 'scheduled' | 'live' | 'completed';
   winnerTeamId?: string | null;
+  winner?: string | null;
+  team1Score?: string;
+  team2Score?: string;
+  knockoutType?: 'semi_final_1' | 'semi_final_2' | 'final';
   matchId?: string;
   summary?: string;
   notes?: string;
@@ -250,6 +255,7 @@ export interface PlayerOfTheMatchData {
 export interface Match {
   id: string;
   tournamentId?: string;
+  fixtureId?: string;
   group: 'A' | 'B';
   team1Id: string;
   team2Id: string;
