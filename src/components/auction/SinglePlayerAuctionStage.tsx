@@ -1184,109 +1184,164 @@ export function SinglePlayerAuctionStage({
 
       {/* 6. PROJECTOR / BIG SCREEN TV MODE (FOR STADIUM & HALL SCREENS) */}
       {isProjectorMode && (
-        <div className="fixed inset-0 z-50 h-[100dvh] bg-slate-950/98 backdrop-blur-2xl flex flex-col p-3 sm:p-4 md:p-8 overflow-y-auto">
-          {/* Top Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-white/10">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-                <Tv className="w-6 h-6 text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-base sm:text-xl md:text-2xl font-black text-foreground tracking-tight flex flex-wrap items-center gap-x-2">
-                  KAPL 3.0 AUCTION <span className="text-amber-400">• STADIUM STAGE</span>
-                </h2>
-                <p className="text-[11px] sm:text-xs text-muted-foreground">
-                  High-contrast live display for LED screens and hall projectors
-                </p>
-              </div>
+        <div className="fixed inset-0 z-50 h-[100dvh] bg-slate-950/98 backdrop-blur-2xl flex flex-col p-2 md:p-6 overflow-hidden">
+          {/* Compact Top Bar */}
+          <div className="flex items-center justify-between gap-3 pb-2 md:pb-3 border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Tv className="w-5 h-5 md:w-6 md:h-6 text-amber-400 shrink-0" />
+              <h2 className="text-sm md:text-lg font-black text-amber-400 tracking-tight">
+                KAPL 3.0 • LIVE STADIUM STAGE
+              </h2>
             </div>
-
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsProjectorMode(false)}
-              className="min-h-[44px] sm:min-h-9 font-bold border-white/20 text-foreground hover:bg-white/10 gap-1.5"
+              className="h-7 md:h-8 text-[11px] md:text-xs font-bold border-white/20 text-foreground hover:bg-white/10"
             >
-              <Minimize2 className="w-4 h-4" /> Exit TV Mode
+              <Minimize2 className="w-3 h-3" /> Exit
             </Button>
           </div>
 
-          {/* Huge Main Stage Display */}
-          <div className="flex-1 flex flex-col items-center justify-center my-4 sm:my-6 max-w-5xl mx-auto w-full text-center space-y-5 sm:space-y-6">
-            {/* Status Pill */}
-            {isSold && assignedTeam ? (
-              <div className="w-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 text-white p-3.5 sm:p-4 rounded-3xl font-black text-lg sm:text-2xl md:text-4xl shadow-2xl flex items-center justify-center gap-2 sm:gap-3 animate-bounce">
-                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-300 shrink-0" />
-                <span>SOLD TO {assignedTeam.name.toUpperCase()} FOR {formatMoney(player.soldPrice || player.basePrice)}!</span>
-                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-300 shrink-0" />
-              </div>
-            ) : isUnsold ? (
-              <div className="w-full bg-destructive text-destructive-foreground p-3 rounded-2xl font-black text-xl md:text-2xl shadow-lg">
-                ❌ CANDIDATE MARKED UNSOLD
-              </div>
-            ) : (
-              <Badge className="bg-amber-500 text-slate-950 font-black text-base px-6 py-1.5 rounded-full shadow-lg">
-                ● LIVE STAGE SPOTLIGHT
-              </Badge>
-            )}
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col md:flex-row items-stretch justify-center gap-4 md:gap-6 my-2 md:my-3 min-h-0">
+            {/* Left: Player Card */}
+            <div className="flex flex-col items-center justify-center flex-1 md:flex-shrink-0 md:w-1/2 space-y-2 md:space-y-3">
+              {/* Status */}
+              {isSold && assignedTeam ? (
+                <div className="w-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 text-white px-3 md:px-4 py-2 md:py-3 rounded-2xl md:rounded-3xl font-black text-sm md:text-3xl shadow-2xl flex items-center justify-center gap-1 md:gap-2 animate-bounce">
+                  <Sparkles className="w-4 h-4 md:w-7 md:h-7 text-yellow-300 shrink-0" />
+                  <span className="truncate">SOLD TO {assignedTeam.name.toUpperCase()}!</span>
+                  <Sparkles className="w-4 h-4 md:w-7 md:h-7 text-yellow-300 shrink-0" />
+                </div>
+              ) : isUnsold ? (
+                <div className="w-full bg-destructive text-destructive-foreground px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl font-black text-sm md:text-2xl shadow-lg">
+                  ❌ MARKED UNSOLD
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 bg-amber-500 text-slate-950 px-3 md:px-6 py-1 md:py-2 rounded-full font-black text-xs md:text-base shadow-lg">
+                  <Radio className="w-3 h-3 md:w-4 md:h-4 animate-pulse" />
+                  LIVE SPOTLIGHT
+                </div>
+              )}
 
-            {/* Giant Avatar & Identity */}
-            <div className="relative">
-              <Avatar className="w-48 h-48 md:w-60 md:h-60 border-4 border-amber-400 shadow-2xl rounded-full">
+              {/* Avatar */}
+              <Avatar className="w-28 h-28 md:w-48 md:h-48 border-3 md:border-4 border-amber-400 shadow-2xl rounded-full flex-shrink-0">
                 <AvatarImage src={player.photoUrl || undefined} alt={player.name} className="object-cover" />
-                <AvatarFallback className="bg-amber-500/20 text-amber-400 text-6xl font-black">
+                <AvatarFallback className="bg-amber-500/20 text-amber-400 text-3xl md:text-6xl font-black">
                   {(player.name || 'P').slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               {player.jerseyNumber && (
-                <Badge className="absolute bottom-2 right-4 bg-slate-950 border-2 border-amber-400 text-amber-300 font-mono text-base font-black px-3 py-1 rounded-full">
+                <Badge className="absolute bottom-20 md:bottom-40 right-16 md:right-32 bg-slate-950 border-2 border-amber-400 text-amber-300 font-mono text-xs md:text-base font-black px-2 md:px-3 py-0.5 md:py-1 rounded-full">
                   #{player.jerseyNumber}
                 </Badge>
               )}
-            </div>
 
-            <div>
-              <div className="mb-2">{getRoleBadge(player.role)}</div>
-              <h1 className="text-4xl md:text-6xl font-black text-foreground tracking-tight">
-                {player.name}
-              </h1>
-              <div className="flex items-center justify-center gap-4 text-sm md:text-base text-muted-foreground mt-2">
-                {player.battingStyle && <span>🏏 {player.battingStyle}</span>}
-                {player.bowlingStyle && <span>⚡ {player.bowlingStyle}</span>}
+              {/* Player Info */}
+              <div className="text-center">
+                <div className="mb-1 md:mb-2 flex justify-center">{getRoleBadge(player.role)}</div>
+                <h1 className="text-2xl md:text-5xl font-black text-foreground tracking-tight truncate max-w-full px-1">
+                  {player.name}
+                </h1>
+                <div className="flex items-center justify-center gap-2 md:gap-4 text-xs md:text-base text-muted-foreground mt-1 md:mt-2 flex-wrap">
+                  {player.battingStyle && <span>🏏 {player.battingStyle}</span>}
+                  {player.bowlingStyle && <span>⚡ {player.bowlingStyle}</span>}
+                </div>
+              </div>
+
+              {/* Base & Current Bid */}
+              <div className="w-full space-y-2 md:space-y-3">
+                <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-2xl md:rounded-3xl px-3 md:px-6 py-2 md:py-4 shadow-2xl">
+                  <span className="text-[10px] md:text-xs text-amber-400 uppercase font-black tracking-wider block">
+                    Base Value
+                  </span>
+                  <span className="text-2xl md:text-5xl font-black text-amber-400 font-mono">
+                    {formatMoney(player.basePrice)}
+                  </span>
+                </div>
+
+                {currentBid && currentBid > player.basePrice && (
+                  <div className="bg-gradient-to-r from-cyan-500/15 via-cyan-500/10 to-cyan-500/15 border-2 border-cyan-500/40 rounded-2xl md:rounded-3xl px-3 md:px-6 py-2 md:py-4 shadow-2xl animate-pulse">
+                    <span className="text-[10px] md:text-xs text-cyan-400 uppercase font-black tracking-wider block">
+                      Current Bid
+                    </span>
+                    <span className="text-2xl md:text-5xl font-black text-cyan-400 font-mono">
+                      {formatMoney(currentBid)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Giant Base Price Box */}
-            <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-3xl p-4 sm:p-6 px-6 sm:px-12 shadow-2xl max-w-full">
-              <span className="text-xs md:text-sm text-amber-400 uppercase font-black tracking-widest block mb-1">
-                Official Base Value
-              </span>
-              <span className="text-4xl md:text-6xl font-black text-amber-400 font-mono">
-                {formatMoney(player.basePrice)}
-              </span>
+            {/* Right: Teams & Upcoming */}
+            <div className="flex flex-col gap-2 md:gap-3 flex-1 md:flex-shrink-0 md:w-1/2 min-h-0">
+              {/* Teams Purses - Scrollable on mobile, grid on desktop */}
+              <div className="flex-1 min-h-0 flex flex-col">
+                <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-black tracking-wider mb-1.5 md:mb-2 shrink-0">
+                  FRANCHISE WALLETS
+                </p>
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-1 md:gap-2 auto-rows-min">
+                    {teams.map((t) => {
+                      const squadCount = t.players?.length || 0;
+                      const purse = t.remainingPurse !== undefined && squadCount === 0
+                        ? (t.initialPurse || 10000)
+                        : (t.remainingPurse ?? 10000);
+                      const isLeading = highestBidderTeamId === t.id && !isSold;
+                      return (
+                        <div
+                          key={t.id}
+                          className={`p-1.5 md:p-2 rounded-lg md:rounded-xl text-center transition-all ${
+                            isLeading
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500/60 shadow-lg shadow-cyan-500/20'
+                              : 'bg-white/[0.04] border border-white/10'
+                          }`}
+                        >
+                          <p className="text-[10px] md:text-xs font-bold truncate text-foreground">{t.name}</p>
+                          <p className={`text-xs md:text-sm font-mono font-black mt-0.5 ${isLeading ? 'text-cyan-400' : 'text-amber-400'}`}>
+                            {formatMoney(purse)}
+                          </p>
+                          <p className="text-[9px] md:text-[10px] text-muted-foreground">{squadCount}/10</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Upcoming Queue */}
+              {upcomingCandidates.length > 0 && (
+                <div className="shrink-0 border-t border-white/10 pt-2 md:pt-3">
+                  <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-black tracking-wider mb-1.5 md:mb-2">
+                    NEXT IN QUEUE
+                  </p>
+                  <div className="flex flex-col gap-1 md:gap-1.5 max-h-24 md:max-h-32 overflow-y-auto">
+                    {upcomingCandidates.map((p, idx) => (
+                      <div key={p.id} className="flex items-center gap-1.5 md:gap-2 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/10 text-xs md:text-sm">
+                        <span className="font-black text-amber-400 text-[10px] md:text-xs">{idx + 1}.</span>
+                        <span className="font-bold truncate flex-1">{p.name}</span>
+                        <span className="text-muted-foreground shrink-0 text-[9px] md:text-xs">
+                          {formatMoney(p.basePrice)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Bottom Live Team Purses Ribbon */}
-          <div className="border-t border-white/10 pt-4">
-            <p className="text-[11px] text-muted-foreground uppercase font-black tracking-wider mb-2.5 text-center">
-              Franchise Wallet Balances & Squad Quotas
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              {teams.map((t) => {
-                const squadCount = t.players?.length || 0;
-                const purse = t.remainingPurse !== undefined && squadCount === 0
-                  ? (t.initialPurse || 10000)
-                  : (t.remainingPurse ?? 10000);
-                return (
-                  <div key={t.id} className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-center">
-                    <p className="text-xs font-bold truncate text-foreground">{t.name}</p>
-                    <p className="text-sm font-mono font-black text-amber-400 mt-0.5">{formatMoney(purse)}</p>
-                    <p className="text-[10px] text-muted-foreground">{squadCount}/10 Squad</p>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Bottom info bar */}
+          <div className="border-t border-white/10 pt-1.5 md:pt-2 shrink-0 text-center text-[10px] md:text-xs text-muted-foreground font-semibold">
+            {isSold && assignedTeam
+              ? `${player.name} acquired by ${assignedTeam.name} for ${formatMoney(player.soldPrice || player.basePrice)}`
+              : isUnsold
+              ? `${player.name} remains unsold`
+              : currentBid && highestBidderTeamId
+              ? `Current leading bid: ${formatMoney(currentBid)} by ${teams.find(t => t.id === highestBidderTeamId)?.name || 'Team'}`
+              : `Accepting bids for ${player.name} • Base: ${formatMoney(player.basePrice)}`
+            }
           </div>
         </div>
       )}
